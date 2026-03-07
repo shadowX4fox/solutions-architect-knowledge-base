@@ -1,0 +1,20 @@
+name = "document-embedder"
+main = "src/index.ts"
+compatibility_date = "2025-03-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[r2_buckets]]
+binding = "R2_DOCS"
+bucket_name = "solution-docs"
+
+[ai]
+binding = "AI"
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "solution-docs-index"
+
+[[queues.consumers]]
+queue = "docs-upload-events"
+max_batch_size = 5
+max_retries = 3
