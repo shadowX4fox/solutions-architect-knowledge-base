@@ -19,6 +19,11 @@ import io.github.shadowx4fox.archindex.bundle.BundleStore.Outcome;
 import io.github.shadowx4fox.archindex.bundle.J;
 import io.github.shadowx4fox.archindex.bundle.Semver;
 import io.github.shadowx4fox.archindex.changes.BundleDiff;
+import io.github.shadowx4fox.archindex.index.Embedder;
+import io.github.shadowx4fox.archindex.index.FileVectorIndex;
+import io.github.shadowx4fox.archindex.index.Indexer;
+import io.github.shadowx4fox.archindex.index.SparseEncoder;
+import io.github.shadowx4fox.archindex.index.VectorIndex;
 
 class BundleTest {
 
@@ -157,6 +162,38 @@ class BundleTest {
 		assertThatThrownBy(() -> s.publish("order-desk", "1.0.0", "released", Files.newInputStream(evil)))
 			.isInstanceOfSatisfying(BundleStore.Rejected.class, (e) -> assertThat(e.getMessage()).contains("leaves the bundle"));
 		assertThat(tmp.resolve("data/.incoming/escape.txt")).doesNotExist();
+	}
+
+	@Test
+	void theFileIndexOutlivesARestartAndRefusesAnotherModelsSize() throws Exception {
+		BundleStore s = new BundleStore(tmp.resolve("data"), 50_000_000);
+		publish(s, "order-desk", "1.3.0", "released", Fixtures.bundle("1.3.0"));
+		publish(s, "order-desk", "1.4.0", "draft", Fixtures.bundle("draft"));
+		Path file = tmp.resolve("data/index/vectors-1024.bin");
+		var first = new FileVectorIndex(file, 1024);
+		Indexer.SlotState released = reconcile(s, first).state("order-desk", "1.3.0");
+		assertThat(released.status()).isEqualTo(Indexer.Status.READY);
+		assertThat(released.embedded()).isEqualTo(22);
+		assertThat(file).exists();
+		// a restart reads the file: the release is taken as held, the draft reuses every vector it shares with it
+		var again = new FileVectorIndex(file, 1024);
+		Indexer restarted = reconcile(s, again);
+		assertThat(restarted.state("order-desk", "1.3.0").embedded()).isZero();
+		assertThat(restarted.state("order-desk", "draft").status()).isEqualTo(Indexer.Status.READY);
+		assertThat(again.count("order-desk", "1.3.0")).isEqualTo(first.count("order-desk", "1.3.0"));
+		var q = new VectorIndex.Query(Fixtures.HashingEmbeddingModel.vector("ledger store"),
+				new SparseEncoder().query("ledger store"), List.of(new VectorIndex.Scope("order-desk", "1.3.0")), null,
+				null, 5, 50, 0.3);
+		assertThat(again.search(q)).isEqualTo(first.search(q));
+		assertThatThrownBy(() -> new FileVectorIndex(file, 768).ensure()).hasMessageContaining("1024-dimension");
+	}
+
+	private static Indexer reconcile(BundleStore s, VectorIndex index) throws Exception {
+		var cfg = new io.github.shadowx4fox.archindex.ArchIndexProperties.Embedding("q: ", "", 1024, 32, 0);
+		Indexer indexer = new Indexer(s, index, new Embedder(new Fixtures.HashingEmbeddingModel(), cfg, "stand-in"),
+				new SparseEncoder());
+		indexer.reconcileAll().get();
+		return indexer;
 	}
 
 	private static BundleStore.Published publish(BundleStore s, String key, String version, String channel, Path dir) {

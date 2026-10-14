@@ -210,6 +210,11 @@ public class QdrantVectorIndex implements VectorIndex, AutoCloseable {
 	}
 
 	@Override
+	public boolean persistent() {
+		return true;
+	}
+
+	@Override
 	public String describe() {
 		return "qdrant collection " + collection;
 	}

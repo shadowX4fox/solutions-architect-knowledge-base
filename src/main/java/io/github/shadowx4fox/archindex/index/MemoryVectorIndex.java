@@ -21,7 +21,7 @@ public class MemoryVectorIndex implements VectorIndex {
 
 	private static final int RRF_K = 60;
 
-	private final Map<String, Point> points = new ConcurrentHashMap<>();
+	protected final Map<String, Point> points = new ConcurrentHashMap<>();
 
 	@Override
 	public void ensure() {

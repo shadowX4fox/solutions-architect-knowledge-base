@@ -66,11 +66,25 @@ The rules:
 ## Run
 
 ```bash
-./mvnw test                                   # 13 tests; no Qdrant or Ollama needed (in-memory index, stand-in model)
+./mvnw test                                   # 14 tests; no Qdrant or Ollama needed (in-memory index, stand-in model)
 ./mvnw package -DskipTests
 ollama pull qwen3-embedding:0.6b               # the default model; see eval/README.md for how it was chosen
 ./qdrant                                      # or: docker compose -f deploy/compose.yaml up -d
 ARCHINDEX_INGEST_TOKEN=… java -jar target/architecture-index-server-0.1.0-SNAPSHOT.jar
+```
+
+**Without Qdrant.** `ARCHINDEX_STORE` picks the engine behind `search_architecture`; only Ollama is still needed.
+
+| Engine | Where the vectors live | At start | For |
+|---|---|---|---|
+| `qdrant` | the Qdrant collection | a released slot already held is ready | a shared server |
+| `file` | one file, `<data-dir>/index/vectors-<dimensions>.bin` (`ARCHINDEX_FILE_PATH`) | read from the file; a released slot already held is ready | one machine, local runs |
+| `memory` | the process | everything re-embedded | tests and throwaway runs |
+
+`file` and `memory` search in process by brute force, with the same fusion as Qdrant (cosine dense, idf-weighted sparse, weighted RRF). The file is written whole after each indexing pass and refuses a model of another dimension, as the collection does.
+
+```bash
+ARCHINDEX_STORE=file java -jar target/architecture-index-server-0.1.0-SNAPSHOT.jar
 ```
 
 **Model.** `qwen3-embedding:0.6b`: 32K context, so every chunk the export cuts fits, multilingual, Apache 2.0 upstream, 1,024 dimensions. On the eval it ties the other candidates on ordinary questions and leads on answers deep in long chunks (eval/README.md).
@@ -81,7 +95,8 @@ ARCHINDEX_INGEST_TOKEN=… java -jar target/architecture-index-server-0.1.0-SNAP
 
 | Setting | Default | |
 |---|---|---|
-| `ARCHINDEX_STORE` | `qdrant` | `memory` for development: brute force in process, re-embeds at start |
+| `ARCHINDEX_STORE` | `qdrant` | `file`: in process, kept in one file, no Qdrant · `memory`: in process, re-embeds at start |
+| `ARCHINDEX_FILE_PATH` | `<data-dir>/index/vectors-<dimensions>.bin` | the `file` engine's file |
 | `ARCHINDEX_EMBEDDING_MODEL` | `qwen3-embedding:0.6b` | Ollama tag. Another model needs its prompts (`ARCHINDEX_EMBEDDING_QUERYPREFIX`, `…_DOCUMENTPREFIX`), its dimensions and a new collection |
 | `ARCHINDEX_EMBEDDING_DIMENSIONS` | `1024` | the model's output size |
 | `ARCHINDEX_EMBEDDING_CONTEXT` | `8192` | tokens Ollama reads per chunk |

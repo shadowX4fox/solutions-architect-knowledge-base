@@ -9,18 +9,31 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties("archindex")
 public record ArchIndexProperties(Path dataDir, String ingestToken, String mcpToken, long maxBundleBytes,
-		Store store, Qdrant qdrant, Embedding embedding, Search search) {
+		Store store, Qdrant qdrant, File file, Embedding embedding, Search search) {
 
 	public enum Store {
 
 		/** Qdrant over gRPC: dense + sparse named vectors, fused by RRF. */
 		QDRANT,
+		/** In process, brute force, kept in one file: a single machine without Qdrant. Re-embeds nothing at start. */
+		FILE,
 		/** In process, brute force: development and tests. Re-embeds every bundle at start. */
 		MEMORY
 
 	}
 
 	public record Qdrant(String host, int port, boolean tls, String apiKey, String collection) {
+	}
+
+	/** {@code path} unset: {@code <data-dir>/index/vectors-<dimensions>.bin}, one file per model size. */
+	public record File(Path path) {
+
+		public File {
+			if (path != null && path.toString().isBlank()) {
+				path = null;
+			}
+		}
+
 	}
 
 	/**
@@ -53,6 +66,9 @@ public record ArchIndexProperties(Path dataDir, String ingestToken, String mcpTo
 		}
 		if (qdrant == null) {
 			qdrant = new Qdrant("localhost", 6334, false, null, "architecture");
+		}
+		if (file == null) {
+			file = new File(null);
 		}
 		if (embedding == null) {
 			embedding = new Embedding(QWEN3_QUERY, "", 1024, 32, 8192);

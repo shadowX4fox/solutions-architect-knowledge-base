@@ -48,8 +48,6 @@ public class Indexer implements AutoCloseable {
 
 	private final SparseEncoder sparse;
 
-	private final boolean trustExisting;
-
 	private final Map<String, SlotState> states = new ConcurrentHashMap<>();
 
 	private final ExecutorService worker = Executors.newSingleThreadExecutor((r) -> {
@@ -58,16 +56,11 @@ public class Indexer implements AutoCloseable {
 		return t;
 	});
 
-	/**
-	 * @param trustExisting a persistent store that already holds a released slot's points at start is taken as ready
-	 * (a released version's chunks never change); the in-memory store holds nothing at start.
-	 */
-	public Indexer(BundleStore store, VectorIndex index, Embedder embedder, SparseEncoder sparse, boolean trustExisting) {
+	public Indexer(BundleStore store, VectorIndex index, Embedder embedder, SparseEncoder sparse) {
 		this.store = store;
 		this.index = index;
 		this.embedder = embedder;
 		this.sparse = sparse;
-		this.trustExisting = trustExisting;
 	}
 
 	public static String slot(Bundle b) {
@@ -93,6 +86,7 @@ public class Indexer implements AutoCloseable {
 		return worker.submit(() -> {
 			try {
 				index.ensure();
+				log.info("vector index: {}", index.describe());
 			}
 			catch (RuntimeException e) {
 				// the store cannot be used as configured (unreachable, or made for another model): every slot says why
@@ -147,6 +141,7 @@ public class Indexer implements AutoCloseable {
 			}
 			indexSlot(b, startup);
 		}
+		safely(index::flush);
 	}
 
 	private void indexSlot(Bundle b, boolean startup) {
@@ -155,7 +150,7 @@ public class Indexer implements AutoCloseable {
 		String sig = b.chunkSignature();
 		List<Chunk> chunks = b.chunks();
 		try {
-			if (startup && trustExisting && b.released() && index.count(project, slot) == chunks.size()) {
+			if (startup && index.persistent() && b.released() && index.count(project, slot) == chunks.size()) {
 				states.put(key(project, slot), new SlotState(Status.READY, sig, chunks.size(), 0, chunks.size(), null, Instant.now()));
 				return;
 			}

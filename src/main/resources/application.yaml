@@ -41,6 +41,9 @@ archindex:
     tls: ${QDRANT_TLS:false}
     api-key: ${QDRANT_API_KEY:}
     collection: ${QDRANT_COLLECTION:architecture-qwen3-0.6b-1024}
+  file:
+    # store: file — unset, <data-dir>/index/vectors-<dimensions>.bin
+    path: ${ARCHINDEX_FILE_PATH:}
   embedding:
     # the model's task prompts; Ollama adds none. Qwen3-Embedding: an instruction on the query, nothing on documents.
     # EmbeddingGemma instead: query "task: search result | query: ", document "title: {title} | text: ", 768 dimensions.

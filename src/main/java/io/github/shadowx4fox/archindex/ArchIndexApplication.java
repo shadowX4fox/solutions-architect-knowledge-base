@@ -16,6 +16,7 @@ import io.github.shadowx4fox.archindex.build.BuildPackService;
 import io.github.shadowx4fox.archindex.bundle.BundleStore;
 import io.github.shadowx4fox.archindex.changes.ChangesService;
 import io.github.shadowx4fox.archindex.index.Embedder;
+import io.github.shadowx4fox.archindex.index.FileVectorIndex;
 import io.github.shadowx4fox.archindex.index.Indexer;
 import io.github.shadowx4fox.archindex.index.MemoryVectorIndex;
 import io.github.shadowx4fox.archindex.index.QdrantVectorIndex;
@@ -44,8 +45,13 @@ public class ArchIndexApplication {
 
 	@Bean
 	VectorIndex vectorIndex(ArchIndexProperties p) {
-		return p.store() == ArchIndexProperties.Store.MEMORY ? new MemoryVectorIndex()
-				: new QdrantVectorIndex(p.qdrant(), p.embedding().dimensions());
+		return switch (p.store()) {
+			case QDRANT -> new QdrantVectorIndex(p.qdrant(), p.embedding().dimensions());
+			case FILE -> new FileVectorIndex(p.file().path() != null ? p.file().path()
+					: p.dataDir().resolve("index").resolve("vectors-" + p.embedding().dimensions() + ".bin"),
+					p.embedding().dimensions());
+			case MEMORY -> new MemoryVectorIndex();
+		};
 	}
 
 	@Bean
@@ -61,7 +67,7 @@ public class ArchIndexApplication {
 
 	@Bean
 	Indexer indexer(BundleStore store, VectorIndex index, Embedder embedder, SparseEncoder sparse, ArchIndexProperties p) {
-		return new Indexer(store, index, embedder, sparse, p.store() == ArchIndexProperties.Store.QDRANT);
+		return new Indexer(store, index, embedder, sparse);
 	}
 
 	@Bean
@@ -112,10 +118,7 @@ public class ArchIndexApplication {
 
 	@EventListener(ApplicationReadyEvent.class)
 	void indexOnStart(ApplicationReadyEvent e) {
-		Indexer indexer = e.getApplicationContext().getBean(Indexer.class);
-		VectorIndex index = e.getApplicationContext().getBean(VectorIndex.class);
-		log.info("vector index: {}", index.describe());
-		indexer.reconcileAll();
+		e.getApplicationContext().getBean(Indexer.class).reconcileAll();
 	}
 
 }

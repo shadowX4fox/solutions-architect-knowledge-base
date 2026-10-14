@@ -40,6 +40,18 @@ public interface VectorIndex {
 	/** Dense and sparse candidates under the scopes and filters, fused by weighted reciprocal rank (dense 1, sparse {@code sparseWeight}). */
 	List<Hit> search(Query query);
 
+	/**
+	 * Whether the points outlive the process. At start the indexer takes a released slot a persistent store already
+	 * holds in full as ready (a released version's chunks never change); a volatile store is re-embedded.
+	 */
+	default boolean persistent() {
+		return false;
+	}
+
+	/** Makes what was written durable; called when the indexer finishes a project. */
+	default void flush() {
+	}
+
 	String describe();
 
 }
