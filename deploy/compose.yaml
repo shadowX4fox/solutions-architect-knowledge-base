@@ -1,6 +1,7 @@
 # The server with its two dependencies, self-hosted: no architecture text leaves the network.
 #   docker compose -f deploy/compose.yaml up -d
 #   docker compose -f deploy/compose.yaml exec ollama ollama pull embeddinggemma-2:270m
+# EmbeddingGemma 2 needs Ollama's MLX runtime; without it, set ARCHINDEX_EMBEDDING_MODEL=embeddinggemma:latest (v1).
 # Set ARCHINDEX_INGEST_TOKEN (the pipelines' SA_INDEX_TOKEN) and ARCHINDEX_MCP_TOKEN in the environment or an .env file.
 services:
   server:

@@ -65,15 +65,17 @@ The rules:
 ```bash
 ./mvnw test                                   # 13 tests; no Qdrant or Ollama needed (in-memory index, stand-in model)
 ./mvnw package -DskipTests
-ollama pull embeddinggemma-2:270m             # needs a recent Ollama; 270m is the text-only tag
+ollama pull embeddinggemma-2:270m             # 270m is the text-only tag; see the note below on MLX
 ./qdrant                                      # or: docker compose -f deploy/compose.yaml up -d
 ARCHINDEX_INGEST_TOKEN=… java -jar target/architecture-index-server-0.1.0-SNAPSHOT.jar
 ```
 
+**EmbeddingGemma 2 needs Ollama's MLX runtime.** On Ollama 0.40.4 on Linux without it, every `embeddinggemma-2` tag fails to pull with `this model requires MLX support, but the MLX runtime is not available` (checked 2026-10-14). Run it where Ollama has MLX, or set `ARCHINDEX_EMBEDDING_MODEL=embeddinggemma:latest`; the live checks ran on v1. A model switch re-embeds the collection: point `QDRANT_COLLECTION` at a new name.
+
 | Setting | Default | |
 |---|---|---|
 | `ARCHINDEX_STORE` | `qdrant` | `memory` for development: brute force in process, re-embeds at start |
-| `ARCHINDEX_EMBEDDING_MODEL` | `embeddinggemma-2:270m` | Ollama tag. 440m adds vision, 570m audio, 740m both; the retrieval eval picks |
+| `ARCHINDEX_EMBEDDING_MODEL` | `embeddinggemma-2:270m` | Ollama tag. 440m adds vision, 570m audio, 740m both; the retrieval eval picks. `embeddinggemma:latest` (v1, same 768 dimensions and prompts) runs anywhere |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | |
 | `QDRANT_HOST` · `QDRANT_GRPC_PORT` · `QDRANT_API_KEY` · `QDRANT_TLS` · `QDRANT_COLLECTION` | `localhost` · `6334` · – · `false` · `architecture` | |
 | `ARCHINDEX_INGEST_TOKEN` | unset (open, warned) | bearer token for `/bundles/**` |
