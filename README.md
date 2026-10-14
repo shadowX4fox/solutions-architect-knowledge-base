@@ -85,6 +85,7 @@ ARCHINDEX_INGEST_TOKEN=… java -jar target/architecture-index-server-0.1.0-SNAP
 
 ```bash
 ARCHINDEX_STORE=file java -jar target/architecture-index-server-0.1.0-SNAPSHOT.jar
+docker compose -f deploy/compose.yaml --profile file up -d server-file   # or in containers: the server and Ollama, no Qdrant
 ```
 
 **Model.** `qwen3-embedding:0.6b`: 32K context, so every chunk the export cuts fits, multilingual, Apache 2.0 upstream, 1,024 dimensions. On the eval it ties the other candidates on ordinary questions and leads on answers deep in long chunks (eval/README.md).
