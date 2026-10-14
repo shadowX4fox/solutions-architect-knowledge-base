@@ -69,7 +69,7 @@ public final class Fixtures {
 	}
 
 	/**
-	 * A deterministic stand-in for EmbeddingGemma: the sparse encoder's terms hashed into 768 dimensions. Shared words
+	 * A deterministic stand-in for the embedding model: the sparse encoder's terms hashed into 1,024 dimensions. Shared words
 	 * make vectors close, which is enough to test the pipeline without a model.
 	 */
 	public static class HashingEmbeddingModel implements EmbeddingModel {
@@ -93,12 +93,12 @@ public final class Fixtures {
 		}
 
 		static float[] vector(String text) {
-			float[] v = new float[768];
+			float[] v = new float[1024];
 			SparseEncoder.SparseVec s = new SparseEncoder().document(text);
 			for (int i = 0; i < s.indices().length; i++) {
-				v[s.indices()[i] % 768] += s.values()[i];
+				v[s.indices()[i] % 1024] += s.values()[i];
 			}
-			v[767] += 0.01f;
+			v[1023] += 0.01f;
 			return v;
 		}
 

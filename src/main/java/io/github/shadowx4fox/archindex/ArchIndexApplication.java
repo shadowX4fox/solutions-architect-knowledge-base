@@ -54,8 +54,9 @@ public class ArchIndexApplication {
 	}
 
 	@Bean
-	Embedder embedder(EmbeddingModel model, ArchIndexProperties p) {
-		return new Embedder(model, p.embedding());
+	Embedder embedder(EmbeddingModel model, ArchIndexProperties p,
+			@Value("${spring.ai.ollama.embedding.options.model:qwen3-embedding:0.6b}") String modelName) {
+		return new Embedder(model, p.embedding(), modelName);
 	}
 
 	@Bean

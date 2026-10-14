@@ -6,7 +6,7 @@ It serves the `sa-index/1` bundles that the [solutions-architect-skills](https:/
 
 ```
 architecture repo ──tag──▶ CI: export-index.js ──POST /bundles/{key}/{version}──▶ server ──▶ Qdrant (dense + sparse)
-                                                                                  │  ├──▶ Ollama: EmbeddingGemma 2
+                                                                                  │  ├──▶ Ollama: Qwen3-Embedding 0.6B
 IDE (VS Code · JetBrains) ◀──── MCP, Streamable HTTP /mcp ────────────────────────┘  └──▶ bundles on disk (ledger, packs)
 ```
 
@@ -24,7 +24,7 @@ Every capability is a tool, because every IDE client supports tools while prompt
 | `list_integrations` | ledger | the `I-nn` inventory, whole or naming one component (From/To as written, never a guessed direction) |
 | `list_flows` · `get_flow` | ledger | flows by number, name or `UC-nn`, each phase with hops and latency budget |
 | `list_decisions` | ledger | ADRs or TDRs, by status |
-| `search_architecture` | Qdrant | reasons and explanations: dense + sparse (exact ids such as `ADR-112`, `I-07`) fused by RRF; each hit has file, lines, anchor, version |
+| `search_architecture` | Qdrant | reasons and explanations: dense + sparse (exact ids such as `ADR-112`, `I-07`) fused by weighted RRF; each hit has file, lines, anchor, version |
 | `get_chunk` | bundle | the whole text of a hit |
 | `get_build_pack` | pack | the index: parts, ordered plan, interfaces both ways, flows, open questions |
 | `get_build_instructions` | pack | `BUILD.md`: the `.architecture.json` binding, the rules, plan and done list |
@@ -53,31 +53,41 @@ The rules:
 
 ## Indexing
 
-- One Qdrant collection for every project. Each point carries a named dense vector (`dense`, cosine, 768) and a named sparse vector (`sparse`, Qdrant's `idf` modifier), with keyword payload indexes on `project`, `slot`, `kind`, `components`, `adrs`, `content_hash`, `doc_language` and `chunk_id`.
+- One Qdrant collection for every project. Each point carries a named dense vector (`dense`, cosine, 1,024) and a named sparse vector (`sparse`, Qdrant's `idf` modifier), with keyword payload indexes on `project`, `slot`, `kind`, `components`, `adrs`, `content_hash`, `doc_language` and `chunk_id`.
 - A slot is a released version or the draft. The store keeps no text: a hit resolves against the bundle on disk.
 - A chunk whose text the project has already embedded reuses that vector. Chunk ids hold across releases, so a release re-embeds only what it changed. On the fixture, 1.4.0 re-embeds 5 of 22 chunks.
 - At start, a released slot whose points are already in Qdrant is taken as ready.
 - Indexing runs on one background thread. `search_architecture` reports a slot that is not ready yet, while the ledger and build-pack tools answer for it at once.
-- Embedding prompts follow EmbeddingGemma's format: documents as `title: {title} | text: …`, queries as `task: search result | query: …`. Ollama adds none, so both are settings.
+- The fusion weighs the dense list 1 and the sparse list `ARCHINDEX_SPARSE_WEIGHT` (0.3). At equal weight the exact-term list cost ordinary questions their best hit; at 0.3 identifiers still come first (eval/README.md).
+- Embedding prompts are the model's: Qwen3-Embedding takes an instruction on the query and nothing on documents. Ollama adds none, so both are settings.
+- The window Ollama reads (`ARCHINDEX_EMBEDDING_CONTEXT`, 8192) goes on every request. Spring AI 2.0.1 drops `spring.ai.ollama.embedding.options.num-ctx`, and without it Ollama loads the model at 4096 and cuts a long chunk silently.
+- A collection created for one model refuses a model of another dimension at start, and every slot reports why. A model switch takes a new `QDRANT_COLLECTION`.
 
 ## Run
 
 ```bash
 ./mvnw test                                   # 13 tests; no Qdrant or Ollama needed (in-memory index, stand-in model)
 ./mvnw package -DskipTests
-ollama pull embeddinggemma-2:270m             # 270m is the text-only tag; see the note below on MLX
+ollama pull qwen3-embedding:0.6b               # the default model; see eval/README.md for how it was chosen
 ./qdrant                                      # or: docker compose -f deploy/compose.yaml up -d
 ARCHINDEX_INGEST_TOKEN=… java -jar target/architecture-index-server-0.1.0-SNAPSHOT.jar
 ```
 
-**EmbeddingGemma 2 needs Ollama's MLX runtime.** On Ollama 0.40.4 on Linux without it, every `embeddinggemma-2` tag fails to pull with `this model requires MLX support, but the MLX runtime is not available` (checked 2026-10-14). Run it where Ollama has MLX, or set `ARCHINDEX_EMBEDDING_MODEL=embeddinggemma:latest`; the live checks ran on v1. A model switch re-embeds the collection: point `QDRANT_COLLECTION` at a new name.
+**Model.** `qwen3-embedding:0.6b`: 32K context, so every chunk the export cuts fits, multilingual, Apache 2.0 upstream, 1,024 dimensions. On the eval it ties the other candidates on ordinary questions and leads on answers deep in long chunks (eval/README.md).
+
+**GPU.** Ollama uses the GPU on its own: CUDA, or ROCm 7 on AMD (`ollama ps` shows `100% GPU`). On an AMD Radeon RX 9060 XT it embeds about 19 chunks a second; on that machine's CPU, 1.1. A full index of a large architecture is minutes on a GPU and tens of minutes on a CPU, and a release re-embeds only the chunks it changed.
+
+**EmbeddingGemma 2 does not run here.** Every `embeddinggemma-2` tag needs Ollama's MLX runtime, which the Linux package does not ship (Ollama 0.40.4, checked 2026-10-14): `this model requires MLX support, but the MLX runtime is not available`.
 
 | Setting | Default | |
 |---|---|---|
 | `ARCHINDEX_STORE` | `qdrant` | `memory` for development: brute force in process, re-embeds at start |
-| `ARCHINDEX_EMBEDDING_MODEL` | `embeddinggemma-2:270m` | Ollama tag. 440m adds vision, 570m audio, 740m both; the retrieval eval picks. `embeddinggemma:latest` (v1, same 768 dimensions and prompts) runs anywhere |
+| `ARCHINDEX_EMBEDDING_MODEL` | `qwen3-embedding:0.6b` | Ollama tag. Another model needs its prompts (`ARCHINDEX_EMBEDDING_QUERYPREFIX`, `…_DOCUMENTPREFIX`), its dimensions and a new collection |
+| `ARCHINDEX_EMBEDDING_DIMENSIONS` | `1024` | the model's output size |
+| `ARCHINDEX_EMBEDDING_CONTEXT` | `8192` | tokens Ollama reads per chunk |
+| `ARCHINDEX_SPARSE_WEIGHT` | `0.3` | the sparse list's weight in the fusion |
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | |
-| `QDRANT_HOST` · `QDRANT_GRPC_PORT` · `QDRANT_API_KEY` · `QDRANT_TLS` · `QDRANT_COLLECTION` | `localhost` · `6334` · – · `false` · `architecture` | |
+| `QDRANT_HOST` · `QDRANT_GRPC_PORT` · `QDRANT_API_KEY` · `QDRANT_TLS` · `QDRANT_COLLECTION` | `localhost` · `6334` · – · `false` · `architecture-qwen3-0.6b-1024` | |
 | `ARCHINDEX_INGEST_TOKEN` | unset (open, warned) | bearer token for `/bundles/**` |
 | `ARCHINDEX_MCP_TOKEN` | unset (open, warned) | bearer token for `/mcp`, until the identity provider is wired |
 | `ARCHINDEX_DATA_DIR` | `data` | bundles on disk |
@@ -123,5 +133,5 @@ To regenerate the fixtures after a bundle schema change: `SA_SKILLS_DIR=<plugin 
 |---|---|
 | Sign-in through the bank's identity provider, permissions per project | open; bearer tokens until then |
 | The bank's service template (skeleton, libraries, CI) | outside the architecture; `BUILD.md` rule 6 points the agent to it |
-| Retrieval eval | a few questions mapped to expected chunk ids, recall@5. It picks the EmbeddingGemma 2 tag and decides whether Gemini Embedding 2 is worth sending text out |
+| Retrieval eval on a real architecture | `eval/` measures on a synthetic one; a released bank architecture, measured inside the bank, confirms the model and the sparse weight |
 | Open questions back to the architect | later; the server stays read-only |

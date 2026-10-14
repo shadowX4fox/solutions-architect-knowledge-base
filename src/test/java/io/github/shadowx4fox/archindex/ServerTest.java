@@ -151,6 +151,10 @@ class ServerTest {
 	void publishingFollowsTheContractTheCiScriptCalls() throws Exception {
 		byte[] search130 = Fixtures.tgz(Fixtures.bundle("1.3.0-search"));
 		assertThat(post("/bundles/order-desk/1.3.0?channel=released", search130, null).statusCode()).isEqualTo(401);
+		HttpResponse<String> form = http.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/bundles/order-desk/1.3.0?channel=released"))
+			.header("Authorization", "Bearer ci-token").header("Content-Type", "application/x-www-form-urlencoded")
+			.POST(HttpRequest.BodyPublishers.ofByteArray(search130)).build(), HttpResponse.BodyHandlers.ofString());
+		assertThat(form.statusCode()).isEqualTo(415);
 		assertThat(post("/bundles/order-desk/1.3.0?channel=released", search130, "ci-token").statusCode()).isEqualTo(201);
 		assertThat(post("/bundles/order-desk/1.3.0?channel=released", Fixtures.tgz(Fixtures.bundle("1.3.0")), "ci-token").statusCode()).isEqualTo(200);
 		HttpResponse<String> mismatch = post("/bundles/order-desk/9.9.9?channel=released", Fixtures.tgz(Fixtures.bundle("1.4.0")), "ci-token");
@@ -222,10 +226,10 @@ class ServerTest {
 		assertThat(J.maps(draft, "hits").get(0)).containsEntry("channel", "draft");
 		String chunkId = J.str(hits.get(0), "chunk_id");
 		assertThat(tool("get_chunk", Map.of("project", "order-desk", "chunkId", chunkId))).containsEntry("chunk_id", chunkId);
-		// the query went to the model with EmbeddingGemma's query prompt; the documents with their title prompt
+		// the query went to the model with Qwen3-Embedding's instruction; documents go as they are
 		List<String> seen = ((Fixtures.HashingEmbeddingModel) model).seen;
-		assertThat(seen).anyMatch((t) -> t.startsWith("task: search result | query: ADR-101"));
-		assertThat(seen).anyMatch((t) -> t.startsWith("title: Idempotency keys on every write | text: Order Desk"));
+		assertThat(seen).anyMatch((t) -> t.startsWith("Instruct: Given a question about a software architecture, retrieve the passages that answer it\nQuery: ADR-101"));
+		assertThat(seen).anyMatch((t) -> t.startsWith("Order Desk › Idempotency keys on every write"));
 	}
 
 	@Test

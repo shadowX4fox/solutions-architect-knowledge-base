@@ -19,7 +19,7 @@ public interface VectorIndex {
 	}
 
 	record Query(float[] dense, SparseVec sparse, List<Scope> scopes, List<String> kinds, String component, int limit,
-			int candidates) {
+			int candidates, double sparseWeight) {
 	}
 
 	record Hit(String chunkId, String project, String slot, double score) {
@@ -37,7 +37,7 @@ public interface VectorIndex {
 
 	long count(String project, String slot);
 
-	/** Dense and sparse candidates under the scopes and filters, fused by reciprocal rank. */
+	/** Dense and sparse candidates under the scopes and filters, fused by weighted reciprocal rank (dense 1, sparse {@code sparseWeight}). */
 	List<Hit> search(Query query);
 
 	String describe();

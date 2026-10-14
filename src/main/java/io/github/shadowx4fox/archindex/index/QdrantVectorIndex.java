@@ -34,7 +34,7 @@ import io.qdrant.client.grpc.Collections.VectorParamsMap;
 import io.qdrant.client.grpc.Collections.VectorsConfig;
 import io.qdrant.client.grpc.Common.Filter;
 import io.qdrant.client.grpc.JsonWithInt.Value;
-import io.qdrant.client.grpc.Points.Fusion;
+import io.qdrant.client.grpc.Points.Rrf;
 import io.qdrant.client.grpc.Points.PointStruct;
 import io.qdrant.client.grpc.Points.PrefetchQuery;
 import io.qdrant.client.grpc.Points.QueryPoints;
@@ -78,6 +78,15 @@ public class QdrantVectorIndex implements VectorIndex, AutoCloseable {
 	@Override
 	public void ensure() {
 		if (get(client.collectionExistsAsync(collection))) {
+			// a collection made for another model holds vectors of another size: refuse rather than mix them
+			var held = get(client.getCollectionInfoAsync(collection)).getConfig().getParams().getVectorsConfig();
+			long size = held.hasParamsMap() && held.getParamsMap().getMapMap().containsKey(DENSE)
+					? held.getParamsMap().getMapMap().get(DENSE).getSize() : -1;
+			if (size != dimensions) {
+				throw new IllegalStateException("qdrant collection " + collection + " holds " + size
+						+ "-dimension vectors; the embedding model gives " + dimensions
+						+ ". A model switch needs a new collection: set QDRANT_COLLECTION");
+			}
 			return;
 		}
 		get(client.createCollectionAsync(CreateCollection.newBuilder()
@@ -184,7 +193,11 @@ public class QdrantVectorIndex implements VectorIndex, AutoCloseable {
 				.setFilter(filter)
 				.setLimit(q.candidates()));
 		}
-		req.setQuery(QueryFactory.fusion(Fusion.RRF))
+		Rrf.Builder rrf = Rrf.newBuilder().setK(60).addWeights(1f);
+		if (!q.sparse().isEmpty()) {
+			rrf.addWeights((float) q.sparseWeight());
+		}
+		req.setQuery(QueryFactory.rrf(rrf.build()))
 			.setLimit(q.limit())
 			.setWithPayload(WithPayloadSelectorFactory.include(List.of("chunk_id", "project", "slot")));
 		List<Hit> out = new ArrayList<>();

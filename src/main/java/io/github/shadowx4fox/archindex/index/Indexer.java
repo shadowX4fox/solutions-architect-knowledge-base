@@ -91,7 +91,15 @@ public class Indexer implements AutoCloseable {
 		List<String> keys = new ArrayList<>(store.projects().keySet());
 		keys.forEach((k) -> markPending(k));
 		return worker.submit(() -> {
-			index.ensure();
+			try {
+				index.ensure();
+			}
+			catch (RuntimeException e) {
+				// the store cannot be used as configured (unreachable, or made for another model): every slot says why
+				log.error("vector index unavailable: {}", e.getMessage());
+				states.replaceAll((k, s) -> new SlotState(Status.FAILED, s.signature(), s.chunks(), 0, 0, e.getMessage(), Instant.now()));
+				return;
+			}
 			keys.forEach((k) -> reconcileNow(k, true));
 		});
 	}

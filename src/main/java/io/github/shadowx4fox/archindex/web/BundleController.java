@@ -31,7 +31,7 @@ import io.github.shadowx4fox.archindex.index.Indexer;
  *                                                  held · 409 its chunks differ from a released version held
  * </pre>
  *
- * plus 400 for a URL that does not match the bundle, 413 for a bundle over the size limit and 422 for a bundle that
+ * plus 400 for a URL that does not match the bundle, 415 for a body that is not sent as application/gzip, 413 for a bundle over the size limit and 422 for a bundle that
  * fails its check — each with the findings as JSON. {@code GET /bundles} lists what is held and the index state.
  */
 @RestController
@@ -62,7 +62,7 @@ public class BundleController {
 		Tgz.pack(b.dir(), res.getOutputStream());
 	}
 
-	@PostMapping("/bundles/{key}/{version}")
+	@PostMapping(path = "/bundles/{key}/{version}", consumes = { "application/gzip", "application/x-gzip", "application/octet-stream" })
 	public ResponseEntity<Map<String, Object>> publish(@PathVariable String key, @PathVariable String version,
 			@RequestParam(defaultValue = "released") String channel, HttpServletRequest req) throws IOException {
 		BundleStore.Published p;

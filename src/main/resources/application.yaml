@@ -27,7 +27,7 @@ spring:
         pull-model-strategy: never
       embedding:
         options:
-          model: ${ARCHINDEX_EMBEDDING_MODEL:embeddinggemma-2:270m}
+          model: ${ARCHINDEX_EMBEDDING_MODEL:qwen3-embedding:0.6b}
 
 archindex:
   data-dir: ${ARCHINDEX_DATA_DIR:data}
@@ -40,19 +40,24 @@ archindex:
     port: ${QDRANT_GRPC_PORT:6334}
     tls: ${QDRANT_TLS:false}
     api-key: ${QDRANT_API_KEY:}
-    collection: ${QDRANT_COLLECTION:architecture}
+    collection: ${QDRANT_COLLECTION:architecture-qwen3-0.6b-1024}
   embedding:
-    # EmbeddingGemma's task prompts; Ollama adds none. {title} is the chunk's title.
-    query-prefix: "task: search result | query: "
-    document-prefix: "title: {title} | text: "
-    dimensions: 768
+    # the model's task prompts; Ollama adds none. Qwen3-Embedding: an instruction on the query, nothing on documents.
+    # EmbeddingGemma instead: query "task: search result | query: ", document "title: {title} | text: ", 768 dimensions.
+    # (override with ARCHINDEX_EMBEDDING_QUERYPREFIX / ARCHINDEX_EMBEDDING_DOCUMENTPREFIX)
+    query-prefix: "Instruct: Given a question about a software architecture, retrieve the passages that answer it\nQuery: "
+    document-prefix: ""
+    dimensions: ${ARCHINDEX_EMBEDDING_DIMENSIONS:1024}
     batch-size: 32
+    # the window Ollama reads, sent on every request; below it a long chunk is cut silently (export chunks reach ~7K tokens)
+    context: ${ARCHINDEX_EMBEDDING_CONTEXT:8192}
   search:
     default-limit: 8
     max-limit: 25
     candidates: 50
     max-text-chars: 2000
     max-part-chars: 60000
+    sparse-weight: ${ARCHINDEX_SPARSE_WEIGHT:0.3}
 
 management:
   endpoints:

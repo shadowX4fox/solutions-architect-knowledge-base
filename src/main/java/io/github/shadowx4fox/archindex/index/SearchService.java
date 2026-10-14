@@ -90,7 +90,7 @@ public class SearchService {
 		List<Map<String, Object>> hits = new ArrayList<>();
 		if (!ready.isEmpty()) {
 			List<VectorIndex.Hit> raw = index.search(new VectorIndex.Query(embedder.query(query), sparse.query(query), ready,
-					kinds, slug, k, Math.max(cfg.candidates(), k)));
+					kinds, slug, k, Math.max(cfg.candidates(), k), cfg.sparseWeight()));
 			for (VectorIndex.Hit h : raw) {
 				Bundle b = bundles.store().resolve(h.project(), h.slot()).orElse(null);
 				Chunk c = b == null ? null : b.chunk(h.chunkId()).orElse(null);

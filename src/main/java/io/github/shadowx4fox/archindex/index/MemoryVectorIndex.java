@@ -86,7 +86,7 @@ public class MemoryVectorIndex implements VectorIndex {
 			fused.merge(byDense.get(r).id(), 1.0 / (RRF_K + r + 1), Double::sum);
 		}
 		for (int r = 0; r < Math.min(sparse.size(), q.candidates()); r++) {
-			fused.merge(sparse.get(r).getKey().id(), 1.0 / (RRF_K + r + 1), Double::sum);
+			fused.merge(sparse.get(r).getKey().id(), q.sparseWeight() / (RRF_K + r + 1), Double::sum);
 		}
 		return fused.entrySet()
 			.stream()

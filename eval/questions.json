@@ -1,0 +1,506 @@
+[
+ {
+  "set": "base",
+  "target": "ADR-017",
+  "lang": "es",
+  "question": "¿Dónde deben guardarse las contraseñas y credenciales de los servicios?",
+  "answer": "corta vida"
+ },
+ {
+  "set": "base",
+  "target": "ADR-016",
+  "lang": "es",
+  "question": "¿Qué pasa si un cliente envía dos veces la misma transferencia?",
+  "answer": "mismo cuerpo"
+ },
+ {
+  "set": "base",
+  "target": "ADR-039",
+  "lang": "es",
+  "question": "¿Cómo se ejecuta una tarea programada para una fecha futura? ¿Puedo usar un CronJob?",
+  "answer": "colas? diferidas"
+ },
+ {
+  "set": "base",
+  "target": "ADR-038",
+  "lang": "es",
+  "question": "¿Se permite el commit en dos fases para procesos entre varios servicios?",
+  "answer": "compensaci"
+ },
+ {
+  "set": "base",
+  "target": "ADR-013",
+  "lang": "es",
+  "question": "¿Qué hago si la caché distribuida se cae?",
+  "answer": "degradad"
+ },
+ {
+  "set": "base",
+  "target": "ADR-024",
+  "lang": "es",
+  "question": "¿Cuántos reintentos y qué tiempo de espera debe tener una llamada remota?",
+  "answer": "exponencial"
+ },
+ {
+  "set": "base",
+  "target": "ADR-020",
+  "lang": "es",
+  "question": "¿Cuáles son los niveles de sensibilidad de los datos?",
+  "answer": "restringido"
+ },
+ {
+  "set": "base",
+  "target": "ADR-023",
+  "lang": "es",
+  "question": "¿Puedo escribir el número de tarjeta en los logs?",
+  "answer": "N3"
+ },
+ {
+  "set": "base",
+  "target": "ADR-027",
+  "lang": "es",
+  "question": "¿Qué código HTTP devuelve el gateway cuando un cliente supera su cuota?",
+  "answer": "429"
+ },
+ {
+  "set": "base",
+  "target": "ADR-034",
+  "lang": "es",
+  "question": "¿Cada cuánto se prueba la conmutación a la región secundaria?",
+  "answer": "semestr"
+ },
+ {
+  "set": "base",
+  "target": "ADR-035",
+  "lang": "es",
+  "question": "¿Quién dirige la respuesta cuando hay una caída grave en producción?",
+  "answer": "comandante"
+ },
+ {
+  "set": "base",
+  "target": "ADR-029",
+  "lang": "es",
+  "question": "¿Cómo se cifran los datos guardados en el teléfono del cliente?",
+  "answer": "SQLCipher"
+ },
+ {
+  "set": "base",
+  "target": "ADR-030",
+  "lang": "es",
+  "question": "¿Puede un servicio de negocio llamar directamente a Firebase para enviar un aviso al móvil?",
+  "answer": "FCM"
+ },
+ {
+  "set": "base",
+  "target": "ADR-037",
+  "lang": "es",
+  "question": "¿Puedo consultar directamente las tablas del sistema central heredado?",
+  "answer": "anticorrupci"
+ },
+ {
+  "set": "base",
+  "target": "ADR-015",
+  "lang": "es",
+  "question": "¿Cómo garantizo que el evento se publique solo si se guardó el cambio en la base de datos?",
+  "answer": "outbox"
+ },
+ {
+  "set": "base",
+  "target": "ADR-007",
+  "lang": "es",
+  "question": "¿Puedo desplegar con kubectl apply directamente en producción?",
+  "answer": "GitOps"
+ },
+ {
+  "set": "base",
+  "target": "ADR-033",
+  "lang": "es",
+  "question": "¿Qué pasa cuando un servicio agota su presupuesto de error?",
+  "answer": "congela"
+ },
+ {
+  "set": "base",
+  "target": "ADR-040",
+  "lang": "es",
+  "question": "¿Dónde se registra la autorización del cliente para usar sus datos con fines de marketing?",
+  "answer": "finalidad"
+ },
+ {
+  "set": "base",
+  "target": "ADR-042",
+  "lang": "es",
+  "question": "¿En qué zona horaria se guardan las fechas y horas?",
+  "answer": "UTC"
+ },
+ {
+  "set": "base",
+  "target": "ADR-041",
+  "lang": "es",
+  "question": "¿Qué nivel de accesibilidad deben cumplir la app y la web?",
+  "answer": "WCAG 2\\.2"
+ },
+ {
+  "set": "base",
+  "target": "ADR-026",
+  "lang": "es",
+  "question": "¿Cómo se autentican los microservicios entre sí?",
+  "answer": "SPIFFE"
+ },
+ {
+  "set": "base",
+  "target": "ADR-044",
+  "lang": "es",
+  "question": "¿Con qué frecuencia se reconstruyen las imágenes base de los contenedores?",
+  "answer": "semana"
+ },
+ {
+  "set": "base",
+  "target": "ADR-031",
+  "lang": "es",
+  "question": "¿Cómo libero una funcionalidad de forma gradual a un porcentaje de usuarios?",
+  "answer": "Unleash"
+ },
+ {
+  "set": "base",
+  "target": "ADR-047",
+  "lang": "es",
+  "question": "¿Cómo se reparte el costo de la nube entre los equipos?",
+  "answer": "etiquet"
+ },
+ {
+  "set": "base",
+  "target": "ADR-012",
+  "lang": "es",
+  "question": "¿Puedo usar MongoDB en lugar de la base relacional estándar?",
+  "answer": "excepci"
+ },
+ {
+  "set": "base",
+  "target": "ADR-036",
+  "lang": "es",
+  "question": "¿Cómo se evita que alguien altere el registro de auditoría?",
+  "answer": "inmutable"
+ },
+ {
+  "set": "base",
+  "target": "UC-04",
+  "lang": "es",
+  "question": "¿Qué ocurre cuando un pago programado falla por falta de fondos?",
+  "answer": null
+ },
+ {
+  "set": "base",
+  "target": "UC-02",
+  "lang": "es",
+  "question": "¿El cliente puede ver su agenda de pagos sin internet?",
+  "answer": null
+ },
+ {
+  "set": "base",
+  "target": "UC-05",
+  "lang": "es",
+  "question": "¿Con cuánta anticipación se avisa al cliente antes de un pago?",
+  "answer": null
+ },
+ {
+  "set": "base",
+  "target": "UC-07",
+  "lang": "es",
+  "question": "¿Cómo pausa el cliente un pago que ya tenía programado?",
+  "answer": null
+ },
+ {
+  "set": "base",
+  "target": "ADR-002",
+  "lang": "en",
+  "question": "Which message broker do we use for asynchronous business events?",
+  "answer": "Pulsar"
+ },
+ {
+  "set": "base",
+  "target": "ADR-005",
+  "lang": "en",
+  "question": "What is our identity provider for customer login?",
+  "answer": "Keycloak"
+ },
+ {
+  "set": "base",
+  "target": "ADR-006",
+  "lang": "en",
+  "question": "Where do metrics, logs and traces go?",
+  "answer": "Mimir"
+ },
+ {
+  "set": "base",
+  "target": "ADR-009",
+  "lang": "en",
+  "question": "What tool provisions our Google Cloud infrastructure as code?",
+  "answer": "Pulumi"
+ },
+ {
+  "set": "base",
+  "target": "ADR-011",
+  "lang": "en",
+  "question": "How are event schemas defined and checked for compatibility?",
+  "answer": "Avro"
+ },
+ {
+  "set": "base",
+  "target": "ADR-014",
+  "lang": "en",
+  "question": "How do we capture row changes from Postgres tables?",
+  "answer": "Debezium"
+ },
+ {
+  "set": "base",
+  "target": "ADR-019",
+  "lang": "en",
+  "question": "Which TLS version is required for traffic in transit?",
+  "answer": "TLS 1\\.3"
+ },
+ {
+  "set": "base",
+  "target": "ADR-022",
+  "lang": "en",
+  "question": "How is trace context propagated through messaging?",
+  "answer": "W3C"
+ },
+ {
+  "set": "base",
+  "target": "ADR-025",
+  "lang": "en",
+  "question": "How long must an old API major version be kept after a breaking change?",
+  "answer": "deprecaci"
+ },
+ {
+  "set": "base",
+  "target": "ADR-028",
+  "lang": "en",
+  "question": "Should mobile apps be native or cross-platform?",
+  "answer": "Kotlin"
+ },
+ {
+  "set": "base",
+  "target": "ADR-032",
+  "lang": "en",
+  "question": "How do we test that a provider does not break its consumers?",
+  "answer": "Pact"
+ },
+ {
+  "set": "base",
+  "target": "ADR-043",
+  "lang": "en",
+  "question": "Do we generate an SBOM and sign build artifacts?",
+  "answer": "SBOM"
+ },
+ {
+  "set": "base",
+  "target": "ADR-048",
+  "lang": "en",
+  "question": "Is the internal network trusted by default?",
+  "answer": "denegaci[oó]n por defecto"
+ },
+ {
+  "set": "base",
+  "target": "ADR-050",
+  "lang": "en",
+  "question": "How do third-party partners call our APIs?",
+  "answer": "B2B"
+ },
+ {
+  "set": "base",
+  "target": "ADR-049",
+  "lang": "en",
+  "question": "How is a payment screened for fraud before it runs?",
+  "answer": "riesgo"
+ },
+ {
+  "set": "base",
+  "target": "ADR-021",
+  "lang": "en",
+  "question": "When is old transaction data purged?",
+  "answer": "purg"
+ },
+ {
+  "set": "base",
+  "target": "ADR-018",
+  "lang": "en",
+  "question": "Do teams get their own Kubernetes cluster?",
+  "answer": "espacios? de nombres"
+ },
+ {
+  "set": "base",
+  "target": "UC-03",
+  "lang": "en",
+  "question": "How does a scheduled payment execute automatically on its due date?",
+  "answer": null
+ },
+ {
+  "set": "base",
+  "target": "UC-09",
+  "lang": "en",
+  "question": "How does a customer enroll in the scheduled payments service?",
+  "answer": null
+ },
+ {
+  "set": "base",
+  "target": "ADR-004",
+  "lang": "en",
+  "question": "What are the service criticality tiers?",
+  "answer": "[Nn]ivel"
+ },
+ {
+  "set": "deep",
+  "target": "ADR-028",
+  "lang": "es",
+  "question": "¿Qué responde el gateway a una versión de la app que ya no cumple la versión mínima?",
+  "answer": "426"
+ },
+ {
+  "set": "deep",
+  "target": "ADR-044",
+  "lang": "es",
+  "question": "¿Cuál es el plazo para corregir una vulnerabilidad crítica con explotación activa?",
+  "answer": "48 horas"
+ },
+ {
+  "set": "deep",
+  "target": "ADR-026",
+  "lang": "en",
+  "question": "How often are service certificates renewed and how long do they live?",
+  "answer": "24 horas"
+ },
+ {
+  "set": "deep",
+  "target": "ADR-047",
+  "lang": "en",
+  "question": "What is the target unit cost per transaction?",
+  "answer": "0,0030"
+ },
+ {
+  "set": "deep",
+  "target": "ADR-049",
+  "lang": "en",
+  "question": "What happens to operations approved in degraded mode once the fraud service is back?",
+  "answer": "reeval"
+ },
+ {
+  "set": "deep",
+  "target": "ADR-038",
+  "lang": "es",
+  "question": "¿Qué hace el orquestador con un paso enviado que no recibió respuesta?",
+  "answer": "ENVIADO"
+ },
+ {
+  "set": "deep",
+  "target": "ADR-029",
+  "lang": "en",
+  "question": "Should the app restore its local data from a cloud backup?",
+  "answer": "No restaurar"
+ },
+ {
+  "set": "deep",
+  "target": "ADR-050",
+  "lang": "es",
+  "question": "¿Qué cabecera debe enviar un socio para iniciar un pago?",
+  "answer": "Idempotency-Key"
+ },
+ {
+  "set": "deep",
+  "target": "ADR-042",
+  "lang": "es",
+  "question": "¿Se pueden traducir libremente los términos del glosario?",
+  "answer": "glosario"
+ },
+ {
+  "set": "deep",
+  "target": "ADR-037",
+  "lang": "en",
+  "question": "How are reversals posted to the core banking system?",
+  "answer": "[Rr]eversos"
+ },
+ {
+  "set": "deep",
+  "target": "ADR-039",
+  "lang": "es",
+  "question": "¿Cuánto tiempo queda pendiente una solicitud de afiliación sin confirmar?",
+  "answer": "48 horas"
+ },
+ {
+  "set": "deep",
+  "target": "ADR-040",
+  "lang": "es",
+  "question": "¿Qué patrones de diseño están prohibidos para no disuadir al cliente de revocar su consentimiento?",
+  "answer": "disuadan"
+ },
+ {
+  "set": "ident",
+  "target": "ADR-027",
+  "lang": "en",
+  "question": "ADR-027",
+  "answer": "429"
+ },
+ {
+  "set": "ident",
+  "target": "ADR-029",
+  "lang": "es",
+  "question": "SQLCipher",
+  "answer": "SQLCipher"
+ },
+ {
+  "set": "ident",
+  "target": "ADR-026",
+  "lang": "en",
+  "question": "SPIFFE",
+  "answer": "SPIFFE"
+ },
+ {
+  "set": "ident",
+  "target": "ADR-014",
+  "lang": "en",
+  "question": "Debezium connectors",
+  "answer": "Debezium"
+ },
+ {
+  "set": "ident",
+  "target": "ADR-022",
+  "lang": "en",
+  "question": "W3C Trace Context",
+  "answer": "W3C"
+ },
+ {
+  "set": "ident",
+  "target": "UC-08",
+  "lang": "es",
+  "question": "UC-08",
+  "answer": null
+ },
+ {
+  "set": "ident",
+  "target": "ADR-027",
+  "lang": "en",
+  "question": "Retry-After header",
+  "answer": "Retry-After"
+ },
+ {
+  "set": "ident",
+  "target": "ADR-038",
+  "lang": "es",
+  "question": "estado COMPENSANDO",
+  "answer": "COMPENSANDO"
+ },
+ {
+  "set": "ident",
+  "target": "ADR-031",
+  "lang": "en",
+  "question": "Unleash",
+  "answer": "Unleash"
+ },
+ {
+  "set": "ident",
+  "target": "ADR-046",
+  "lang": "en",
+  "question": "Apache Iceberg lakehouse",
+  "answer": "Iceberg"
+ }
+]

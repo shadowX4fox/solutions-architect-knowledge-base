@@ -3,15 +3,23 @@ package io.github.shadowx4fox.archindex.index;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.ai.embedding.Embedding;
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.embedding.EmbeddingOptions;
+import org.springframework.ai.embedding.EmbeddingRequest;
+import org.springframework.ai.ollama.OllamaEmbeddingModel;
+import org.springframework.ai.ollama.api.OllamaEmbeddingOptions;
 
 import io.github.shadowx4fox.archindex.ArchIndexProperties;
 import io.github.shadowx4fox.archindex.bundle.Chunk;
 
 /**
- * Spring AI's embedding model with the task prompts EmbeddingGemma expects: a document is embedded as
- * {@code title: <title> | text: <text>}, a query as {@code task: search result | query: <query>}. Both prefixes are
- * settings; {@code {title}} in the document prefix is the chunk's title.
+ * Spring AI's embedding model with the model's task prompts, which Ollama does not add. The default, Qwen3-Embedding,
+ * puts an instruction on the query and nothing on documents; EmbeddingGemma takes {@code task: search result | query: }
+ * and {@code title: {title} | text: }. Both prefixes are settings; {@code {title}} in the document prefix is the chunk's title.
+ * The context window ({@code archindex.embedding.context}) goes on every Ollama request: Spring AI 2.0.1 sends no
+ * {@code num_ctx} from {@code spring.ai.ollama.embedding.options.num-ctx}, and Ollama then cuts a long chunk at the
+ * model's loaded window without saying so.
  */
 public class Embedder {
 
@@ -19,13 +27,25 @@ public class Embedder {
 
 	private final ArchIndexProperties.Embedding cfg;
 
-	public Embedder(EmbeddingModel model, ArchIndexProperties.Embedding cfg) {
+	private final String modelName;
+
+	/** @param modelName the Ollama model to name on each request: request options replace the configured ones whole. */
+	public Embedder(EmbeddingModel model, ArchIndexProperties.Embedding cfg, String modelName) {
 		this.model = model;
 		this.cfg = cfg;
+		this.modelName = modelName;
 	}
 
 	public float[] query(String text) {
-		return model.embed(cfg.queryPrefix() + text);
+		return embed(List.of(cfg.queryPrefix() + text)).get(0);
+	}
+
+	private List<float[]> embed(List<String> texts) {
+		if (!(model instanceof OllamaEmbeddingModel) || cfg.context() <= 0) {
+			return model.embed(texts);
+		}
+		EmbeddingOptions options = OllamaEmbeddingOptions.builder().model(modelName).numCtx(cfg.context()).truncate(true).build();
+		return model.call(new EmbeddingRequest(texts, options)).getResults().stream().map(Embedding::getOutput).toList();
 	}
 
 	public List<float[]> documents(List<Chunk> chunks) {
@@ -36,7 +56,7 @@ public class Embedder {
 				.stream()
 				.map(this::documentText)
 				.toList();
-			List<float[]> vs = model.embed(texts);
+			List<float[]> vs = embed(texts);
 			for (float[] v : vs) {
 				if (v.length != cfg.dimensions()) {
 					throw new IllegalStateException("the embedding model returned " + v.length
