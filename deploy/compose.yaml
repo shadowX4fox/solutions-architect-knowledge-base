@@ -1,0 +1,37 @@
+# The server with its two dependencies, self-hosted: no architecture text leaves the network.
+#   docker compose -f deploy/compose.yaml up -d
+#   docker compose -f deploy/compose.yaml exec ollama ollama pull embeddinggemma-2:270m
+# Set ARCHINDEX_INGEST_TOKEN (the pipelines' SA_INDEX_TOKEN) and ARCHINDEX_MCP_TOKEN in the environment or an .env file.
+services:
+  server:
+    build: ..
+    ports:
+      - "8080:8080"
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      QDRANT_HOST: qdrant
+      ARCHINDEX_EMBEDDING_MODEL: ${ARCHINDEX_EMBEDDING_MODEL:-embeddinggemma-2:270m}
+      ARCHINDEX_INGEST_TOKEN: ${ARCHINDEX_INGEST_TOKEN:?set ARCHINDEX_INGEST_TOKEN}
+      ARCHINDEX_MCP_TOKEN: ${ARCHINDEX_MCP_TOKEN:-}
+    volumes:
+      - bundles:/data
+    depends_on:
+      - qdrant
+      - ollama
+
+  qdrant:
+    image: qdrant/qdrant:v1.19.2
+    volumes:
+      - qdrant:/qdrant/storage
+    environment:
+      QDRANT__TELEMETRY_DISABLED: "true"
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama:/root/.ollama
+
+volumes:
+  bundles:
+  qdrant:
+  ollama:

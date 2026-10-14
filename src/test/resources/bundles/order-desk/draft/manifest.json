@@ -1,0 +1,135 @@
+{
+ "schema": "sa-index/1",
+ "generator": "sa-delivery:architecture-index-export",
+ "generator_version": "8.147.0",
+ "generated_at": "2026-10-14T22:19:51.160Z",
+ "project": {
+  "key": "order-desk",
+  "name": "Order Desk"
+ },
+ "architecture": {
+  "version": "1.4.0",
+  "status": "Released",
+  "released": "2026-10-01",
+  "language": "en",
+  "type": null
+ },
+ "channel": "draft",
+ "git": {
+  "sha": "a76930763c1f97575088be4f7fd214486202588d",
+  "tag": "architecture-v1.4.0",
+  "tag_sha": "a76930763c1f97575088be4f7fd214486202588d",
+  "at_tag": true,
+  "matches_tag": true,
+  "dirty": true
+ },
+ "embedding": {
+  "unit": "chunk",
+  "max_chars": 24000,
+  "text_field": "text",
+  "id_field": "id",
+  "hash_field": "content_hash"
+ },
+ "counts": {
+  "chunks": 22,
+  "by_kind": {
+   "adr": 1,
+   "overview": 2,
+   "section": 8,
+   "principle": 1,
+   "phase": 2,
+   "flow": 1,
+   "integration": 2,
+   "component": 4,
+   "tdr": 1
+  },
+  "buildpacks": 1,
+  "skipped": 2
+ },
+ "buildpacks": [
+  {
+   "component": "hub-api",
+   "path": "buildpacks/hub-api/pack.json",
+   "parts": 10,
+   "open_questions": 0
+  }
+ ],
+ "skipped": [
+  {
+   "component": "ledger-store",
+   "reason": "not in the kit"
+  },
+  {
+   "component": "web-app",
+   "reason": "kit-version 1.2.0"
+  }
+ ],
+ "warnings": [],
+ "files": [
+  {
+   "path": "buildpacks/hub-api/BUILD.md",
+   "bytes": 4851,
+   "sha256": "c2e0f19b20bf9857e124204d10a5993feea8fb1c25b23c61f61d0f2d0f3136ee"
+  },
+  {
+   "path": "buildpacks/hub-api/adrs/ADR-101-idempotency-keys.md",
+   "bytes": 141,
+   "sha256": "26c61b2d88cba87dc89407ff5eaff1077f79bd84044c94e9d230ae5f921b4014"
+  },
+  {
+   "path": "buildpacks/hub-api/assets/c4-descriptor.md",
+   "bytes": 10,
+   "sha256": "789e943a357045b5ae4cdf4fa81ad9caca7736de91ef88b9ddffa4e0dfd6af36"
+  },
+  {
+   "path": "buildpacks/hub-api/assets/ddl.sql",
+   "bytes": 43,
+   "sha256": "0eef7d9bcb4e370fc17d077b34a5047c03977bcdcd2dc1c50ac9845c16f072a7"
+  },
+  {
+   "path": "buildpacks/hub-api/assets/openapi.yaml",
+   "bytes": 76,
+   "sha256": "fb66095f075e43f374144eedfddd5996b53d8c7229031648acaadfe7d3621a97"
+  },
+  {
+   "path": "buildpacks/hub-api/cross-cutting-standards.md",
+   "bytes": 169,
+   "sha256": "d5f269d7a9edd6963a29edf2ac092926201de7ca3df3c898f9f47722e6c85193"
+  },
+  {
+   "path": "buildpacks/hub-api/interfaces/hub-api→ledger-store.md",
+   "bytes": 161,
+   "sha256": "16777a9541b01ee8f518f2b316ef424553b751dff1f2783d14c7ac85ed780ee8"
+  },
+  {
+   "path": "buildpacks/hub-api/interfaces/web-app→hub-api.md",
+   "bytes": 146,
+   "sha256": "009b4c2e25e57ab816e6785bf75548d73edd0e1a189dbf3a52c0342f5bda99ac"
+  },
+  {
+   "path": "buildpacks/hub-api/pack.json",
+   "bytes": 5417,
+   "sha256": "e4c664e945d3d35cc594d58f2ee1fb009b060413b139016c505c5d226478b7d3"
+  },
+  {
+   "path": "buildpacks/hub-api/runtime-view.md",
+   "bytes": 153,
+   "sha256": "43bb47dc5d7d24228b2e7d639d6476eeb80d8223d6e36bee6af1deac9af69531"
+  },
+  {
+   "path": "buildpacks/hub-api/spec.md",
+   "bytes": 165,
+   "sha256": "bcd29034af31da945b7f7157f1bf314d6cb4bf4c20bb92e0a6e829c84f487acf"
+  },
+  {
+   "path": "chunks.jsonl",
+   "bytes": 14211,
+   "sha256": "8d63c7b02f2faba29c8655ef28951207d1ca9635b1af3c4297a081345158dab1"
+  },
+  {
+   "path": "ledger.json",
+   "bytes": 5997,
+   "sha256": "476315ff23bdc7a888418527cf15586519e79f8d334c6dfad97aaf658305fffe"
+  }
+ ]
+}

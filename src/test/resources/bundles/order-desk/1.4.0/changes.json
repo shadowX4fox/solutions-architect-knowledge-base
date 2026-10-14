@@ -1,0 +1,209 @@
+{
+ "schema": "sa-index/1#changes",
+ "project": "order-desk",
+ "from": "1.3.0",
+ "to": "1.4.0",
+ "components": [
+  {
+   "component": "hub-api",
+   "name": "Hub API",
+   "status": "present",
+   "facts": [
+    {
+     "field": "technology",
+     "from": [
+      "Spring Boot"
+     ],
+     "to": [
+      "Spring Boot",
+      "Kafka"
+     ]
+    }
+   ],
+   "contracts": {
+    "added": [],
+    "removed": [],
+    "changed": [
+     "openapi.yaml"
+    ]
+   },
+   "interfaces": {
+    "added": [],
+    "removed": [],
+    "changed": [
+     "hub-api→ledger-store"
+    ]
+   },
+   "adrs": {
+    "added": [],
+    "removed": [],
+    "changed": []
+   },
+   "documents": [],
+   "flows": [
+    {
+     "flow": "1",
+     "name": "Place order",
+     "change": "changed",
+     "fields": [
+      {
+       "field": "phase 2 latency_budget",
+       "from": "80 ms",
+       "to": "90 ms"
+      }
+     ]
+    }
+   ],
+   "integrations": {
+    "added": [],
+    "removed": [],
+    "changed": [
+     "I-01"
+    ],
+    "fields": [
+     {
+      "integration": "I-01",
+      "field": "pattern",
+      "from": "sync",
+      "to": "async"
+     }
+    ]
+   },
+   "sections": {
+    "added": [],
+    "removed": [],
+    "changed": [
+     {
+      "file": "docs/04-data-flow-patterns.md",
+      "title": "Phase 2 — Book order",
+      "kind": "phase"
+     },
+     {
+      "file": "docs/05-integration-points.md",
+      "title": "Inventory",
+      "kind": "section"
+     },
+     {
+      "file": "docs/05-integration-points.md",
+      "title": "I-01 Web App to Hub API",
+      "kind": "integration"
+     },
+     {
+      "file": "docs/components/desk/02-hub-api.md",
+      "title": "Hub API",
+      "kind": "component"
+     }
+    ]
+   },
+   "open_questions": {
+    "new": [],
+    "resolved": [
+     {
+      "part": "interface:hub-api→ledger-store",
+      "line": 6,
+      "text": "[NOT DOCUMENTED — pool size]"
+     }
+    ]
+   },
+   "pack": "present",
+   "changed": true,
+   "action_required": true
+  },
+  {
+   "component": "ledger-store",
+   "name": "Ledger Store",
+   "status": "present",
+   "facts": [],
+   "contracts": null,
+   "interfaces": null,
+   "adrs": null,
+   "documents": [],
+   "flows": [
+    {
+     "flow": "1",
+     "name": "Place order",
+     "change": "changed",
+     "fields": [
+      {
+       "field": "phase 2 latency_budget",
+       "from": "80 ms",
+       "to": "90 ms"
+      }
+     ]
+    }
+   ],
+   "integrations": {
+    "added": [],
+    "removed": [],
+    "changed": [],
+    "fields": []
+   },
+   "sections": {
+    "added": [],
+    "removed": [],
+    "changed": [
+     {
+      "file": "docs/04-data-flow-patterns.md",
+      "title": "Phase 2 — Book order",
+      "kind": "phase"
+     },
+     {
+      "file": "docs/05-integration-points.md",
+      "title": "Inventory",
+      "kind": "section"
+     }
+    ]
+   },
+   "open_questions": null,
+   "pack": "absent",
+   "changed": true,
+   "action_required": true
+  },
+  {
+   "component": "web-app",
+   "name": "Web App",
+   "status": "present",
+   "facts": [],
+   "contracts": null,
+   "interfaces": null,
+   "adrs": null,
+   "documents": [],
+   "flows": [],
+   "integrations": {
+    "added": [],
+    "removed": [],
+    "changed": [
+     "I-01"
+    ],
+    "fields": [
+     {
+      "integration": "I-01",
+      "field": "pattern",
+      "from": "sync",
+      "to": "async"
+     }
+    ]
+   },
+   "sections": {
+    "added": [],
+    "removed": [],
+    "changed": [
+     {
+      "file": "docs/05-integration-points.md",
+      "title": "Inventory",
+      "kind": "section"
+     },
+     {
+      "file": "docs/05-integration-points.md",
+      "title": "I-01 Web App to Hub API",
+      "kind": "integration"
+     }
+    ]
+   },
+   "open_questions": null,
+   "pack": "absent",
+   "changed": true,
+   "action_required": true
+  }
+ ]
+}

@@ -1,0 +1,154 @@
+package io.github.shadowx4fox.archindex.bundle;
+
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * One sa-index/1 bundle on disk, loaded: the manifest, the chunks, the ledger, the build packs and changes.json when
+ * the export carried one. Immutable once loaded; a new publish replaces the whole object.
+ */
+public final class Bundle {
+
+	public static final String SCHEMA = "sa-index/1";
+
+	private final Path dir;
+
+	private final Map<String, Object> manifest;
+
+	private final List<Chunk> chunks;
+
+	private final Map<String, Chunk> chunksById;
+
+	private final Map<String, Object> ledger;
+
+	private final Map<String, Map<String, Object>> packs;
+
+	private final Map<String, Object> changes;
+
+	private Bundle(Path dir, Map<String, Object> manifest, List<Chunk> chunks, Map<String, Object> ledger,
+			Map<String, Map<String, Object>> packs, Map<String, Object> changes) {
+		this.dir = dir;
+		this.manifest = manifest;
+		this.chunks = List.copyOf(chunks);
+		Map<String, Chunk> byId = new LinkedHashMap<>();
+		chunks.forEach((c) -> byId.put(c.id(), c));
+		this.chunksById = Collections.unmodifiableMap(byId);
+		this.ledger = ledger;
+		this.packs = Collections.unmodifiableMap(packs);
+		this.changes = changes;
+	}
+
+	public static Bundle load(Path dir) {
+		try {
+			Map<String, Object> m = J.obj(Files.readAllBytes(dir.resolve("manifest.json")));
+			Map<String, Object> ledger = J.obj(Files.readAllBytes(dir.resolve("ledger.json")));
+			List<Chunk> chunks = readChunks(dir.resolve("chunks.jsonl"));
+			Map<String, Map<String, Object>> packs = new LinkedHashMap<>();
+			for (Map<String, Object> b : J.maps(m, "buildpacks")) {
+				packs.put(J.str(b, "component"), J.obj(Files.readAllBytes(dir.resolve(J.str(b, "path")))));
+			}
+			Path ch = dir.resolve("changes.json");
+			Map<String, Object> changes = Files.exists(ch) ? J.obj(Files.readAllBytes(ch)) : null;
+			return new Bundle(dir, m, chunks, ledger, packs, changes);
+		}
+		catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	static List<Chunk> readChunks(Path file) throws IOException {
+		List<Chunk> out = new ArrayList<>();
+		for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
+			if (line.isBlank()) {
+				continue;
+			}
+			Map<String, Object> c = J.obj(line);
+			Object meta = c.get("meta");
+			out.add(new Chunk(J.str(c, "id"), J.str(c, "content_hash"), J.str(c, "text"),
+					meta instanceof Map<?, ?> mm ? (Map<String, Object>) mm : Map.of()));
+		}
+		return out;
+	}
+
+	public Path dir() {
+		return dir;
+	}
+
+	public Map<String, Object> manifest() {
+		return manifest;
+	}
+
+	public String projectKey() {
+		return J.str(J.map(manifest, "project"), "key");
+	}
+
+	public String projectName() {
+		return J.str(J.map(manifest, "project"), "name");
+	}
+
+	public String version() {
+		return J.str(J.map(manifest, "architecture"), "version");
+	}
+
+	public String channel() {
+		return J.str(manifest, "channel");
+	}
+
+	public boolean released() {
+		return "released".equals(channel());
+	}
+
+	public String language() {
+		return J.str(J.map(manifest, "architecture"), "language");
+	}
+
+	public List<Chunk> chunks() {
+		return chunks;
+	}
+
+	public Optional<Chunk> chunk(String id) {
+		return Optional.ofNullable(chunksById.get(id));
+	}
+
+	public Map<String, Object> ledger() {
+		return ledger;
+	}
+
+	public Map<String, Map<String, Object>> packs() {
+		return packs;
+	}
+
+	public Optional<Map<String, Object>> pack(String slug) {
+		return Optional.ofNullable(packs.get(slug));
+	}
+
+	public Optional<Map<String, Object>> changes() {
+		return Optional.ofNullable(changes);
+	}
+
+	public Path packDir(String slug) {
+		return dir.resolve("buildpacks").resolve(slug);
+	}
+
+	/** The chunk set as (id, content hash) pairs: two bundles with the same set serve the same search. */
+	public String chunkSignature() {
+		StringBuilder sb = new StringBuilder();
+		chunks.stream().map((c) -> c.id() + ":" + c.contentHash()).sorted().forEach((s) -> sb.append(s).append('\n'));
+		return J.sha256(sb.toString());
+	}
+
+	public List<Map<String, Object>> skipped() {
+		return J.maps(manifest, "skipped");
+	}
+
+}

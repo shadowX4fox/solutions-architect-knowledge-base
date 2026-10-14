@@ -1,0 +1,227 @@
+{
+ "schema": "sa-index/1#buildpack",
+ "project": "order-desk",
+ "architecture_version": "1.3.0",
+ "component": {
+  "slug": "hub-api",
+  "name": "Hub API",
+  "internal_name": "od-hub-api",
+  "type": "API Service",
+  "technology": [
+   "Spring Boot"
+  ],
+  "system": "desk",
+  "component_version": "1.1.0"
+ },
+ "parts": [
+  {
+   "id": "instructions",
+   "kind": "instructions",
+   "title": "Build instructions",
+   "path": "BUILD.md",
+   "source": null,
+   "bytes": 4955,
+   "sha256": "f6c2acce5a08b5c28f6c02f9b7d035bf6f61a40486ec51af13099b20942ef533"
+  },
+  {
+   "id": "spec",
+   "kind": "specification",
+   "title": "Component Specification",
+   "path": "spec.md",
+   "source": "handoffs/components/02-hub-api.md",
+   "bytes": 165,
+   "sha256": "bcd29034af31da945b7f7157f1bf314d6cb4bf4c20bb92e0a6e829c84f487acf"
+  },
+  {
+   "id": "asset:c4-descriptor.md",
+   "kind": "asset",
+   "title": "c4-descriptor.md",
+   "path": "assets/c4-descriptor.md",
+   "source": "handoffs/assets/02-hub-api/c4-descriptor.md",
+   "bytes": 10,
+   "sha256": "789e943a357045b5ae4cdf4fa81ad9caca7736de91ef88b9ddffa4e0dfd6af36"
+  },
+  {
+   "id": "asset:ddl.sql",
+   "kind": "asset",
+   "title": "ddl.sql",
+   "path": "assets/ddl.sql",
+   "source": "handoffs/assets/02-hub-api/ddl.sql",
+   "bytes": 43,
+   "sha256": "0eef7d9bcb4e370fc17d077b34a5047c03977bcdcd2dc1c50ac9845c16f072a7"
+  },
+  {
+   "id": "asset:openapi.yaml",
+   "kind": "asset",
+   "title": "openapi.yaml",
+   "path": "assets/openapi.yaml",
+   "source": "handoffs/assets/02-hub-api/openapi.yaml",
+   "bytes": 65,
+   "sha256": "8eeb447e1e771e0985f04a0b825ffcbfd573d84ec1656c0c43e57c15d12a3abd"
+  },
+  {
+   "id": "interface:hub-api→ledger-store",
+   "kind": "interface",
+   "title": "Interface Contract: Hub API → Ledger Store",
+   "path": "interfaces/hub-api→ledger-store.md",
+   "source": "handoffs/interfaces/hub-api→ledger-store.md",
+   "bytes": 168,
+   "sha256": "99cf7b8ce77a0bb955c88213bf2ecf67d307bf535df11cd7a0b2754eeca5b1f4"
+  },
+  {
+   "id": "interface:web-app→hub-api",
+   "kind": "interface",
+   "title": "Interface Contract: Web App → Hub API",
+   "path": "interfaces/web-app→hub-api.md",
+   "source": "handoffs/interfaces/web-app→hub-api.md",
+   "bytes": 146,
+   "sha256": "009b4c2e25e57ab816e6785bf75548d73edd0e1a189dbf3a52c0342f5bda99ac"
+  },
+  {
+   "id": "cross-cutting-standards",
+   "kind": "standards",
+   "title": "Cross-Cutting Standards",
+   "path": "cross-cutting-standards.md",
+   "source": "handoffs/CROSS_CUTTING_STANDARDS.md",
+   "bytes": 169,
+   "sha256": "d5f269d7a9edd6963a29edf2ac092926201de7ca3df3c898f9f47722e6c85193"
+  },
+  {
+   "id": "adr:ADR-101",
+   "kind": "adr",
+   "title": "ADR-101: Idempotency keys on every write",
+   "path": "adrs/ADR-101-idempotency-keys.md",
+   "source": "adr/ADR-101-idempotency-keys.md",
+   "bytes": 141,
+   "sha256": "26c61b2d88cba87dc89407ff5eaff1077f79bd84044c94e9d230ae5f921b4014"
+  },
+  {
+   "id": "runtime-view",
+   "kind": "runtime-view",
+   "title": "System Runtime View",
+   "path": "runtime-view.md",
+   "source": "handoffs/SYSTEM_RUNTIME_VIEW.md",
+   "bytes": 153,
+   "sha256": "43bb47dc5d7d24228b2e7d639d6476eeb80d8223d6e36bee6af1deac9af69531"
+  }
+ ],
+ "plan": [
+  {
+   "step": 1,
+   "id": "spec",
+   "title": "Read the Component Specification: responsibility, invariants, budgets, data ownership",
+   "parts": [
+    "spec",
+    "asset:c4-descriptor.md"
+   ]
+  },
+  {
+   "step": 2,
+   "id": "contracts",
+   "title": "Implement the API and message contracts exactly as written",
+   "parts": [
+    "asset:openapi.yaml"
+   ]
+  },
+  {
+   "step": 3,
+   "id": "data",
+   "title": "Implement the data model",
+   "parts": [
+    "asset:ddl.sql"
+   ]
+  },
+  {
+   "step": 4,
+   "id": "interfaces",
+   "title": "Implement each interface: outbound calls, then inbound",
+   "parts": [
+    "interface:hub-api→ledger-store",
+    "interface:web-app→hub-api"
+   ]
+  },
+  {
+   "step": 5,
+   "id": "standards",
+   "title": "Apply the cross-cutting standards and the governing ADRs",
+   "parts": [
+    "cross-cutting-standards",
+    "adr:ADR-101"
+   ]
+  },
+  {
+   "step": 6,
+   "id": "flows",
+   "title": "Meet the flows the component takes part in and their latency budgets",
+   "parts": [
+    "runtime-view"
+   ]
+  },
+  {
+   "step": 7,
+   "id": "acceptance",
+   "title": "Prove the acceptance criteria of the Component Specification",
+   "parts": [
+    "spec"
+   ]
+  }
+ ],
+ "flows": [
+  {
+   "code": "1",
+   "name": "Place order",
+   "use_cases": [
+    "UC-01"
+   ],
+   "latency_target": "300 ms",
+   "governed_by": [
+    "ADR-101"
+   ],
+   "phases": [
+    {
+     "n": "1",
+     "name": "Accept order",
+     "hops": "Web App → Hub API",
+     "latency_budget": "120 ms"
+    },
+    {
+     "n": "2",
+     "name": "Book order",
+     "hops": "Hub API → Ledger Store",
+     "latency_budget": "80 ms"
+    }
+   ]
+  }
+ ],
+ "interfaces": [
+  {
+   "key": "hub-api→ledger-store",
+   "direction": "outbound",
+   "upstream": "hub-api",
+   "downstream": "ledger-store",
+   "upstream_name": "Hub API",
+   "downstream_name": "Ledger Store",
+   "part": "interface:hub-api→ledger-store"
+  },
+  {
+   "key": "web-app→hub-api",
+   "direction": "inbound",
+   "upstream": "web-app",
+   "downstream": "hub-api",
+   "upstream_name": "Web App",
+   "downstream_name": "Hub API",
+   "part": "interface:web-app→hub-api"
+  }
+ ],
+ "adrs": [
+  "ADR-101"
+ ],
+ "open_questions": [
+  {
+   "part": "interface:hub-api→ledger-store",
+   "line": 6,
+   "text": "[NOT DOCUMENTED — pool size]"
+  }
+ ],
+ "instructions": "BUILD.md"
+}

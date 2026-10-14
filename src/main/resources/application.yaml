@@ -1,0 +1,61 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: architecture-index-server
+  ai:
+    model:
+      chat: none
+    mcp:
+      server:
+        name: architecture
+        version: 0.1.0
+        type: SYNC
+        protocol: STREAMABLE
+        instructions: >
+          The architecture of the systems this team builds, as released by its architects. Ask it questions while you
+          work (search_architecture for reasons, the ledger tools for lists and relations), and build one component
+          from its build pack (get_build_pack, get_build_instructions, get_build_part). When the repository has an
+          .architecture.json, use its project, component and architecture_version in every call. Never invent what the
+          architecture does not state: its open questions go to the architect.
+        streamable-http:
+          mcp-endpoint: /mcp
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      init:
+        pull-model-strategy: never
+      embedding:
+        options:
+          model: ${ARCHINDEX_EMBEDDING_MODEL:embeddinggemma-2:270m}
+
+archindex:
+  data-dir: ${ARCHINDEX_DATA_DIR:data}
+  ingest-token: ${ARCHINDEX_INGEST_TOKEN:}
+  mcp-token: ${ARCHINDEX_MCP_TOKEN:}
+  max-bundle-bytes: 268435456
+  store: ${ARCHINDEX_STORE:qdrant}
+  qdrant:
+    host: ${QDRANT_HOST:localhost}
+    port: ${QDRANT_GRPC_PORT:6334}
+    tls: ${QDRANT_TLS:false}
+    api-key: ${QDRANT_API_KEY:}
+    collection: ${QDRANT_COLLECTION:architecture}
+  embedding:
+    # EmbeddingGemma's task prompts; Ollama adds none. {title} is the chunk's title.
+    query-prefix: "task: search result | query: "
+    document-prefix: "title: {title} | text: "
+    dimensions: 768
+    batch-size: 32
+  search:
+    default-limit: 8
+    max-limit: 25
+    candidates: 50
+    max-text-chars: 2000
+    max-part-chars: 60000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

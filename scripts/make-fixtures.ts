@@ -1,0 +1,74 @@
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, cpSync } from "fs"; import { join, dirname } from "path"; import { tmpdir } from "os"; import { spawnSync } from "child_process";
+// Regenerates src/test/resources/bundles/order-desk/ from the plugin's own synthetic test project (Order Desk):
+//   SA_SKILLS_DIR=<solutions-architect-skills checkout> bun scripts/make-fixtures.ts src/test/resources/bundles/order-desk
+// The project text is copied from the plugin's tests/export-index.test.ts (fixture()), so the bundles are what the plugin writes.
+const SA = process.env.SA_SKILLS_DIR; if (!SA) { console.error("set SA_SKILLS_DIR to a solutions-architect-skills checkout"); process.exit(2); }
+const { exportIndex } = require(join(SA, "plugins/sa-delivery/skills/architecture-index-export/scripts/export-index.js"));
+const BASE = mkdtempSync(join(tmpdir(), "sa-index-"));
+const P = join(BASE, "order-desk");
+const w = (p: string, s: string) => { mkdirSync(dirname(join(P, p)), { recursive: true }); writeFileSync(join(P, p), s); };
+const hdr = (self: string, type: string, adrs = "ADR-101") => `<!-- EXPLORER_HEADER\nkey_concepts: orders\ntechnologies: Java\ncomponent_self: ${self}\ncomponent_type: ${type}\nscope: s\nrelated_adrs: ${adrs}\n-->`;
+const docHdr = (comps: string) => `<!-- EXPLORER_HEADER\nkey_concepts: orders\ntechnologies: Java\ncomponents: ${comps}\nscope: s\nrelated_adrs: ADR-101\n-->`;
+const clean = () => [];
+const KIT = "<!-- managed by sa-skills:architecture-dev-handoff -->\n<!-- TEMPLATE_VERSION: 4.3.0 -->";   // the markers kit-check.js requires of every kit part
+
+function fixture(version = "1.3.0") {
+  rmSync(P, { recursive: true, force: true });
+  w("ARCHITECTURE.md", `<!-- ARCHITECTURE_VERSION: ${version} -->\n<!-- ARCHITECTURE_STATUS: Released -->\n<!-- ARCHITECTURE_RELEASED: 2026-10-01 -->\n<!-- DOC_LANGUAGE: en -->\n\n# Order Desk — Architecture\n\n**Version**: ${version}\n\n## Navigation\n\nOrder Desk takes orders from shops and books them on the ledger.\n`);
+  w("docs/01-system-overview.md", `# 1. System Overview\n\n${docHdr("web-app, hub-api")}\n\n## 1. Executive Summary <!-- SECTION: Executive Summary -->\n\nOrder Desk books shop orders.\n\n### Problem Statement <!-- LABEL: Problem Statement -->\n\nShops phone orders in.\n\n### Solution <!-- LABEL: Solution -->\n\nA web app over one API.\n\n\`\`\`mermaid\nflowchart TB\n  A --> B\n\`\`\`\n\nAfter the diagram.\n`);
+  w("docs/02-architecture-principles.md", `# 3. Architecture Principles\n\n${docHdr("hub-api")}\n\n## 3. Principles <!-- SECTION: Architecture Principles -->\n\n### 3.1 Idempotent writes <!-- PRINCIPLE: Idempotency -->\n\n**Description:** Every write carries a key.\n\n#### Trade-offs\n\n- retries cost a lookup\n\n### 3.2 Notes\n\nfirst\n\n### 3.2 Notes\n\nsecond\n`);
+  w("docs/04-data-flow-patterns.md", `# 6. Data Flow\n\n${docHdr("web-app, hub-api, ledger-store")}\n\n## Phase Catalog <!-- LABEL: Phase Catalog -->\n\n| # | Phase | On critical path? | Owner | Failure mode |\n|---|---|---|---|---|\n| 1 | Accept order | Yes | Web App → Hub API | reject |\n| 2 | Book order | Yes | Hub API → Ledger Store | retry |\n\n#### Phase 1 — Accept order\n\n**Hops**: Web App → Hub API\n**Latency budget (p95)**: 120 ms\n\n#### Phase 2 — Book order\n\n**Hops**: Hub API → Ledger Store\n**Latency budget (p95)**: 80 ms\n\n## Flow Inventory <!-- LABEL: Flow Inventory -->\n\n| Flow | Trigger | Use Case | Latency Target |\n|---|---|---|---|\n| 1. Place order | shop submits | UC-01 | 300 ms |\n\n### Flow 1 — Place order\n\n**Phases**: 1, 2\n**Governed by**: ADR-101\n`);
+  w("docs/05-integration-points.md", `# 7. Integration Points\n\n${docHdr("web-app, hub-api, ledger-store")}\n\n## Inventory <!-- SECTION: Integration Points -->\n\n| ID | From | To | Protocol | Pattern |\n|---|---|---|---|---|\n| I-01 | Web App | Hub API | HTTPS/JSON | sync |\n| I-02 | Hub API | Ledger Store | PGWIRE | sync |\n\n### I-01 Web App to Hub API\n\nOrders arrive as JSON with an idempotency key.\n`);
+  w("docs/components/README.md", `# Components\n\n| # | Component | File | Type | Technology |\n|---|---|---|---|---|\n`);
+  w("docs/components/desk.md", `# Desk\n\n${hdr("desk", "internal-system")}\n\n**C4 Level:** System (L1)\n**Type:** Internal System\n`);
+  w("docs/components/desk/01-web-app.md", `# Web App\n\n${hdr("web-app", "web-application")}\n\n**Type:** Web Application\n**Technology:** [React]\n\nThe shop-facing app.\n`);
+  w("docs/components/desk/02-hub-api.md", `# Hub API\n\n${hdr("hub-api", "api-service")}\n\n**Type:** API Service\n**Technology:** [Spring Boot]\n**Internal Name:** od-hub-api\n**Component Version:** 1.1.0\n\nTakes orders, books them.\n`);
+  w("docs/components/desk/03-ledger-store.md", `# Ledger Store\n\n${hdr("ledger-store", "database")}\n\n**Type:** Database\n**Technology:** [PostgreSQL]\n`);
+  w("adr/ADR-101-idempotency-keys.md", `# ADR-101: Idempotency keys on every write\n\n**Status**: Accepted\n**Scope**: Project\n\n## Context\n\nShops retry.\n\n## Decision\n\nA key per write.\n`);
+  w("tdr/TDR-001-manual-ledger-fix.md", `---\nstatus: Open\n---\n# TDR-001: Manual ledger fix\n\n## Description\n\nA script fixes ledger rows by hand.\n`);
+  w("compliance-docs/CC-001.md", "# Contract\n\nZEBRA-COMPLIANCE-TOKEN\n");
+  // the handoff kit: Hub API packed, Web App covered at an older version
+  w("handoffs/SYSTEM_RUNTIME_VIEW.md", `# System Runtime View\n\n${KIT}\n\n## Flows <!-- SECTION: Flows -->\n\nflows.\n`);
+  w("handoffs/CROSS_CUTTING_STANDARDS.md", `# Cross-Cutting Standards\n\n${KIT}\n\n## Errors <!-- SECTION: Error semantics -->\n\nerrors.\n`);
+  w("handoffs/interfaces/web-app→hub-api.md", `# Interface Contract: Web App → Hub API\n\n${KIT}\n\nPOST /orders.\n`);
+  w("handoffs/interfaces/hub-api→ledger-store.md", `# Interface Contract: Hub API → Ledger Store\n\n${KIT}\n\n[NOT DOCUMENTED — pool size]\n`);
+  w("handoffs/components/02-hub-api.md", `# Hub API\n\n${KIT}\n\n## Acceptance <!-- SECTION: Acceptance -->\n\nan order books once.\n`);
+  w("handoffs/components/01-web-app.md", `# Web App\n\n${KIT}\n`);
+  w("handoffs/assets/02-hub-api/openapi.yaml", "openapi: 3.1.0\ninfo:\n  title: Hub API\n  version: 1.1.0\npaths: {}\n");
+  w("handoffs/assets/02-hub-api/ddl.sql", "CREATE TABLE orders (id uuid primary key);\n");
+  w("handoffs/assets/02-hub-api/c4-descriptor.md", "# Hub API\n");
+  const e = (file: string, v: string) => ({ payload_hash: "sha256:x", template_version: "4.3.0", schema_version: "4", architecture_version: v, cut_sheet_file: file, assets: ["openapi", "ddl", "c4-descriptor"], doc_language: "en", generated: "2026-10-01T10:00:00Z" });
+  w("handoffs/.manifest.json", JSON.stringify({ version: "4", generator: "sa-skills:architecture-dev-handoff", generator_version: "8.143.5",
+    run: { ekonte_hash: "sha256:a", ekonte_template_version: "4.3.0", settei_hash: "sha256:a", settei_template_version: "4.3.0", schema_version: "4", architecture_version: version, generated: "2026-10-01T10:00:00Z" },
+    seams: { "web-app→hub-api": { payload_hash: "sha256:b", template_version: "4.3.0", schema_version: "4", seam_file: "interfaces/web-app→hub-api.md", related_adrs: ["ADR-101"], generated: "2026-10-01T10:00:00Z" },
+      "hub-api→ledger-store": { payload_hash: "sha256:c", template_version: "4.3.0", schema_version: "4", seam_file: "interfaces/hub-api→ledger-store.md", related_adrs: [], generated: "2026-10-01T10:00:00Z" } },
+    cut_sheets: { "hub-api": e("components/02-hub-api.md", version), "web-app": e("components/01-web-app.md", "1.2.0") } }));
+}
+const chunks = (out: string) => readFileSync(join(out, "chunks.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+
+const OUT = process.argv[2]; rmSync(OUT, { recursive: true, force: true });
+const env = { ...process.env, GIT_CEILING_DIRECTORIES: BASE, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
+const git = (...a: string[]) => spawnSync("git", a, { cwd: P, env, encoding: "utf8" });
+const opts = { kitCheck: clean, projectKey: "order-desk", server: "http://localhost:8080/mcp" };
+fixture("1.3.0");
+const SAVED = join(BASE, "kit"); cpSync(join(P, "handoffs"), SAVED, { recursive: true }); rmSync(join(P, "handoffs"), { recursive: true });
+git("init", "-q"); git("add", "-A"); git("commit", "-qm", "release 1.3.0"); git("tag", "architecture-v1.3.0");
+exportIndex(P, { ...opts, out: join(OUT, "1.3.0-search") });
+cpSync(SAVED, join(P, "handoffs"), { recursive: true }); git("add", "-A"); git("commit", "-qm", "kit 1.3.0");
+exportIndex(P, { ...opts, out: join(OUT, "1.3.0") });
+// 1.4.0: the edits of the what-changed test, released with its kit
+const edit = (f: string, from: string, to: string) => w(f, readFileSync(join(P, f), "utf8").replace(from, to));
+for (const f of ["ARCHITECTURE.md", "handoffs/.manifest.json"]) edit(f, /1\.3\.0/g as any, "1.4.0");
+edit("ARCHITECTURE.md", "**Version**: 1.3.0", "**Version**: 1.4.0");
+edit("handoffs/assets/02-hub-api/openapi.yaml", "paths: {}", "paths:\n  /orders: {}");
+edit("handoffs/interfaces/hub-api→ledger-store.md", "[NOT DOCUMENTED — pool size]", "Pool of 20 connections.");
+edit("docs/04-data-flow-patterns.md", "**Latency budget (p95)**: 80 ms", "**Latency budget (p95)**: 90 ms");
+edit("docs/components/desk/02-hub-api.md", "**Technology:** [Spring Boot]", "**Technology:** [Spring Boot], [Kafka]");
+edit("docs/05-integration-points.md", "| I-01 | Web App | Hub API | HTTPS/JSON | sync |", "| I-01 | Web App | Hub API | HTTPS/JSON | async |");
+git("add", "-A"); git("commit", "-qm", "release 1.4.0"); git("tag", "architecture-v1.4.0");
+exportIndex(P, { ...opts, out: join(OUT, "1.4.0"), previous: join(OUT, "1.3.0") });
+// a draft on top of 1.4.0
+edit("docs/01-system-overview.md", "Shops phone orders in.", "Shops phone and e-mail orders in.");
+exportIndex(P, { ...opts, out: join(OUT, "draft") });
+rmSync(BASE, { recursive: true, force: true });
+for (const d of ["1.3.0-search", "1.3.0", "1.4.0", "draft"]) { const m = JSON.parse(readFileSync(join(OUT, d, "manifest.json"), "utf8")); console.log(d, m.channel, m.architecture.version, m.counts.chunks, m.buildpacks.map((b: any) => b.component), m.changes?.action_required ?? ""); }

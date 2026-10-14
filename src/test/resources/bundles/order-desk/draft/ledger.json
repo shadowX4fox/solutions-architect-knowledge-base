@@ -1,0 +1,325 @@
+{
+ "schema_version": "1.0",
+ "generated_at": "2026-10-14T22:19:51.156Z",
+ "architecture": {
+  "name": "Order Desk",
+  "version": "1.4.0",
+  "status": "Released",
+  "released": "2026-10-01",
+  "language": "en",
+  "type": null,
+  "prose_style": null,
+  "architect": null,
+  "supersedes": null
+ },
+ "docs": [
+  {
+   "file": "docs/01-system-overview.md",
+   "title": "1. System Overview",
+   "bytes": 454,
+   "has_header": true,
+   "key_concepts": [
+    "orders"
+   ],
+   "technologies": [
+    "Java"
+   ],
+   "components": [
+    "web-app",
+    "hub-api"
+   ],
+   "scope": "s",
+   "related_adrs": [
+    "ADR-101"
+   ]
+  },
+  {
+   "file": "docs/02-architecture-principles.md",
+   "title": "3. Architecture Principles",
+   "bytes": 397,
+   "has_header": true,
+   "key_concepts": [
+    "orders"
+   ],
+   "technologies": [
+    "Java"
+   ],
+   "components": [
+    "hub-api"
+   ],
+   "scope": "s",
+   "related_adrs": [
+    "ADR-101"
+   ]
+  },
+  {
+   "file": "docs/04-data-flow-patterns.md",
+   "title": "6. Data Flow",
+   "bytes": 831,
+   "has_header": true,
+   "key_concepts": [
+    "orders"
+   ],
+   "technologies": [
+    "Java"
+   ],
+   "components": [
+    "web-app",
+    "hub-api",
+    "ledger-store"
+   ],
+   "scope": "s",
+   "related_adrs": [
+    "ADR-101"
+   ]
+  },
+  {
+   "file": "docs/05-integration-points.md",
+   "title": "7. Integration Points",
+   "bytes": 455,
+   "has_header": true,
+   "key_concepts": [
+    "orders"
+   ],
+   "technologies": [
+    "Java"
+   ],
+   "components": [
+    "web-app",
+    "hub-api",
+    "ledger-store"
+   ],
+   "scope": "s",
+   "related_adrs": [
+    "ADR-101"
+   ]
+  }
+ ],
+ "systems": [
+  {
+   "name": "Desk",
+   "slug": "desk",
+   "file": "docs/components/desk.md",
+   "type": "Internal System",
+   "owned": true,
+   "containers": [
+    "web-app",
+    "hub-api",
+    "ledger-store"
+   ]
+  }
+ ],
+ "components": [
+  {
+   "name": "Desk",
+   "slug": "desk",
+   "file": "docs/components/desk.md",
+   "level": "L1",
+   "system": "desk",
+   "index": null,
+   "type": "Internal System",
+   "technology": [],
+   "description": null,
+   "internal_name": null,
+   "capacity": null,
+   "key_concepts": [
+    "orders"
+   ],
+   "scope": "s",
+   "related_adrs": [
+    "ADR-101"
+   ],
+   "component_version": null,
+   "last_updated": null,
+   "delivery": null,
+   "bytes": 210,
+   "file_backed": true,
+   "warnings": []
+  },
+  {
+   "name": "Web App",
+   "slug": "web-app",
+   "file": "docs/components/desk/01-web-app.md",
+   "level": "L2",
+   "system": "desk",
+   "index": "5.1",
+   "type": "Web Application",
+   "technology": [
+    "React"
+   ],
+   "description": null,
+   "internal_name": null,
+   "capacity": null,
+   "key_concepts": [
+    "orders"
+   ],
+   "scope": "s",
+   "related_adrs": [
+    "ADR-101"
+   ],
+   "component_version": null,
+   "last_updated": null,
+   "delivery": null,
+   "bytes": 236,
+   "file_backed": true,
+   "warnings": [
+    "missing-field: **Description:**",
+    "technology-mismatch: header \"Java\" vs **Technology:** \"React\""
+   ]
+  },
+  {
+   "name": "Hub API",
+   "slug": "hub-api",
+   "file": "docs/components/desk/02-hub-api.md",
+   "level": "L2",
+   "system": "desk",
+   "index": "5.2",
+   "type": "API Service",
+   "technology": [
+    "Spring Boot",
+    "Kafka"
+   ],
+   "description": null,
+   "internal_name": "od-hub-api",
+   "capacity": null,
+   "key_concepts": [
+    "orders"
+   ],
+   "scope": "s",
+   "related_adrs": [
+    "ADR-101"
+   ],
+   "component_version": "1.1.0",
+   "last_updated": null,
+   "delivery": null,
+   "bytes": 307,
+   "file_backed": true,
+   "warnings": [
+    "missing-field: **Description:**",
+    "technology-mismatch: header \"Java\" vs **Technology:** \"Spring Boot, Kafka\""
+   ]
+  },
+  {
+   "name": "Ledger Store",
+   "slug": "ledger-store",
+   "file": "docs/components/desk/03-ledger-store.md",
+   "level": "L2",
+   "system": "desk",
+   "index": "5.3",
+   "type": "Database",
+   "technology": [
+    "PostgreSQL"
+   ],
+   "description": null,
+   "internal_name": null,
+   "capacity": null,
+   "key_concepts": [
+    "orders"
+   ],
+   "scope": "s",
+   "related_adrs": [
+    "ADR-101"
+   ],
+   "component_version": null,
+   "last_updated": null,
+   "delivery": null,
+   "bytes": 215,
+   "file_backed": true,
+   "warnings": [
+    "missing-field: **Description:**",
+    "technology-mismatch: header \"Java\" vs **Technology:** \"PostgreSQL\""
+   ]
+  }
+ ],
+ "adrs": [
+  {
+   "id": "ADR-101",
+   "file": "adr/ADR-101-idempotency-keys.md",
+   "title": "Idempotency keys on every write",
+   "status": "Accepted",
+   "scope": "Project"
+  }
+ ],
+ "tdrs": [
+  {
+   "id": "TDR-001",
+   "file": "tdr/TDR-001-manual-ledger-fix.md",
+   "title": "TDR-001: Manual ledger fix",
+   "status": "Open",
+   "initiative": null,
+   "driver": null,
+   "capability": null
+  }
+ ],
+ "layers": [],
+ "integrations": [
+  {
+   "id": "I-01",
+   "from": "Web App",
+   "to": "Hub API",
+   "protocol": "HTTPS/JSON",
+   "pattern": "async",
+   "boundary": null,
+   "retired": false,
+   "line": 13
+  },
+  {
+   "id": "I-02",
+   "from": "Hub API",
+   "to": "Ledger Store",
+   "protocol": "PGWIRE",
+   "pattern": "sync",
+   "boundary": null,
+   "retired": false,
+   "line": 13
+  }
+ ],
+ "phases": [
+  {
+   "n": "1",
+   "name": "Accept order",
+   "critical": "Yes",
+   "owner_chain": "Web App → Hub API",
+   "failure_mode": "reject",
+   "hops": "Web App → Hub API",
+   "latency_budget": "120 ms",
+   "has_block": true
+  },
+  {
+   "n": "2",
+   "name": "Book order",
+   "critical": "Yes",
+   "owner_chain": "Hub API → Ledger Store",
+   "failure_mode": "retry",
+   "hops": "Hub API → Ledger Store",
+   "latency_budget": "90 ms",
+   "has_block": true
+  }
+ ],
+ "flows": [
+  {
+   "code": "1",
+   "name": "Place order",
+   "trigger": "shop submits",
+   "use_cases": [
+    "UC-01"
+   ],
+   "latency_target": "300 ms",
+   "phases": [
+    "1",
+    "2"
+   ],
+   "governed_by": [
+    "ADR-101"
+   ],
+   "delta": null,
+   "has_block": true
+  }
+ ],
+ "demand": [],
+ "increments": [],
+ "increments_file": null,
+ "diagrams": [],
+ "releases": [],
+ "warnings": []
+}
