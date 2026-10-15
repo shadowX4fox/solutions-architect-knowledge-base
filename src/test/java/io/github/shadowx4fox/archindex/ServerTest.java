@@ -123,6 +123,7 @@ class ServerTest {
 		Map<String, Object> r = rpc("initialize", Map.of("protocolVersion", "2025-06-18", "capabilities", Map.of(),
 				"clientInfo", Map.of("name", "test-ide", "version", "1")));
 		assertThat(J.str(J.map(J.map(r, "result"), "serverInfo"), "name")).isEqualTo("architecture");
+		assertThat(J.str(J.map(r, "result"), "instructions")).startsWith("You are Alia");
 		HttpRequest n = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/mcp"))
 			.header("Content-Type", "application/json")
 			.header("Accept", "application/json, text/event-stream")
