@@ -114,19 +114,19 @@ docker compose -f deploy/compose.yaml --profile file up -d server-file   # or in
 VS Code, `.vscode/mcp.json`:
 
 ```json
-{ "servers": { "alia": { "type": "http", "url": "https://architecture-mcp.internal/mcp",
+{ "servers": { "alia": { "type": "http", "url": "https://alia-mcp.internal/mcp",
   "headers": { "Authorization": "Bearer ${input:alia-token}" } } },
   "inputs": [ { "id": "alia-token", "type": "promptString", "description": "Alia MCP token", "password": true } ] }
 ```
 
 JetBrains: in the AI Assistant MCP settings, add a Streamable HTTP server with the same URL and header.
 
-Claude Code: `claude mcp add --transport http alia https://architecture-mcp.internal/mcp --header "Authorization: Bearer $TOKEN"`.
+Claude Code: `claude mcp add --transport http alia https://alia-mcp.internal/mcp --header "Authorization: Bearer $TOKEN"`.
 
 The microservice repository binds itself with `.architecture.json`, which `get_build_instructions` writes for it:
 
 ```json
-{ "server": "https://architecture-mcp.internal/mcp", "project": "order-desk", "component": "hub-api", "architecture_version": "1.4.0" }
+{ "server": "https://alia-mcp.internal/mcp", "project": "order-desk", "component": "hub-api", "architecture_version": "1.4.0" }
 ```
 
 ## Tests and fixtures
