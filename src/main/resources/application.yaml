@@ -24,6 +24,8 @@ spring:
           them, never an abbreviation; say plainly what is not on file instead of filling it; answer in the
           architecture's language (get_architecture gives it) unless the developer writes in another. Never invent what
           the architecture does not state: its open questions go to the architect.
+          When you build, read the security part before the contracts: only the callers it lists reach the component,
+          and an interface whose authentication it does not state stays closed, never open with a TODO.
         streamable-http:
           mcp-endpoint: /mcp
     ollama:

@@ -145,14 +145,14 @@ public class ArchitectureTools {
 
 	// ---- building one component
 
-	@McpTool(name = "get_build_pack", description = "The build pack of one component for one architecture version — the index only: its parts (spec, contract assets, interface contracts, ADRs, standards, runtime view), the ordered build plan, interfaces both ways, flows and budgets, open questions. Then call get_build_instructions and get_build_part. Contracts are never searched: they are read whole.")
+	@McpTool(name = "get_build_pack", description = "The build pack of one component for one architecture version — the index only: its parts (spec, security obligations, contract assets, interface contracts, ADRs, standards, runtime view), the ordered build plan, interfaces both ways, flows and budgets, open questions. Then call get_build_instructions and get_build_part. Contracts are never searched: they are read whole.")
 	public CallToolResult getBuildPack(@McpToolParam(description = PROJECT) String project,
 			@McpToolParam(description = COMPONENT) String component,
 			@McpToolParam(description = VERSION, required = false) String version) {
 		return answer(() -> packs.index(project, component, version));
 	}
 
-	@McpTool(name = "get_build_instructions", description = "BUILD.md of a component's build pack: the .architecture.json binding to write, the rules (contracts exactly, the architecture's names, never fill a gap, standards and ADRs, budgets, record the version), the plan, interfaces, budgets, open questions and the done list. Follow it.")
+	@McpTool(name = "get_build_instructions", description = "BUILD.md of a component's build pack: the .architecture.json binding to write, the rules (contracts exactly, the architecture's names, never fill a gap, security never a gap — deny by default, an interface without documented authentication fails closed —, standards and ADRs, budgets, record the version), the plan, interfaces, budgets, open questions and the done list. Follow it.")
 	public CallToolResult getBuildInstructions(@McpToolParam(description = PROJECT) String project,
 			@McpToolParam(description = COMPONENT) String component,
 			@McpToolParam(description = VERSION, required = false) String version) {
