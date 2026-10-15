@@ -9,7 +9,7 @@ spring:
       chat: none
     mcp:
       server:
-        name: architecture
+        name: Alia
         version: 0.1.0
         type: SYNC
         protocol: STREAMABLE
