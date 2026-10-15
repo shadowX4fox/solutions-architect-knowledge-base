@@ -26,6 +26,7 @@ Every capability is a tool, because every IDE client supports tools while prompt
 | `list_decisions` | ledger | ADRs or TDRs, by status |
 | `search_architecture` | Qdrant | reasons and explanations: dense + sparse (exact ids such as `ADR-112`, `I-07`) fused by weighted RRF; each hit has file, lines, anchor, version |
 | `get_chunk` | bundle | the whole text of a hit |
+| `get_document` | bundle | a whole document (by file, ADR/TDR id or component) rebuilt from its chunks in line order, with the lines covered and the gaps |
 | `get_build_pack` | pack | the index: parts, ordered plan, interfaces both ways, flows, open questions |
 | `get_build_instructions` | pack | `BUILD.md`: the `.architecture.json` binding, the rules, plan and done list |
 | `get_build_part` · `get_asset` | pack | one part byte for byte (spec, `asset:openapi.yaml`, `interface:a→b`, `adr:ADR-101` …), paged over 60,000 characters |

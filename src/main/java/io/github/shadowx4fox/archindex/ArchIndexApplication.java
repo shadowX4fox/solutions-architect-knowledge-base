@@ -23,6 +23,7 @@ import io.github.shadowx4fox.archindex.index.QdrantVectorIndex;
 import io.github.shadowx4fox.archindex.index.SearchService;
 import io.github.shadowx4fox.archindex.index.SparseEncoder;
 import io.github.shadowx4fox.archindex.index.VectorIndex;
+import io.github.shadowx4fox.archindex.ledger.DocumentService;
 import io.github.shadowx4fox.archindex.ledger.LedgerService;
 import io.github.shadowx4fox.archindex.mcp.ArchitectureTools;
 import io.github.shadowx4fox.archindex.mcp.Bundles;
@@ -97,9 +98,14 @@ public class ArchIndexApplication {
 	}
 
 	@Bean
+	DocumentService documentService(Bundles bundles, ArchIndexProperties p) {
+		return new DocumentService(bundles, p.search().maxPartChars());
+	}
+
+	@Bean
 	ArchitectureTools architectureTools(LedgerService ledger, SearchService search, BuildPackService packs,
-			ChangesService changes) {
-		return new ArchitectureTools(ledger, search, packs, changes);
+			ChangesService changes, DocumentService documents) {
+		return new ArchitectureTools(ledger, search, packs, changes, documents);
 	}
 
 	@Bean

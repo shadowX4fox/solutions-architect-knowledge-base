@@ -189,7 +189,7 @@ class ServerTest {
 		initialize();
 		List<String> names = J.maps(J.map(rpc("tools/list", Map.of()), "result"), "tools").stream().map((t) -> J.str(t, "name")).toList();
 		assertThat(names).containsExactlyInAnyOrder("list_projects", "get_architecture", "get_component", "list_integrations",
-				"list_flows", "get_flow", "list_decisions", "search_architecture", "get_chunk", "get_build_pack",
+				"list_flows", "get_flow", "list_decisions", "search_architecture", "get_chunk", "get_document", "get_build_pack",
 				"get_build_instructions", "get_build_part", "get_asset", "what_changed");
 	}
 
@@ -209,6 +209,25 @@ class ServerTest {
 		Map<String, Object> flow = tool("get_flow", Map.of("project", "order-desk", "flow", "UC-01", "version", "1.3.0"));
 		assertThat(J.maps(flow, "phases")).extracting((p) -> J.str(p, "latency_budget")).containsExactly("120 ms", "80 ms");
 		assertThat(J.maps(tool("list_decisions", Map.of("project", "order-desk", "kind", "tdr")), "tdrs")).extracting((t) -> J.str(t, "id")).containsExactly("TDR-001");
+	}
+
+	@Test
+	@Order(3)
+	void aDocumentComesWholeFromItsChunksInLineOrder() throws Exception {
+		Map<String, Object> adr = tool("get_document", Map.of("project", "order-desk", "document", "adr-101"));
+		assertThat(adr).containsEntry("file", "adr/ADR-101-idempotency-keys.md").containsEntry("chunks", 1);
+		assertThat(J.str(adr, "content")).doesNotStartWith("Order Desk ›").contains("ADR-101");
+		// the section and the I-01 block, in line order; the I-02 row the export made inside the section is not repeated
+		Map<String, Object> ints = tool("get_document", Map.of("project", "order-desk", "document", "docs/05-integration-points.md"));
+		assertThat(ints).containsEntry("chunks", 2).containsEntry("lines", List.of(List.of(11, 21))).containsEntry("gaps", List.of(List.of(1, 10)));
+		String content = J.str(ints, "content");
+		assertThat(content).doesNotContain("›").doesNotContain("I-01 · ");
+		assertThat(content.indexOf("I-02")).isLessThan(content.indexOf("I-01 Web App")).isNotNegative();
+		// a component by its name gives its descriptor without the export's summary line
+		Map<String, Object> web = tool("get_document", Map.of("project", "order-desk", "document", "Web App"));
+		assertThat(J.str(web, "content")).startsWith("# Web App");
+		assertThat(J.str(tool("get_document", Map.of("project", "order-desk", "document", "ADR-999"), true), "text"))
+			.contains("no document 'ADR-999'", "adr/ADR-101-idempotency-keys.md");
 	}
 
 	@Test

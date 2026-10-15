@@ -15,7 +15,7 @@ spring:
         protocol: STREAMABLE
         instructions: >
           The architecture of the systems this team builds, as released by its architects. Ask it questions while you
-          work (search_architecture for reasons, the ledger tools for lists and relations), and build one component
+          work (search_architecture for reasons, get_document for a whole ADR or document, the ledger tools for lists and relations), and build one component
           from its build pack (get_build_pack, get_build_instructions, get_build_part). When the repository has an
           .architecture.json, use its project, component and architecture_version in every call. Never invent what the
           architecture does not state: its open questions go to the architect.

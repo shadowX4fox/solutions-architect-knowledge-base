@@ -12,6 +12,7 @@ import io.github.shadowx4fox.archindex.build.BuildPackService;
 import io.github.shadowx4fox.archindex.bundle.J;
 import io.github.shadowx4fox.archindex.changes.ChangesService;
 import io.github.shadowx4fox.archindex.index.SearchService;
+import io.github.shadowx4fox.archindex.ledger.DocumentService;
 import io.github.shadowx4fox.archindex.ledger.LedgerService;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 
@@ -38,11 +39,15 @@ public class ArchitectureTools {
 
 	private final ChangesService changes;
 
-	public ArchitectureTools(LedgerService ledger, SearchService search, BuildPackService packs, ChangesService changes) {
+	private final DocumentService documents;
+
+	public ArchitectureTools(LedgerService ledger, SearchService search, BuildPackService packs, ChangesService changes,
+			DocumentService documents) {
 		this.ledger = ledger;
 		this.search = search;
 		this.packs = packs;
 		this.changes = changes;
+		this.documents = documents;
 	}
 
 	static CallToolResult answer(Supplier<Object> s) {
@@ -128,6 +133,14 @@ public class ArchitectureTools {
 			@McpToolParam(description = "chunk_id from a search hit") String chunkId,
 			@McpToolParam(description = VERSION, required = false) String version) {
 		return answer(() -> ledger.chunk(project, chunkId, version));
+	}
+
+	@McpTool(name = "get_document", description = "One whole document — an ADR, a TDR, a docs/ section file, a component descriptor — in one call, rebuilt from its chunks in line order, with the lines it covers and the gaps. Name it by the file a search hit gave, an ADR or TDR id (ADR-109), or a component. Use it instead of reading a document chunk by chunk. A document over 60,000 characters comes in pages: pass next_offset back as offset.")
+	public CallToolResult getDocument(@McpToolParam(description = PROJECT) String project,
+			@McpToolParam(description = "A file path from a search hit (adr/ADR-109-….md, docs/05-integration-points.md), an ADR or TDR id, or a component") String document,
+			@McpToolParam(description = VERSION, required = false) String version,
+			@McpToolParam(description = "Character offset for the next page of a long document", required = false) Integer offset) {
+		return answer(() -> documents.document(project, document, version, offset));
 	}
 
 	// ---- building one component
