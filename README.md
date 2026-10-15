@@ -115,8 +115,8 @@ VS Code, `.vscode/mcp.json`:
 
 ```json
 { "servers": { "alia": { "type": "http", "url": "https://architecture-mcp.internal/mcp",
-  "headers": { "Authorization": "Bearer ${input:architecture-token}" } } },
-  "inputs": [ { "id": "architecture-token", "type": "promptString", "description": "Architecture MCP token", "password": true } ] }
+  "headers": { "Authorization": "Bearer ${input:alia-token}" } } },
+  "inputs": [ { "id": "alia-token", "type": "promptString", "description": "Alia MCP token", "password": true } ] }
 ```
 
 JetBrains: in the AI Assistant MCP settings, add a Streamable HTTP server with the same URL and header.
