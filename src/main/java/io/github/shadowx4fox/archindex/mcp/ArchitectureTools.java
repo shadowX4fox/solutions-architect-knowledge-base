@@ -159,7 +159,7 @@ public class ArchitectureTools {
 		return answer(() -> packs.instructions(project, component, version));
 	}
 
-	@McpTool(name = "get_build_part", description = "One part of a build pack, byte for byte, by its id from get_build_pack (spec, asset:openapi.yaml, interface:a→b, adr:ADR-101, cross-cutting-standards, runtime-view, instructions). A part over 60,000 characters comes in pages: pass next_offset back as offset.")
+	@McpTool(name = "get_build_part", description = "One part of a build pack, byte for byte, by its id from get_build_pack (spec, security, asset:openapi.yaml, interface:a→b, adr:ADR-101, cross-cutting-standards, runtime-view, instructions). A part over 60,000 characters comes in pages: pass next_offset back as offset.")
 	public CallToolResult getBuildPart(@McpToolParam(description = PROJECT) String project,
 			@McpToolParam(description = COMPONENT) String component,
 			@McpToolParam(description = "Part id from get_build_pack") String part,

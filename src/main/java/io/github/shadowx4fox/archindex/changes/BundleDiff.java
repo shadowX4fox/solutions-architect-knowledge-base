@@ -213,7 +213,7 @@ public final class BundleDiff {
 			contracts = setDiff(parts(op, "asset"), parts(np, "asset"), (x) -> J.str(x, "title"), byHash);
 			interfaces = setDiff(parts(op, "interface"), parts(np, "interface"), (x) -> J.str(x, "id").replaceFirst("^interface:", ""), byHash);
 			adrs = setDiff(parts(op, "adr"), parts(np, "adr"), (x) -> J.str(x, "id").replaceFirst("^adr:", ""), byHash);
-			for (String[] d : new String[][] { { "spec", "Component Specification" }, { "cross-cutting-standards", "Cross-Cutting Standards" }, { "runtime-view", "System Runtime View" } }) {
+			for (String[] d : new String[][] { { "spec", "Component Specification" }, { "security", "Security Obligations" }, { "cross-cutting-standards", "Cross-Cutting Standards" }, { "runtime-view", "System Runtime View" } }) {
 				Map<String, Object> a = op == null ? null : find(J.maps(op, "parts"), "id", d[0]);
 				Map<String, Object> b = np == null ? null : find(J.maps(np, "parts"), "id", d[0]);
 				if (a != null && b != null && !Objects.equals(J.str(a, "sha256"), J.str(b, "sha256"))) {
@@ -330,7 +330,7 @@ public final class BundleDiff {
 		boolean action = "removed".equals(status)
 				|| facts.stream().anyMatch((f) -> List.of("name", "type", "technology", "internal_name").contains(J.str(f, "field")))
 				|| (contracts != null && contracts.any()) || (interfaces != null && interfaces.any()) || integrations.any()
-				|| !flows.isEmpty() || documents.contains("Component Specification");
+				|| !flows.isEmpty() || documents.contains("Component Specification") || documents.contains("Security Obligations");
 		r.put("action_required", action);
 		return r;
 	}
