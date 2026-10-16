@@ -21,8 +21,8 @@
    "title": "Build instructions",
    "path": "BUILD.md",
    "source": null,
-   "bytes": 4851,
-   "sha256": "c2e0f19b20bf9857e124204d10a5993feea8fb1c25b23c61f61d0f2d0f3136ee"
+   "bytes": 6131,
+   "sha256": "0ee8aea9293f0c1a5c801aaf32d9784f86c0376903080f759f41e36ba3d8cf7b"
   },
   {
    "id": "spec",
@@ -32,6 +32,15 @@
    "source": "handoffs/components/02-hub-api.md",
    "bytes": 165,
    "sha256": "bcd29034af31da945b7f7157f1bf314d6cb4bf4c20bb92e0a6e829c84f487acf"
+  },
+  {
+   "id": "security",
+   "kind": "security",
+   "title": "Security Obligations",
+   "path": "security.md",
+   "source": "handoffs/assets/02-hub-api/security.md",
+   "bytes": 625,
+   "sha256": "f9d2446e63830720f141db11fab663288e3cd22989722b1fc2406ed7d1a18804"
   },
   {
    "id": "asset:c4-descriptor.md",
@@ -88,6 +97,15 @@
    "sha256": "d5f269d7a9edd6963a29edf2ac092926201de7ca3df3c898f9f47722e6c85193"
   },
   {
+   "id": "adr:ADR-012",
+   "kind": "adr",
+   "title": "ADR-012: Service mesh",
+   "path": "adrs/ADR-012-service-mesh.md",
+   "source": "adr/ADR-012-service-mesh.md",
+   "bytes": 104,
+   "sha256": "2b75c9ef051082ba092e4a965ce4f75adf5651b90ff51ef639781fdaf8959cf7"
+  },
+  {
    "id": "adr:ADR-101",
    "kind": "adr",
    "title": "ADR-101: Idempotency keys on every write",
@@ -118,6 +136,14 @@
   },
   {
    "step": 2,
+   "id": "security",
+   "title": "Enforce the security obligations first: who may call, how each interface authenticates, the threats to mitigate",
+   "parts": [
+    "security"
+   ]
+  },
+  {
+   "step": 3,
    "id": "contracts",
    "title": "Implement the API and message contracts exactly as written",
    "parts": [
@@ -125,7 +151,7 @@
    ]
   },
   {
-   "step": 3,
+   "step": 4,
    "id": "data",
    "title": "Implement the data model",
    "parts": [
@@ -133,7 +159,7 @@
    ]
   },
   {
-   "step": 4,
+   "step": 5,
    "id": "interfaces",
    "title": "Implement each interface: outbound calls, then inbound",
    "parts": [
@@ -142,16 +168,17 @@
    ]
   },
   {
-   "step": 5,
+   "step": 6,
    "id": "standards",
    "title": "Apply the cross-cutting standards and the governing ADRs",
    "parts": [
     "cross-cutting-standards",
+    "adr:ADR-012",
     "adr:ADR-101"
    ]
   },
   {
-   "step": 6,
+   "step": 7,
    "id": "flows",
    "title": "Meet the flows the component takes part in and their latency budgets",
    "parts": [
@@ -159,7 +186,7 @@
    ]
   },
   {
-   "step": 7,
+   "step": 8,
    "id": "acceptance",
    "title": "Prove the acceptance criteria of the Component Specification",
    "parts": [
@@ -215,6 +242,7 @@
   }
  ],
  "adrs": [
+  "ADR-012",
   "ADR-101"
  ],
  "open_questions": [],

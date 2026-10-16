@@ -1,6 +1,5 @@
 {
  "schema_version": "1.0",
- "generated_at": "2026-10-14T22:19:51.148Z",
  "architecture": {
   "name": "Order Desk",
   "version": "1.4.0",
@@ -232,6 +231,13 @@
   }
  ],
  "adrs": [
+  {
+   "id": "ADR-012",
+   "file": "adr/ADR-012-service-mesh.md",
+   "title": "Service mesh",
+   "status": "Accepted",
+   "scope": "Institutional"
+  },
   {
    "id": "ADR-101",
    "file": "adr/ADR-101-idempotency-keys.md",

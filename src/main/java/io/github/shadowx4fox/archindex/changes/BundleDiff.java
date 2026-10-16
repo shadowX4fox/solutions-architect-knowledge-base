@@ -63,6 +63,8 @@ public final class BundleDiff {
 		out.put("project", n.projectKey());
 		out.put("from", o.version());
 		out.put("to", n.version());
+		// the same version twice: the server holds a released version and a second publish replaced packs — only the packs can differ
+		out.put("same_version", Objects.equals(o.version(), n.version()));
 		out.put("components", comps);
 		return out;
 	}
@@ -213,7 +215,7 @@ public final class BundleDiff {
 			contracts = setDiff(parts(op, "asset"), parts(np, "asset"), (x) -> J.str(x, "title"), byHash);
 			interfaces = setDiff(parts(op, "interface"), parts(np, "interface"), (x) -> J.str(x, "id").replaceFirst("^interface:", ""), byHash);
 			adrs = setDiff(parts(op, "adr"), parts(np, "adr"), (x) -> J.str(x, "id").replaceFirst("^adr:", ""), byHash);
-			for (String[] d : new String[][] { { "spec", "Component Specification" }, { "security", "Security Obligations" }, { "cross-cutting-standards", "Cross-Cutting Standards" }, { "runtime-view", "System Runtime View" } }) {
+			for (String[] d : new String[][] { { "spec", "Component Specification" }, { "security", "Security Obligations" }, { "cross-cutting-standards", "Cross-Cutting Standards" }, { "runtime-view", "System Runtime View" }, { "instructions", "Build instructions" } }) {
 				Map<String, Object> a = op == null ? null : find(J.maps(op, "parts"), "id", d[0]);
 				Map<String, Object> b = np == null ? null : find(J.maps(np, "parts"), "id", d[0]);
 				if (a != null && b != null && !Objects.equals(J.str(a, "sha256"), J.str(b, "sha256"))) {
@@ -319,12 +321,19 @@ public final class BundleDiff {
 		sections.put("changed", sd.changed().stream().map((id) -> where(n, id)).toList());
 		r.put("sections", sections);
 		r.put("open_questions", openQuestions);
+		// a pack's revision is the sha256 of its pack.json in the manifest — pack.json lists every part's hash, so any part moving moves it
+		Map<String, Object> revision = new LinkedHashMap<>();
+		revision.put("from", op == null ? null : o.packRevision(slug).orElse(null));
+		revision.put("to", np == null ? null : n.packRevision(slug).orElse(null));
 		String pack = op != null && np != null ? "present" : np != null ? "added" : op != null ? "removed" : "absent";
+		r.put("pack_revision", revision);
 		r.put("pack", pack);
+		boolean revised = "present".equals(pack) && !Objects.equals(revision.get("from"), revision.get("to"));
+		r.put("pack_revised", revised);
 		boolean oqMoved = openQuestions != null && (!((List<?>) openQuestions.get("new")).isEmpty() || !((List<?>) openQuestions.get("resolved")).isEmpty());
 		boolean changed = !"present".equals(status) || !facts.isEmpty()
 				|| java.util.stream.Stream.of(contracts, interfaces, adrs, integrations, sd).anyMatch((d) -> d != null && d.any())
-				|| !documents.isEmpty() || !flows.isEmpty() || "added".equals(pack) || "removed".equals(pack) || oqMoved;
+				|| !documents.isEmpty() || !flows.isEmpty() || "added".equals(pack) || "removed".equals(pack) || revised || oqMoved;
 		r.put("changed", changed);
 		// what the developer must act on: the code-facing parts moved. A component version alone is listed, not an action
 		boolean action = "removed".equals(status)
@@ -358,7 +367,9 @@ public final class BundleDiff {
 	/** The Markdown the plugin's {@code renderChanges} writes for the same diff. */
 	public static String render(Map<String, Object> d) {
 		List<String> l = new ArrayList<>();
-		l.add("# What changed — " + J.str(d, "project") + " " + J.str(d, "from") + " → " + J.str(d, "to"));
+		boolean sameVersion = Boolean.TRUE.equals(d.get("same_version"));
+		l.add(sameVersion ? "# What changed — " + J.str(d, "project") + " " + J.str(d, "to") + ", build packs revised"
+				: "# What changed — " + J.str(d, "project") + " " + J.str(d, "from") + " → " + J.str(d, "to"));
 		l.add("");
 		List<Map<String, Object>> comps = J.maps(d, "components");
 		if (comps.isEmpty()) {
@@ -376,6 +387,10 @@ public final class BundleDiff {
 			String pack = J.str(c, "pack");
 			if ("added".equals(pack) || "removed".equals(pack)) {
 				l.add("- build pack " + pack);
+			}
+			if (Boolean.TRUE.equals(c.get("pack_revised")) && sameVersion) {
+				Map<String, Object> rev = J.map(c, "pack_revision");
+				l.add("- build pack replaced: revision " + J.str(rev, "from").substring(0, 12) + " → " + J.str(rev, "to").substring(0, 12));
 			}
 			list(l, "contracts", J.map(c, "contracts"));
 			list(l, "interfaces", J.map(c, "interfaces"));

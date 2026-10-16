@@ -16,6 +16,7 @@ import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingRequest;
 import org.springframework.ai.embedding.EmbeddingResponse;
 
+import io.github.shadowx4fox.archindex.bundle.J;
 import io.github.shadowx4fox.archindex.bundle.Tgz;
 import io.github.shadowx4fox.archindex.index.SparseEncoder;
 
@@ -23,7 +24,8 @@ import io.github.shadowx4fox.archindex.index.SparseEncoder;
  * The synthetic bundles under {@code src/test/resources/bundles/order-desk/} — exported by the plugin from its own test
  * project (scripts/make-fixtures.ts): {@code 1.3.0-search} (the release tag, no kit yet), {@code 1.3.0} (with the
  * Hub API build pack), {@code 1.4.0} (a release with contract, budget, technology and integration changes, shipped
- * with changes.json) and {@code draft}.
+ * with changes.json), {@code 1.4.0-revised} (1.4.0 again, the kit regenerated: Hub API's security obligations moved, its
+ * changes.json the same-version diff) and {@code draft}.
  */
 public final class Fixtures {
 
@@ -62,6 +64,28 @@ public final class Fixtures {
 				}
 			}
 			return to;
+		}
+		catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	/** Writes a file of a bundle and the sha256 and size the manifest lists for it, so the bundle still passes its check. */
+	public static void rewrite(Path dir, String path, String content) {
+		try {
+			byte[] bytes = content.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+			Files.write(dir.resolve(path), bytes);
+			java.util.Map<String, Object> m = J.obj(Files.readAllBytes(dir.resolve("manifest.json")));
+			m.put("files", J.maps(m, "files").stream().map((f) -> {
+				if (!path.equals(J.str(f, "path"))) {
+					return f;
+				}
+				java.util.Map<String, Object> g = new java.util.LinkedHashMap<>(f);
+				g.put("sha256", J.sha256(bytes));
+				g.put("bytes", bytes.length);
+				return g;
+			}).toList());
+			Files.writeString(dir.resolve("manifest.json"), J.write(m));
 		}
 		catch (IOException e) {
 			throw new UncheckedIOException(e);

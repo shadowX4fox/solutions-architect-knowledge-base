@@ -41,13 +41,15 @@ Versions: omitted or `latest` is the newest released version, `draft` is the unr
 | Request | Answer |
 |---|---|
 | `GET /bundles/{key}/before/{version}` | 200 `application/gzip`: the newest released bundle older than `version`, which the export diffs against for `changes.json` · 404 none |
-| `POST /bundles/{key}/{version}?channel=released\|draft` (gzipped tar) | 201 stored · 200 build packs added to a released version held, or nothing new · 409 its chunks differ from the released version held · 400 the URL does not match the bundle · 413 too large · 422 the bundle fails its check (findings in the body) |
+| `POST /bundles/{key}/{version}?channel=released\|draft` (gzipped tar) | 201 stored · 200 a released version held, the body naming the build packs `added`, `replaced` and `unchanged` · 409 refused, the body's `reason` `chunks_differ`, `ledger_differs` or `packs_missing` with the `packs` · 400 the URL does not match the bundle · 413 too large · 422 the bundle fails its check (findings in the body) |
 | `GET /bundles` | what is held, per slot, with the indexing state |
 
 The rules:
 
-- A released version is immutable in what search serves. A second publish may only add build packs: the second phase of a release, when the regenerated handoff kit is committed.
-- A re-run of the tag job keeps the packs the server already holds.
+- A released version is immutable in what search serves. A second publish of it — the second phase of a release, when the regenerated handoff kit is committed — carries the same chunks, the same ledger and every build pack the server holds for that version. It may add packs and replace them; it never drops one. Anything else is refused and what is held stays.
+- A pack is replaced when its revision moved: the `sha256` the manifest lists for its `pack.json`, which lists every part's hash. `get_build_pack` and `get_build_part` return it as `pack_revision`.
+- The ledger is compared exactly, without the clock an export before plugin v8.150.1 wrote into it. Pin `SA_PLUGIN_REF`, so both publishes of a release run the same plugin.
+- A re-run of the tag job, or of the kit job with the same packs, changes nothing.
 - A project has one draft. A release of the draft's version or a newer one removes it.
 - Every bundle passes the same check as `export-index.js --check` before it is kept: every listed file present with its sha256, nothing unlisted, every chunk's hash, and every pack part.
 - Extraction refuses links and any path that leaves the bundle.

@@ -27,8 +27,9 @@ import io.github.shadowx4fox.archindex.index.Indexer;
  *
  * <pre>
  * GET  /bundles/{key}/before/{version}             200 application/gzip — the newest released bundle older than version · 404 none
- * POST /bundles/{key}/{version}?channel={channel}  body application/gzip — 201 stored · 200 build packs added to a version
- *                                                  held · 409 its chunks differ from a released version held
+ * POST /bundles/{key}/{version}?channel={channel}  body application/gzip — 201 stored · 200 a version held, the body
+ *                                                  {"added":[…],"replaced":[…],"unchanged":[…]} naming the build packs ·
+ *                                                  409 refused, {"reason":"chunks_differ|ledger_differs|packs_missing","packs":[…]}
  * </pre>
  *
  * plus 400 for a URL that does not match the bundle, 415 for a body that is not sent as application/gzip, 413 for a bundle over the size limit and 422 for a bundle that
@@ -86,7 +87,14 @@ public class BundleController {
 		body.put("chunks", p.bundle().chunks().size());
 		body.put("build_packs", List.copyOf(p.bundle().packs().keySet()));
 		if (p.outcome() == BundleStore.Outcome.CONFLICT) {
+			body.put("reason", p.conflict().reason());
+			body.put("packs", p.conflictPacks());
 			return ResponseEntity.status(409).body(body);
+		}
+		if (p.outcome() != BundleStore.Outcome.STORED) {
+			body.put("added", p.added());
+			body.put("replaced", p.replaced());
+			body.put("unchanged", p.unchanged());
 		}
 		indexer.reconcile(key);
 		body.put("search", p.chunksChanged() ? "indexing — GET /bundles shows when it is ready" : "unchanged");

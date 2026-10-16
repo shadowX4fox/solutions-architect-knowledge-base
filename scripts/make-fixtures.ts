@@ -37,6 +37,9 @@ function fixture(version = "1.3.0") {
   w("handoffs/assets/02-hub-api/openapi.yaml", "openapi: 3.1.0\ninfo:\n  title: Hub API\n  version: 1.1.0\npaths: {}\n");
   w("handoffs/assets/02-hub-api/ddl.sql", "CREATE TABLE orders (id uuid primary key);\n");
   w("handoffs/assets/02-hub-api/c4-descriptor.md", "# Hub API\n");
+  w("handoffs/assets/02-hub-api/security.md", `# Hub API — Security Obligations\n\n<!-- managed by sa-skills:architecture-dev-handoff — rendered by security-obligations.js from the architecture docs and the security analyses; fix a value there and re-run, never here -->\n\n## Inbound — who may call <!-- SECTION: Inbound -->\n\n| Integration | Caller | Protocol | Authentication | Source |\n|---|---|---|---|---|\n| I-01 | Web App | REST | mTLS through the mesh | STRIDE TB-01 |\n\nAny other caller is rejected.\n\n## Decisions in force <!-- SECTION: Decisions in Force -->\n\n- [ADR-012](../../../adr/ADR-012-service-mesh.md) — Service mesh\n`);
+  w("handoffs/components/01-web-app.md".replace("components/01-web-app.md", "assets/01-web-app/security.md"), "# Web App — Security Obligations\n\n<!-- managed by sa-skills:architecture-dev-handoff — rendered by security-obligations.js -->\n");
+  w("adr/ADR-012-service-mesh.md", `# ADR-012: Service mesh\n\n**Status**: Accepted\n**Scope**: Institutional\n\n## Decision\n\nmTLS between pods.\n`);
   const e = (file: string, v: string) => ({ payload_hash: "sha256:x", template_version: "4.3.0", schema_version: "4", architecture_version: v, cut_sheet_file: file, assets: ["openapi", "ddl", "c4-descriptor"], doc_language: "en", generated: "2026-10-01T10:00:00Z" });
   w("handoffs/.manifest.json", JSON.stringify({ version: "4", generator: "sa-skills:architecture-dev-handoff", generator_version: "8.143.5",
     run: { ekonte_hash: "sha256:a", ekonte_template_version: "4.3.0", settei_hash: "sha256:a", settei_template_version: "4.3.0", schema_version: "4", architecture_version: version, generated: "2026-10-01T10:00:00Z" },
@@ -67,8 +70,12 @@ edit("docs/components/desk/02-hub-api.md", "**Technology:** [Spring Boot]", "**T
 edit("docs/05-integration-points.md", "| I-01 | Web App | Hub API | HTTPS/JSON | sync |", "| I-01 | Web App | Hub API | HTTPS/JSON | async |");
 git("add", "-A"); git("commit", "-qm", "release 1.4.0"); git("tag", "architecture-v1.4.0");
 exportIndex(P, { ...opts, out: join(OUT, "1.4.0"), previous: join(OUT, "1.3.0") });
+// 1.4.0 again: the kit regenerated after the tag, Hub API's security obligations moved — a second publish that replaces its pack
+edit("handoffs/assets/02-hub-api/security.md", "Any other caller is rejected.", "Any other caller is rejected. Ledger Store calls back over I-02.");
+git("add", "-A"); git("commit", "-qm", "kit 1.4.0 regenerated");
+exportIndex(P, { ...opts, out: join(OUT, "1.4.0-revised"), previous: join(OUT, "1.4.0") });
 // a draft on top of 1.4.0
 edit("docs/01-system-overview.md", "Shops phone orders in.", "Shops phone and e-mail orders in.");
 exportIndex(P, { ...opts, out: join(OUT, "draft") });
 rmSync(BASE, { recursive: true, force: true });
-for (const d of ["1.3.0-search", "1.3.0", "1.4.0", "draft"]) { const m = JSON.parse(readFileSync(join(OUT, d, "manifest.json"), "utf8")); console.log(d, m.channel, m.architecture.version, m.counts.chunks, m.buildpacks.map((b: any) => b.component), m.changes?.action_required ?? ""); }
+for (const d of ["1.3.0-search", "1.3.0", "1.4.0", "1.4.0-revised", "draft"]) { const m = JSON.parse(readFileSync(join(OUT, d, "manifest.json"), "utf8")); console.log(d, m.channel, m.architecture.version, m.counts.chunks, m.buildpacks.map((b: any) => b.component), m.changes?.action_required ?? ""); }

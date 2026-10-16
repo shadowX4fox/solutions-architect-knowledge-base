@@ -65,6 +65,8 @@ public class BuildPackService {
 		m.put("architecture_version", l.bundle().version());
 		m.put("channel", l.bundle().channel());
 		m.put("component", p.get("component"));
+		// the sha256 of pack.json: it moves when a second publish of this version replaced the pack
+		m.put("pack_revision", l.bundle().packRevision(l.slug()).orElse(null));
 		List<Map<String, Object>> parts = new ArrayList<>();
 		for (Map<String, Object> x : J.maps(p, "parts")) {
 			Map<String, Object> e = new LinkedHashMap<>();
@@ -128,6 +130,7 @@ public class BuildPackService {
 		m.put("project", l.bundle().projectKey());
 		m.put("architecture_version", l.bundle().version());
 		m.put("component", l.slug());
+		m.put("pack_revision", l.bundle().packRevision(l.slug()).orElse(null));
 		m.put("part", part.get("id"));
 		m.put("kind", part.get("kind"));
 		m.put("title", part.get("title"));

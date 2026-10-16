@@ -12,7 +12,9 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -30,8 +32,10 @@ import org.slf4j.LoggerFactory;
  * {data}/bundles/{key}/draft/                at most one draft per project, replaced by each draft publish
  * </pre>
  *
- * A released version is immutable in what search serves: a second publish of it may only add build packs (the
- * second phase of a release, when the regenerated kit is committed); different chunks are refused.
+ * A released version is immutable in what search serves. A second publish of it (the second phase of a release, when
+ * the regenerated kit is committed) carries the same chunks, the same ledger and every build pack held for it; it may
+ * add packs and replace them — a pack is replaced when its revision, the sha256 of its pack.json, moved. Anything else
+ * is refused with its reason, and what is held stays.
  */
 public class BundleStore {
 
@@ -45,16 +49,41 @@ public class BundleStore {
 
 		/** 201: a version (or a draft) the server did not hold. */
 		STORED,
-		/** 200: the released version held, with the build packs this publish carries. */
-		PACKS_ADDED,
-		/** 200: the released version held, same chunks, no packs in this publish — the held packs stay. */
+		/** 200: the released version held, build packs added or replaced by this publish. */
+		PACKS_UPDATED,
+		/** 200: the released version held, nothing new — no packs in this publish, or the same ones; the held packs stay. */
 		UNCHANGED,
-		/** 409: the released version held has other chunks. */
+		/** 409: refused — {@link Conflict} says why; what is held stays. */
 		CONFLICT
 
 	}
 
-	public record Published(Outcome outcome, Bundle bundle, boolean chunksChanged, String message) {
+	/** Why a second publish of a released version is refused: the {@code reason} of the 409 body. */
+	public enum Conflict {
+
+		CHUNKS_DIFFER, LEDGER_DIFFERS, PACKS_MISSING;
+
+		public String reason() {
+			return name().toLowerCase();
+		}
+
+	}
+
+	/**
+	 * What a publish did. {@code added}, {@code replaced} and {@code unchanged} name the build packs of a released
+	 * version held (empty for a version stored new); on a conflict, {@code conflict} and {@code conflictPacks} say why.
+	 */
+	public record Published(Outcome outcome, Bundle bundle, boolean chunksChanged, String message, List<String> added,
+			List<String> replaced, List<String> unchanged, Conflict conflict, List<String> conflictPacks) {
+
+		static Published stored(Bundle b, boolean chunksChanged, String message) {
+			return new Published(Outcome.STORED, b, chunksChanged, message, List.of(), List.of(), List.of(), null, List.of());
+		}
+
+		static Published refused(Bundle held, Conflict why, List<String> packs, String message) {
+			return new Published(Outcome.CONFLICT, held, false, message, List.of(), List.of(), List.of(), why, packs);
+		}
+
 	}
 
 	public static class Rejected extends RuntimeException {
@@ -235,8 +264,7 @@ public class BundleStore {
 				Bundle held = p.draft;
 				Bundle placed = place(incoming, base.resolve(DRAFT));
 				p.draft = placed;
-				return new Published(Outcome.STORED, placed,
-						held == null || !held.chunkSignature().equals(placed.chunkSignature()),
+				return Published.stored(placed, held == null || !held.chunkSignature().equals(placed.chunkSignature()),
 						version + " stored as the draft of " + key);
 			}
 			Bundle held = p.released.get(version);
@@ -244,21 +272,14 @@ public class BundleStore {
 			if (held == null) {
 				Bundle placed = place(incoming, base.resolve("released").resolve(version));
 				p.released.put(version, placed);
-				out = new Published(Outcome.STORED, placed, true, version + " stored (released)");
-			}
-			else if (!held.chunkSignature().equals(b.chunkSignature())) {
-				return new Published(Outcome.CONFLICT, held, false, "released " + version
-						+ " is held with other chunks — a released version does not change; release a new version");
-			}
-			else if (b.packs().isEmpty()) {
-				return new Published(Outcome.UNCHANGED, held, false,
-						version + " held with the same chunks; its " + held.packs().size() + " build packs kept");
+				out = Published.stored(placed, true, version + " stored (released)");
 			}
 			else {
-				Bundle placed = place(incoming, base.resolve("released").resolve(version));
-				p.released.put(version, placed);
-				out = new Published(Outcome.PACKS_ADDED, placed, false,
-						version + " updated — build packs: " + String.join(", ", placed.packs().keySet()));
+				out = republish(held, b, incoming, base.resolve("released").resolve(version));
+				if (out.outcome() != Outcome.PACKS_UPDATED) {
+					return out;
+				}
+				p.released.put(version, out.bundle());
 			}
 			Bundle d = p.draft;
 			if (d != null && Semver.compare(d.version(), version) <= 0) {
@@ -270,6 +291,61 @@ public class BundleStore {
 		finally {
 			delete(incoming);
 		}
+	}
+
+	/**
+	 * A second publish of the released version {@code held}: the same chunks, the same ledger and every pack held, or
+	 * refused. Without packs, or with the same ones, nothing moves. Otherwise the incoming bundle — a superset of the
+	 * packs held — replaces the version whole, so the server never writes a manifest of its own.
+	 */
+	private Published republish(Bundle held, Bundle b, Path incoming, Path target) {
+		String version = held.version();
+		if (!held.chunkSignature().equals(b.chunkSignature())) {
+			return Published.refused(held, Conflict.CHUNKS_DIFFER, List.of(), "released " + version
+					+ " is held with other chunks — a released version does not change; release a new version");
+		}
+		if (!J.same(held.ledgerFacts(), b.ledgerFacts())) {
+			return Published.refused(held, Conflict.LEDGER_DIFFERS, List.of(), "released " + version
+					+ " is held with another ledger — publish the same commit with the same plugin (SA_PLUGIN_REF), or release a new version");
+		}
+		if (b.packs().isEmpty()) {
+			return new Published(Outcome.UNCHANGED, held, false,
+					version + " held with the same chunks; its " + held.packs().size() + " build packs kept", List.of(),
+					List.of(), List.copyOf(held.packs().keySet()), null, List.of());
+		}
+		List<String> missing = held.packs().keySet().stream().filter((s) -> !b.packs().containsKey(s)).sorted().toList();
+		if (!missing.isEmpty()) {
+			return Published.refused(held, Conflict.PACKS_MISSING, missing, "released " + version
+					+ " holds build packs this publish leaves out: " + String.join(", ", missing)
+					+ " — regenerate them or fix the kit (kit-check.js)");
+		}
+		List<String> added = new ArrayList<>();
+		List<String> replaced = new ArrayList<>();
+		List<String> unchanged = new ArrayList<>();
+		for (String s : new TreeSet<>(b.packs().keySet())) {
+			if (!held.packs().containsKey(s)) {
+				added.add(s);
+			}
+			else if (!Objects.equals(held.packRevision(s).orElse(null), b.packRevision(s).orElse(null))) {
+				replaced.add(s);
+			}
+			else {
+				unchanged.add(s);
+			}
+		}
+		if (added.isEmpty() && replaced.isEmpty()) {
+			return new Published(Outcome.UNCHANGED, held, false, version + " held with the same build packs", List.of(),
+					List.of(), unchanged, null, List.of());
+		}
+		Bundle placed = place(incoming, target);
+		log.info("released {} {}: build packs added {}, replaced {}", placed.projectKey(), version, added, replaced);
+		return new Published(Outcome.PACKS_UPDATED, placed, false, version + " updated — build packs added: "
+				+ none(added) + " · replaced: " + none(replaced) + " · unchanged: " + none(unchanged), added, replaced,
+				unchanged, null, List.of());
+	}
+
+	private static String none(List<String> l) {
+		return l.isEmpty() ? "none" : String.join(", ", l);
 	}
 
 	/** Moves an extracted bundle into place, replacing what was there, and loads it from its new home. */

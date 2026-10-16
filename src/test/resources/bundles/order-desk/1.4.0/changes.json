@@ -3,6 +3,7 @@
  "project": "order-desk",
  "from": "1.3.0",
  "to": "1.4.0",
+ "same_version": false,
  "components": [
   {
    "component": "hub-api",
@@ -39,7 +40,9 @@
     "removed": [],
     "changed": []
    },
-   "documents": [],
+   "documents": [
+    "Build instructions"
+   ],
    "flows": [
     {
      "flow": "1",
@@ -105,7 +108,12 @@
      }
     ]
    },
+   "pack_revision": {
+    "from": "d1812eff8dfea9edb762141d86eaf822328bd27825a1d8295a9625d32d487356",
+    "to": "f049491bb05f34d72e50b8ac4f6fec2964cd7a2910c23656fa49c83d1ebe43a9"
+   },
    "pack": "present",
+   "pack_revised": true,
    "changed": true,
    "action_required": true
   },
@@ -155,7 +163,12 @@
     ]
    },
    "open_questions": null,
+   "pack_revision": {
+    "from": null,
+    "to": null
+   },
    "pack": "absent",
+   "pack_revised": false,
    "changed": true,
    "action_required": true
   },
@@ -201,7 +214,12 @@
     ]
    },
    "open_questions": null,
+   "pack_revision": {
+    "from": null,
+    "to": null
+   },
    "pack": "absent",
+   "pack_revised": false,
    "changed": true,
    "action_required": true
   }

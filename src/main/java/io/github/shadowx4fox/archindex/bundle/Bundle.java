@@ -151,6 +151,41 @@ public final class Bundle {
 			.orElseGet(() -> dir.resolve("buildpacks").resolve(slug).normalize());
 	}
 
+	/** The sha256 the manifest lists for a file of the bundle, as the checker verified it. */
+	public Optional<String> fileSha(String path) {
+		return J.maps(manifest, "files")
+			.stream()
+			.filter((f) -> path.equals(J.str(f, "path")))
+			.map((f) -> J.str(f, "sha256"))
+			.filter((s) -> s != null)
+			.findFirst();
+	}
+
+	/**
+	 * A pack's revision: the sha256 the manifest lists for its pack.json ({@code buildpacks/<slug>/pack.json}) —
+	 * pack.json lists every part's hash, so any part moving moves it (the plugin's {@code revisionOf}).
+	 */
+	public Optional<String> packRevision(String slug) {
+		String path = J.maps(manifest, "buildpacks")
+			.stream()
+			.filter((b) -> slug.equals(J.str(b, "component")) && J.str(b, "path") != null)
+			.map((b) -> J.str(b, "path"))
+			.findFirst()
+			.orElse("buildpacks/" + slug + "/pack.json");
+		return fileSha(path);
+	}
+
+	/**
+	 * The ledger without what is not data: the plugin's ledger carried the run's clock until v8.150.1, so a version held
+	 * from an older export still compares equal to the same commit exported again.
+	 */
+	public Map<String, Object> ledgerFacts() {
+		Map<String, Object> l = new LinkedHashMap<>(ledger);
+		l.remove("generated_at");
+		l.remove("project_root");
+		return l;
+	}
+
 	/** The chunk set as (id, content hash) pairs: two bundles with the same set serve the same search. */
 	public String chunkSignature() {
 		return chunkSignature;

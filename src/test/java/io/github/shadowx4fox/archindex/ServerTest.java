@@ -257,7 +257,8 @@ class ServerTest {
 	void aComponentIsBuiltFromItsPackPartByPart() throws Exception {
 		Map<String, Object> pack = tool("get_build_pack", Map.of("project", "order-desk", "component", "hub-api", "version", "1.4.0"));
 		assertThat(pack).containsEntry("architecture_version", "1.4.0");
-		assertThat(J.maps(pack, "plan")).extracting((s) -> J.str(s, "id")).startsWith("spec", "contracts", "data", "interfaces");
+		assertThat(J.maps(pack, "plan")).extracting((s) -> J.str(s, "id")).startsWith("spec", "security", "contracts", "data", "interfaces");
+		assertThat(J.str(pack, "pack_revision")).hasSize(64);
 		String build = J.str(tool("get_build_instructions", Map.of("project", "order-desk", "component", "Hub API", "version", "1.4.0")), "content");
 		assertThat(build).startsWith("# Build Hub API").contains("\"architecture_version\": \"1.4.0\"");
 		Map<String, Object> openapi = tool("get_asset", Map.of("project", "order-desk", "component", "hub-api", "asset", "openapi.yaml", "version", "1.4.0"));

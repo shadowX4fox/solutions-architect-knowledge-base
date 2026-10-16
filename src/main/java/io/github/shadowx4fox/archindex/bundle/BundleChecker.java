@@ -180,6 +180,9 @@ public final class BundleChecker {
 			if (!pids.contains("spec")) {
 				f.add(new Finding(bp, "no spec part"));
 			}
+			if (!pids.contains("security")) {
+				f.add(new Finding(bp, "no security part"));
+			}
 			if (version == null || !version.equals(J.str(p, "architecture_version"))) {
 				f.add(new Finding(bp, "architecture_version " + J.str(p, "architecture_version")));
 			}

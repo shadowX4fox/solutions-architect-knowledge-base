@@ -32,11 +32,25 @@ class BundleTest {
 
 	@Test
 	void everyFixtureBundlePassesTheCheckAsThePluginWroteIt() {
-		for (String b : List.of("1.3.0-search", "1.3.0", "1.4.0", "draft")) {
+		for (String b : List.of("1.3.0-search", "1.3.0", "1.4.0", "1.4.0-revised", "draft")) {
 			BundleChecker.Result r = BundleChecker.check(Fixtures.bundle(b));
 			assertThat(r.findings()).as(b).isEmpty();
-			assertThat(r.chunks()).isEqualTo(22);
+			assertThat(r.chunks()).isEqualTo(23);
 		}
+	}
+
+	@Test
+	void aPackWithoutItsSecurityPartFailsTheCheck() throws Exception {
+		Path b = Fixtures.copy(Fixtures.bundle("1.3.0"), tmp.resolve("b"));
+		Map<String, Object> pack = J.obj(Files.readAllBytes(b.resolve("buildpacks/hub-api/pack.json")));
+		pack.put("parts", J.maps(pack, "parts").stream().filter((x) -> !"security".equals(J.str(x, "id"))).toList());
+		pack.put("plan", J.maps(pack, "plan").stream().map((st) -> {
+			Map<String, Object> m = new java.util.LinkedHashMap<>(st);
+			m.put("parts", J.strings(st, "parts").stream().filter((id) -> !"security".equals(id)).toList());
+			return m;
+		}).toList());
+		Fixtures.rewrite(b, "buildpacks/hub-api/pack.json", J.write(pack));
+		assertThat(BundleChecker.check(b).findings()).extracting(BundleChecker.Finding::text).containsExactly("no security part");
 	}
 
 	@Test
@@ -79,6 +93,29 @@ class BundleTest {
 		assertThatThrownBy(() -> BundleDiff.diff(o, n, "nope", false)).hasMessageContaining("container of neither version");
 	}
 
+	@Test
+	void theJavaDiffIsThePluginsDiffForTheSameVersionTwice() {
+		Bundle o = Bundle.load(Fixtures.bundle("1.4.0"));
+		Bundle n = Bundle.load(Fixtures.bundle("1.4.0-revised"));
+		Map<String, Object> ours = BundleDiff.diff(o, n, null, false);
+		assertThat(dropNulls(J.obj(J.write(ours)))).isEqualTo(dropNulls(n.changes().orElseThrow()));
+		Map<String, Object> hub = J.maps(ours, "components").get(0);
+		assertThat(ours.get("same_version")).isEqualTo(true);
+		assertThat(hub).containsEntry("pack_revised", true).containsEntry("action_required", true);
+		assertThat(J.strings(hub, "documents")).containsExactly("Security Obligations", "Build instructions");
+		assertThat(J.map(hub, "pack_revision")).containsEntry("from", o.packRevision("hub-api").orElseThrow())
+			.containsEntry("to", n.packRevision("hub-api").orElseThrow());
+		String md = BundleDiff.render(ours);
+		assertThat(md).contains("# What changed — order-desk 1.4.0, build packs revised",
+				"- build pack replaced: revision " + o.packRevision("hub-api").orElseThrow().substring(0, 12) + " → "
+						+ n.packRevision("hub-api").orElseThrow().substring(0, 12),
+				"- documents: Security Obligations, Build instructions");
+		// nothing moved: the same bundle twice is no change, and its pack is not revised
+		assertThat(J.maps(BundleDiff.diff(o, o, null, false), "components")).isEmpty();
+		assertThat(BundleDiff.diff(o, o, "hub-api", false)).extracting((d) -> J.maps(d, "components").get(0))
+			.satisfies((c) -> assertThat(c).containsEntry("pack_revised", false).containsEntry("changed", false));
+	}
+
 	@SuppressWarnings("unchecked")
 	static <T> T dropNulls(T v) {
 		if (v instanceof Map<?, ?> m) {
@@ -111,7 +148,9 @@ class BundleTest {
 		assertThat(p.chunksChanged()).isTrue();
 		// phase 2, the kit committed: the same chunks with the Hub API pack → 200, packs added
 		p = publish(s, "order-desk", "1.3.0", "released", Fixtures.bundle("1.3.0"));
-		assertThat(p.outcome()).isEqualTo(Outcome.PACKS_ADDED);
+		assertThat(p.outcome()).isEqualTo(Outcome.PACKS_UPDATED);
+		assertThat(p.added()).containsExactly("hub-api");
+		assertThat(p.replaced()).isEmpty();
 		assertThat(p.chunksChanged()).isFalse();
 		assertThat(s.resolve("order-desk", "1.3.0").orElseThrow().packs()).containsKey("hub-api");
 		// the tag job re-run: no packs in it, the held packs stay
@@ -132,7 +171,9 @@ class BundleTest {
 		Map<String, Object> m = J.obj(Files.readAllBytes(forged.resolve("manifest.json")));
 		m.put("channel", "released");
 		Files.writeString(forged.resolve("manifest.json"), J.write(m));
-		assertThat(publish(s, "order-desk", "1.4.0", "released", forged).outcome()).isEqualTo(Outcome.CONFLICT);
+		p = publish(s, "order-desk", "1.4.0", "released", forged);
+		assertThat(p.outcome()).isEqualTo(Outcome.CONFLICT);
+		assertThat(p.conflict()).isEqualTo(BundleStore.Conflict.CHUNKS_DIFFER);
 		// the URL must name the bundle; a failing bundle is refused with its findings
 		assertThatThrownBy(() -> publish(s, "order-desk", "1.5.0", "released", Fixtures.bundle("1.4.0")))
 			.isInstanceOf(BundleStore.Rejected.class).hasMessageContaining("the bundle is version 1.4.0");
@@ -144,6 +185,72 @@ class BundleTest {
 		BundleStore again = new BundleStore(tmp.resolve("data"), 50_000_000);
 		assertThat(again.find("order-desk").orElseThrow().released().keySet()).containsExactly("1.3.0", "1.4.0");
 		assertThat(again.resolve("order-desk", "1.3.0").orElseThrow().packs()).containsKey("hub-api");
+	}
+
+	@Test
+	void aSecondPublishOfAReleasedVersionMayAddAndReplacePacksButNeverDropOneOrMoveTheLedger() throws Exception {
+		BundleStore s = new BundleStore(tmp.resolve("data"), 50_000_000);
+		publish(s, "order-desk", "1.4.0", "released", Fixtures.bundle("1.4.0"));
+		String first = s.resolve("order-desk", "1.4.0").orElseThrow().packRevision("hub-api").orElseThrow();
+		// the same bundle again (a re-run of the kit job): nothing moves
+		var p = publish(s, "order-desk", "1.4.0", "released", Fixtures.bundle("1.4.0"));
+		assertThat(p.outcome()).isEqualTo(Outcome.UNCHANGED);
+		assertThat(p.unchanged()).containsExactly("hub-api");
+		// the kit regenerated: Hub API's security obligations moved → its pack is replaced, search is untouched
+		p = publish(s, "order-desk", "1.4.0", "released", Fixtures.bundle("1.4.0-revised"));
+		assertThat(p.outcome()).isEqualTo(Outcome.PACKS_UPDATED);
+		assertThat(p.replaced()).containsExactly("hub-api");
+		assertThat(p.added()).isEmpty();
+		assertThat(p.chunksChanged()).isFalse();
+		assertThat(s.resolve("order-desk", "1.4.0").orElseThrow().packRevision("hub-api").orElseThrow()).isNotEqualTo(first);
+		// another ledger under the same chunks (a plugin bump between the two publishes) → 409 ledger_differs
+		Path ledger = Fixtures.copy(Fixtures.bundle("1.4.0-revised"), tmp.resolve("ledger"));
+		Map<String, Object> l = J.obj(Files.readAllBytes(ledger.resolve("ledger.json")));
+		l.put("plugin_field", "new");
+		Fixtures.rewrite(ledger, "ledger.json", J.write(l));
+		p = publish(s, "order-desk", "1.4.0", "released", ledger);
+		assertThat(p.outcome()).isEqualTo(Outcome.CONFLICT);
+		assertThat(p.conflict()).isEqualTo(BundleStore.Conflict.LEDGER_DIFFERS);
+		assertThat(s.resolve("order-desk", "1.4.0").orElseThrow().ledger()).doesNotContainKey("plugin_field");
+	}
+
+	@Test
+	void aSecondPublishThatLeavesOutAPackHeldIsRefusedAndAnOlderLedgerClockIsNotAChange() throws Exception {
+		// held from an older export: a second pack (web-app) and a ledger that still carried the run's clock
+		Path held = Fixtures.copy(Fixtures.bundle("1.4.0"), tmp.resolve("data/bundles/order-desk/released/1.4.0"));
+		Fixtures.copy(held.resolve("buildpacks/hub-api"), held.resolve("buildpacks/web-app"));
+		Map<String, Object> pack = J.obj(Files.readAllBytes(held.resolve("buildpacks/web-app/pack.json")));
+		pack.put("component", "web-app");
+		Files.writeString(held.resolve("buildpacks/web-app/pack.json"), J.write(pack));
+		Map<String, Object> m = J.obj(Files.readAllBytes(held.resolve("manifest.json")));
+		List<Map<String, Object>> packs = new java.util.ArrayList<>(J.maps(m, "buildpacks"));
+		packs.add(Map.of("component", "web-app", "path", "buildpacks/web-app/pack.json"));
+		m.put("buildpacks", packs);
+		Files.writeString(held.resolve("manifest.json"), J.write(m));
+		Map<String, Object> l = J.obj(Files.readAllBytes(held.resolve("ledger.json")));
+		l.put("generated_at", "2026-10-01T10:00:00Z");
+		Files.writeString(held.resolve("ledger.json"), J.write(l));
+		BundleStore s = new BundleStore(tmp.resolve("data"), 50_000_000);
+		assertThat(s.resolve("order-desk", "1.4.0").orElseThrow().packs()).containsOnlyKeys("hub-api", "web-app");
+		var p = publish(s, "order-desk", "1.4.0", "released", Fixtures.bundle("1.4.0-revised"));
+		assertThat(p.outcome()).isEqualTo(Outcome.CONFLICT);
+		assertThat(p.conflict()).isEqualTo(BundleStore.Conflict.PACKS_MISSING);
+		assertThat(p.conflictPacks()).containsExactly("web-app");
+		assertThat(s.resolve("order-desk", "1.4.0").orElseThrow().packs()).containsOnlyKeys("hub-api", "web-app");
+		// the tag job re-run, no packs: kept as held
+		Path search = Fixtures.copy(Fixtures.bundle("1.4.0-revised"), tmp.resolve("search"));
+		Map<String, Object> sm = J.obj(Files.readAllBytes(search.resolve("manifest.json")));
+		sm.put("buildpacks", List.of());
+		sm.put("files", J.maps(sm, "files").stream().filter((f) -> !J.str(f, "path").startsWith("buildpacks/")).toList());
+		Map<String, Object> counts = new java.util.LinkedHashMap<>(J.map(sm, "counts"));
+		counts.put("buildpacks", 0);
+		sm.put("counts", counts);
+		Files.writeString(search.resolve("manifest.json"), J.write(sm));
+		org.springframework.util.FileSystemUtils.deleteRecursively(search.resolve("buildpacks"));
+		assertThat(BundleChecker.check(search).findings()).isEmpty();
+		p = publish(s, "order-desk", "1.4.0", "released", search);
+		assertThat(p.outcome()).isEqualTo(Outcome.UNCHANGED);
+		assertThat(p.unchanged()).containsExactly("hub-api", "web-app");
 	}
 
 	@Test
@@ -173,7 +280,7 @@ class BundleTest {
 		var first = new FileVectorIndex(file, 1024);
 		Indexer.SlotState released = reconcile(s, first).state("order-desk", "1.3.0");
 		assertThat(released.status()).isEqualTo(Indexer.Status.READY);
-		assertThat(released.embedded()).isEqualTo(22);
+		assertThat(released.embedded()).isEqualTo(23);
 		assertThat(file).exists();
 		// a restart reads the file: the release is taken as held, the draft reuses every vector it shares with it
 		var again = new FileVectorIndex(file, 1024);

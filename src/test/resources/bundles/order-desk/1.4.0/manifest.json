@@ -1,8 +1,8 @@
 {
  "schema": "sa-index/1",
  "generator": "sa-delivery:architecture-index-export",
- "generator_version": "8.147.0",
- "generated_at": "2026-10-14T22:19:51.154Z",
+ "generator_version": "8.150.2",
+ "generated_at": "2026-10-16T01:25:50.988Z",
  "project": {
   "key": "order-desk",
   "name": "Order Desk"
@@ -16,9 +16,9 @@
  },
  "channel": "released",
  "git": {
-  "sha": "a76930763c1f97575088be4f7fd214486202588d",
+  "sha": "4382fb271062b81e5ca47561b66711010cde9ed5",
   "tag": "architecture-v1.4.0",
-  "tag_sha": "a76930763c1f97575088be4f7fd214486202588d",
+  "tag_sha": "4382fb271062b81e5ca47561b66711010cde9ed5",
   "at_tag": true,
   "matches_tag": true,
   "dirty": false
@@ -31,9 +31,9 @@
   "hash_field": "content_hash"
  },
  "counts": {
-  "chunks": 22,
+  "chunks": 23,
   "by_kind": {
-   "adr": 1,
+   "adr": 2,
    "overview": 2,
    "section": 8,
    "principle": 1,
@@ -50,7 +50,7 @@
   {
    "component": "hub-api",
    "path": "buildpacks/hub-api/pack.json",
-   "parts": 10,
+   "parts": 12,
    "open_questions": 0
   }
  ],
@@ -68,8 +68,13 @@
  "files": [
   {
    "path": "buildpacks/hub-api/BUILD.md",
-   "bytes": 4851,
-   "sha256": "c2e0f19b20bf9857e124204d10a5993feea8fb1c25b23c61f61d0f2d0f3136ee"
+   "bytes": 6096,
+   "sha256": "a1106b1a5dcf4cb6f893c351a1f648022cfe4e273555b8914c9288cea5330571"
+  },
+  {
+   "path": "buildpacks/hub-api/adrs/ADR-012-service-mesh.md",
+   "bytes": 104,
+   "sha256": "2b75c9ef051082ba092e4a965ce4f75adf5651b90ff51ef639781fdaf8959cf7"
   },
   {
    "path": "buildpacks/hub-api/adrs/ADR-101-idempotency-keys.md",
@@ -108,13 +113,18 @@
   },
   {
    "path": "buildpacks/hub-api/pack.json",
-   "bytes": 5417,
-   "sha256": "e4c664e945d3d35cc594d58f2ee1fb009b060413b139016c505c5d226478b7d3"
+   "bytes": 6193,
+   "sha256": "f049491bb05f34d72e50b8ac4f6fec2964cd7a2910c23656fa49c83d1ebe43a9"
   },
   {
    "path": "buildpacks/hub-api/runtime-view.md",
    "bytes": 153,
    "sha256": "43bb47dc5d7d24228b2e7d639d6476eeb80d8223d6e36bee6af1deac9af69531"
+  },
+  {
+   "path": "buildpacks/hub-api/security.md",
+   "bytes": 590,
+   "sha256": "26bab3a73c943936020d296714e6e03aeafb1acbb3ccdc9bf1cde53b17b1b83e"
   },
   {
    "path": "buildpacks/hub-api/spec.md",
@@ -123,18 +133,18 @@
   },
   {
    "path": "changes.json",
-   "bytes": 3750,
-   "sha256": "3198ca2e7d8630dc8abd0e880e648b20d9698d2c5e07fe2d80432c35dabd811b"
+   "bytes": 4187,
+   "sha256": "ba64f5e3a4370096c7df2b3e9de810f15b233eebcc0404bd1ad251e3110caf0f"
   },
   {
    "path": "chunks.jsonl",
-   "bytes": 14266,
-   "sha256": "03d35509b84d1006bf9a6c3f3033d8202132d1879a1d1414df55f4c3d564e463"
+   "bytes": 14850,
+   "sha256": "a774b0f3dca0fbc720fea45dbfc4aa70bbdce2978ec3579ca272cc4086652aad"
   },
   {
    "path": "ledger.json",
-   "bytes": 5997,
-   "sha256": "dbad868f1dc0a6f5b63d2bf4c68d1afdb83ea5c43f00acf7c68fe11de5fc9061"
+   "bytes": 6104,
+   "sha256": "f7b02fee22462dc76aaeb8404b6fef5b7fa99cc37c9e9830df0e90e30cd7ddde"
   }
  ],
  "changes": {
