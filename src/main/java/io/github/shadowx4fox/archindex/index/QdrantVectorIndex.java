@@ -14,7 +14,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import io.github.shadowx4fox.archindex.ArchIndexProperties;
-import io.github.shadowx4fox.archindex.index.SparseEncoder.SparseVec;
 import io.qdrant.client.PointIdFactory;
 import io.qdrant.client.QdrantClient;
 import io.qdrant.client.QdrantGrpcClient;
@@ -123,7 +122,7 @@ public class QdrantVectorIndex implements VectorIndex, AutoCloseable {
 					String h = p.getPayloadMap().get("content_hash").getStringValue();
 					VectorOutput v = p.getVectors().getVectors().getVectorsMap().get(DENSE);
 					if (v != null) {
-						out.putIfAbsent(h, floats(v.getDense().getDataCount() > 0 ? v.getDense().getDataList() : v.getDataList()));
+						out.putIfAbsent(h, dense(v));
 					}
 				}
 				if (!r.hasNextPageOffset()) {
@@ -244,6 +243,12 @@ public class QdrantVectorIndex implements VectorIndex, AutoCloseable {
 			return value(b);
 		}
 		return value(String.valueOf(v));
+	}
+
+	/** A stored dense vector: in {@code dense} since the vector output was split by kind, in {@code data} from older servers. */
+	@SuppressWarnings("deprecation")
+	private static float[] dense(VectorOutput v) {
+		return floats(v.getDense().getDataCount() > 0 ? v.getDense().getDataList() : v.getDataList());
 	}
 
 	private static float[] floats(List<Float> l) {

@@ -2,13 +2,14 @@ package io.github.shadowx4fox.archindex.bundle;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.Serial;
 import java.io.UncheckedIOException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -97,9 +98,12 @@ public class BundleStore {
 
 	public static class Rejected extends RuntimeException {
 
+		@Serial
+		private static final long serialVersionUID = 1L;
+
 		private final int status;
 
-		private final List<BundleChecker.Finding> findings;
+		private final transient List<BundleChecker.Finding> findings;
 
 		public Rejected(int status, String message, List<BundleChecker.Finding> findings) {
 			super(message);
@@ -112,7 +116,7 @@ public class BundleStore {
 		}
 
 		public List<BundleChecker.Finding> findings() {
-			return findings;
+			return findings == null ? List.of() : findings;
 		}
 
 	}

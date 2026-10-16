@@ -3,6 +3,7 @@ package io.github.shadowx4fox.archindex.bundle;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.Serial;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.zip.GZIPInputStream;
@@ -19,6 +20,9 @@ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream;
 public final class Tgz {
 
 	public static class TooLarge extends IOException {
+
+		@Serial
+		private static final long serialVersionUID = 1L;
 
 		TooLarge(long limit) {
 			super("bundle larger than " + limit + " bytes");
