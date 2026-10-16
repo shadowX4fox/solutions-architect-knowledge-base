@@ -5,6 +5,7 @@
 # Run one server or the other: both publish 8080. The file engine keeps its vectors with the bundles, in /data/index.
 # For the GPU, give the ollama service the device: AMD — devices /dev/kfd and /dev/dri with image ollama/ollama:rocm; NVIDIA — gpus: all.
 # Set ARCHINDEX_INGEST_TOKEN (the pipelines' SA_INDEX_TOKEN) and ARCHINDEX_MCP_TOKEN in the environment or an .env file.
+# ARCHINDEX_PUBLIC_URL (https://alia-mcp.internal) gives every build pack part a download_url.
 x-server: &server
   build: ..
   ports:
@@ -17,6 +18,7 @@ x-server-env: &server-env
   ARCHINDEX_EMBEDDING_MODEL: ${ARCHINDEX_EMBEDDING_MODEL:-qwen3-embedding:0.6b}
   ARCHINDEX_INGEST_TOKEN: ${ARCHINDEX_INGEST_TOKEN:?set ARCHINDEX_INGEST_TOKEN}
   ARCHINDEX_MCP_TOKEN: ${ARCHINDEX_MCP_TOKEN:-}
+  ARCHINDEX_PUBLIC_URL: ${ARCHINDEX_PUBLIC_URL:-}
 
 services:
   server:

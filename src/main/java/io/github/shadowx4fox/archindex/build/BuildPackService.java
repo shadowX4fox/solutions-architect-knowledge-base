@@ -1,6 +1,7 @@
 package io.github.shadowx4fox.archindex.build;
 
 import java.io.IOException;
+import java.io.Serial;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -11,6 +12,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.springframework.web.util.UriUtils;
+
 import io.github.shadowx4fox.archindex.bundle.Bundle;
 import io.github.shadowx4fox.archindex.bundle.J;
 import io.github.shadowx4fox.archindex.mcp.Bundles;
@@ -20,7 +23,8 @@ import io.github.shadowx4fox.archindex.mcp.ToolException;
  * A component's build pack, served in parts: the index first (what the pack holds, the ordered plan, flows, interfaces,
  * open questions), then each part byte for byte. A build never goes through embeddings — the agent reads the exact
  * contracts the handoff kit validated. A version without a pack for the component says which versions have one; it
- * never falls back to another version silently.
+ * never falls back to another version silently. With a public URL set, every part also has a {@code download_url}: the
+ * raw bytes over HTTP ({@code PackController}), so an agent saves a contract asset with curl instead of re-typing it.
  */
 public class BuildPackService {
 
@@ -28,9 +32,12 @@ public class BuildPackService {
 
 	private final int maxPartChars;
 
-	public BuildPackService(Bundles bundles, int maxPartChars) {
+	private final String publicUrl;
+
+	public BuildPackService(Bundles bundles, int maxPartChars, String publicUrl) {
 		this.bundles = bundles;
 		this.maxPartChars = maxPartChars;
+		this.publicUrl = publicUrl == null || publicUrl.isBlank() ? null : publicUrl.strip().replaceAll("/+$", "");
 	}
 
 	record Located(Bundle bundle, String slug, Map<String, Object> pack) {
@@ -75,6 +82,7 @@ public class BuildPackService {
 			e.put("title", x.get("title"));
 			e.put("bytes", x.get("bytes"));
 			e.put("sha256", x.get("sha256"));
+			downloadUrl(l, x).ifPresent((u) -> e.put("download_url", u));
 			parts.add(e);
 		}
 		m.put("parts", parts);
@@ -107,13 +115,83 @@ public class BuildPackService {
 		return part(project, component, "instructions", version, null);
 	}
 
-	private Map<String, Object> read(Located l, Map<String, Object> part, Integer offset) {
+	/** One part's file, as stored — what {@code GET /packs/{key}/{version}/{slug}/{path}} serves. */
+	public record Download(String project, String version, String slug, String packRevision, String path, String sha256,
+			boolean draft, byte[] bytes) {
+	}
+
+	/**
+	 * The bytes of the part whose {@code path} in pack.json is {@code path}. With {@code revision}, a pack replaced since
+	 * is a {@link RevisionMoved}: the bytes would not be the ones the agent recorded.
+	 */
+	public Download download(String project, String version, String component, String path, String revision) {
+		Located l = locate(project, component, version);
+		String current = l.bundle().packRevision(l.slug()).orElse(null);
+		if (revision != null && !revision.isBlank() && !revision.strip().equals(current)) {
+			throw new RevisionMoved(current);
+		}
+		Map<String, Object> part = J.maps(l.pack(), "parts")
+			.stream()
+			.filter((x) -> path != null && path.equals(J.str(x, "path")))
+			.findFirst()
+			.orElseThrow(() -> new ToolException("no part at '" + path + "' in the pack of " + l.slug() + "; paths: "
+					+ String.join(", ", J.maps(l.pack(), "parts").stream().map((x) -> J.str(x, "path")).toList())));
+		try {
+			return new Download(l.bundle().projectKey(), l.bundle().version(), l.slug(), current, path,
+					J.str(part, "sha256"), !l.bundle().released(), Files.readAllBytes(file(l, part)));
+		}
+		catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	/** The pack was replaced since the revision a download named; carries the current one. */
+	public static class RevisionMoved extends RuntimeException {
+
+		@Serial
+		private static final long serialVersionUID = 1L;
+
+		private final String current;
+
+		RevisionMoved(String current) {
+			super("the pack was replaced: its revision is now " + current);
+			this.current = current;
+		}
+
+		public String current() {
+			return current;
+		}
+
+	}
+
+	private Optional<String> downloadUrl(Located l, Map<String, Object> part) {
+		String path = J.str(part, "path");
+		if (publicUrl == null || path == null) {
+			return Optional.empty();
+		}
+		StringBuilder u = new StringBuilder(publicUrl).append("/packs");
+		// the draft shares its version number with a release: its slot is "draft"
+		for (String seg : List.of(l.bundle().projectKey(), l.bundle().released() ? l.bundle().version() : "draft", l.slug())) {
+			u.append('/').append(UriUtils.encodePathSegment(seg, StandardCharsets.UTF_8));
+		}
+		for (String seg : path.split("/")) {
+			u.append('/').append(UriUtils.encodePathSegment(seg, StandardCharsets.UTF_8));
+		}
+		return Optional.of(u.toString());
+	}
+
+	private static Path file(Located l, Map<String, Object> part) {
 		Path dir = l.bundle().packDir(l.slug());
 		String rel = J.str(part, "path");
 		Path file = rel == null ? null : dir.resolve(rel).normalize();
 		if (file == null || !file.startsWith(dir)) {
 			throw new ToolException("part path leaves the pack");
 		}
+		return file;
+	}
+
+	private Map<String, Object> read(Located l, Map<String, Object> part, Integer offset) {
+		Path file = file(l, part);
 		String text;
 		try {
 			text = Files.readString(file, StandardCharsets.UTF_8);
@@ -136,6 +214,7 @@ public class BuildPackService {
 		m.put("title", part.get("title"));
 		m.put("file", Optional.ofNullable(J.str(part, "path")).map((p) -> p.substring(p.lastIndexOf('/') + 1)).orElse(null));
 		m.put("sha256", part.get("sha256"));
+		downloadUrl(l, part).ifPresent((u) -> m.put("download_url", u));
 		m.put("content", text.substring(from, to));
 		if (from > 0 || to < text.length()) {
 			m.put("range", Map.of("from", from, "to", to, "of", text.length()));

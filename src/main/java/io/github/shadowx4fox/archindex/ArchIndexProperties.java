@@ -6,9 +6,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * Settings under {@code archindex.*}. Secrets (the tokens, the Qdrant key) come from the environment, never a file.
+ * {@code publicUrl} is the base the IDE reaches the server at (https://alia-mcp.internal): unset, no part lists a
+ * {@code download_url}.
  */
 @ConfigurationProperties("archindex")
-public record ArchIndexProperties(Path dataDir, String ingestToken, String mcpToken, long maxBundleBytes,
+public record ArchIndexProperties(Path dataDir, String ingestToken, String mcpToken, String publicUrl, long maxBundleBytes,
 		Store store, Qdrant qdrant, File file, Embedding embedding, Search search) {
 
 	public enum Store {

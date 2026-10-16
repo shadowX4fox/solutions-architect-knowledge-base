@@ -40,6 +40,8 @@ archindex:
   data-dir: ${ARCHINDEX_DATA_DIR:data}
   ingest-token: ${ARCHINDEX_INGEST_TOKEN:}
   mcp-token: ${ARCHINDEX_MCP_TOKEN:}
+  # the base the IDE reaches this server at (https://alia-mcp.internal); unset, parts list no download_url
+  public-url: ${ARCHINDEX_PUBLIC_URL:}
   max-bundle-bytes: 268435456
   store: ${ARCHINDEX_STORE:qdrant}
   qdrant:

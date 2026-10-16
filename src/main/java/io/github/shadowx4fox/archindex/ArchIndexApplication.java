@@ -89,7 +89,10 @@ public class ArchIndexApplication {
 
 	@Bean
 	BuildPackService buildPackService(Bundles bundles, ArchIndexProperties p) {
-		return new BuildPackService(bundles, p.search().maxPartChars());
+		if (p.publicUrl() == null || p.publicUrl().isBlank()) {
+			log.info("archindex.public-url is not set: build pack parts list no download_url");
+		}
+		return new BuildPackService(bundles, p.search().maxPartChars(), p.publicUrl());
 	}
 
 	@Bean
@@ -115,7 +118,7 @@ public class ArchIndexApplication {
 			log.warn("archindex.ingest-token is not set: anyone who reaches /bundles can publish");
 		}
 		if (p.mcpToken() == null || p.mcpToken().isBlank()) {
-			log.warn("archindex.mcp-token is not set: the MCP endpoint {} is open", mcpPath);
+			log.warn("archindex.mcp-token is not set: the MCP endpoint {} and /packs are open", mcpPath);
 		}
 		FilterRegistrationBean<TokenFilter> r = new FilterRegistrationBean<>(new TokenFilter(p.ingestToken(), p.mcpToken(), mcpPath));
 		r.setOrder(0);

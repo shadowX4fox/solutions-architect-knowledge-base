@@ -27,9 +27,9 @@ Every capability is a tool, because every IDE client supports tools while prompt
 | `search_architecture` | Qdrant | reasons and explanations: dense + sparse (exact ids such as `ADR-112`, `I-07`) fused by weighted RRF; each hit has file, lines, anchor, version |
 | `get_chunk` | bundle | the whole text of a hit |
 | `get_document` | bundle | a whole document (by file, ADR/TDR id or component) rebuilt from its chunks in line order, with the lines covered and the gaps |
-| `get_build_pack` | pack | the index: parts, ordered plan, interfaces both ways, flows, open questions |
+| `get_build_pack` | pack | the index: parts (each with its `sha256` and `download_url`), ordered plan, interfaces both ways, flows, open questions |
 | `get_build_instructions` | pack | `BUILD.md`: the `.architecture.json` binding, the rules, plan and done list |
-| `get_build_part` · `get_asset` | pack | one part byte for byte (spec, `asset:openapi.yaml`, `interface:a→b`, `adr:ADR-101` …), paged over 60,000 characters |
+| `get_build_part` · `get_asset` | pack | one part byte for byte (spec, `asset:openapi.yaml`, `interface:a→b`, `adr:ADR-101` …), paged over 60,000 characters, to read; to save one, its `download_url` |
 | `what_changed` | bundles | what changed for a component since the version and the `pack_revision` built against (both in `.architecture.json`): the build pack replacements of that version made since, then what a newer release changed; `action_required` where code must move |
 
 Versions: omitted or `latest` is the newest released version, `draft` is the unreleased draft. A component with no build pack in the asked version is an error that names the reason and the versions that have one. The server never falls back to another version on its own.
@@ -55,6 +55,24 @@ The rules:
 - Every bundle passes the same check as `export-index.js --check` before it is kept: every listed file present with its sha256, nothing unlisted, every chunk's hash, and every pack part.
 - Extraction refuses links and any path that leaves the bundle.
 
+## Downloading a part
+
+An agent saves a contract asset with curl, so the model never re-types it, and git shows the contract diff. `get_build_pack` lists a `download_url` on every part when `ARCHINDEX_PUBLIC_URL` is set.
+
+| Request | Answer |
+|---|---|
+| `GET /packs/{key}/{version}/{slug}/{path}[?pack_revision=…]` | 200 the file as stored, `ETag: "<sha256>"`, `X-Pack-Revision`, `Cache-Control: no-cache` · 304 `If-None-Match` matched · 404 no such project, version, pack or part · 409 `pack_revision` is not the current one, the body and `X-Pack-Revision` naming it |
+
+- `{version}` is a released version, `latest` or `draft`. `{path}` is the part's `path` in `pack.json`; nothing else in the bundle is served.
+- It takes the MCP token (`ARCHINDEX_MCP_TOKEN`), never the pipeline's.
+- Only the current revision is served: the server keeps no replaced pack. An agent that recorded a `pack_revision` passes it, and a 409 sends it back to `get_build_pack` and `what_changed`.
+- Without a download, `get_build_part`'s pages joined in order are the stored bytes; no page ends inside a surrogate pair, and nothing is trimmed or normalized (`BuildPackTest`).
+
+```bash
+curl -fsSL -H "Authorization: Bearer $ALIA_TOKEN" -o architecture/openapi.yaml "$DOWNLOAD_URL?pack_revision=$PACK_REVISION"
+sha256sum architecture/openapi.yaml
+```
+
 ## Indexing
 
 - One Qdrant collection for every project. Each point carries a named dense vector (`dense`, cosine, 1,024) and a named sparse vector (`sparse`, Qdrant's `idf` modifier), with keyword payload indexes on `project`, `slot`, `kind`, `components`, `adrs`, `content_hash`, `doc_language` and `chunk_id`.
@@ -70,7 +88,7 @@ The rules:
 ## Run
 
 ```bash
-./mvnw test                                   # 14 tests; no Qdrant or Ollama needed (in-memory index, stand-in model)
+./mvnw test                                   # 24 tests; no Qdrant or Ollama needed (in-memory index, stand-in model)
 ./mvnw package -DskipTests
 ollama pull qwen3-embedding:0.6b               # the default model; see eval/README.md for how it was chosen
 ./qdrant                                      # or: docker compose -f deploy/compose.yaml up -d
@@ -109,7 +127,8 @@ docker compose -f deploy/compose.yaml --profile file up -d server-file   # or in
 | `OLLAMA_BASE_URL` | `http://localhost:11434` | |
 | `QDRANT_HOST` · `QDRANT_GRPC_PORT` · `QDRANT_API_KEY` · `QDRANT_TLS` · `QDRANT_COLLECTION` | `localhost` · `6334` · – · `false` · `architecture-qwen3-0.6b-1024` | |
 | `ARCHINDEX_INGEST_TOKEN` | unset (open, warned) | bearer token for `/bundles/**` |
-| `ARCHINDEX_MCP_TOKEN` | unset (open, warned) | bearer token for `/mcp`, until the identity provider is wired |
+| `ARCHINDEX_MCP_TOKEN` | unset (open, warned) | bearer token for `/mcp` and `/packs/**`, until the identity provider is wired |
+| `ARCHINDEX_PUBLIC_URL` | unset (no `download_url`) | the base the IDE reaches the server at, e.g. `https://alia-mcp.internal` |
 | `ARCHINDEX_DATA_DIR` | `data` | bundles on disk |
 
 ## In the IDE
@@ -134,16 +153,17 @@ The microservice repository binds itself with `.architecture.json`, which `get_b
 
 ## Tests and fixtures
 
-`src/test/resources/bundles/order-desk/` holds four bundles of a synthetic project (Order Desk), exported by the plugin from its own test project:
+`src/test/resources/bundles/order-desk/` holds five bundles of a synthetic project (Order Desk), exported by the plugin from its own test project:
 
 | Bundle | What it is |
 |---|---|
 | `1.3.0-search` | phase 1 at the tag |
 | `1.3.0` | with the Hub API build pack |
 | `1.4.0` | contract, budget, technology and integration changes, plus its `changes.json` |
+| `1.4.0-revised` | 1.4.0 with the Hub API pack regenerated: its security obligations moved |
 | `draft` | an unreleased draft |
 
-`BundleTest` holds the Java `what_changed` diff to the plugin's own `changes.json`, and the store to the publish contract. `ServerTest` publishes over HTTP with tokens and calls every tool through the real MCP endpoint.
+`BundleTest` holds the Java `what_changed` diff to the plugin's own `changes.json`, and the store to the publish contract. `ServerTest` publishes over HTTP with tokens, calls every tool through the real MCP endpoint and downloads every part. `BuildPackTest` holds a part's pages to its stored bytes.
 
 To regenerate the fixtures after a bundle schema change: `SA_SKILLS_DIR=<plugin checkout> bun scripts/make-fixtures.ts src/test/resources/bundles/order-desk`.
 

@@ -36,6 +36,7 @@ import io.github.shadowx4fox.archindex.index.Indexer;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
 		"archindex.store=memory", "archindex.ingest-token=ci-token", "archindex.mcp-token=ide-token",
+		"archindex.public-url=http://alia.test",
 		"spring.ai.model.embedding=none" })
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ServerTest {
@@ -271,6 +272,61 @@ class ServerTest {
 		assertThat(J.str(tool("get_build_part", Map.of("project", "order-desk", "component", "hub-api", "part", "nope"), true), "text")).contains("asset:openapi.yaml");
 	}
 
+	private HttpResponse<byte[]> download(String url, String token, String... headers) throws Exception {
+		HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(url.replace("http://alia.test", "http://localhost:" + port)));
+		if (token != null) {
+			b.header("Authorization", "Bearer " + token);
+		}
+		if (headers.length > 0) {
+			b.headers(headers);
+		}
+		return http.send(b.build(), HttpResponse.BodyHandlers.ofByteArray());
+	}
+
+	@Test
+	@Order(5)
+	void anAgentDownloadsAPartAsStoredWithTheMcpToken() throws Exception {
+		Map<String, Object> pack = tool("get_build_pack", Map.of("project", "order-desk", "component", "hub-api", "version", "1.4.0"));
+		Map<String, Map<String, Object>> parts = new java.util.LinkedHashMap<>();
+		J.maps(pack, "parts").forEach((x) -> parts.put(J.str(x, "id"), x));
+		String url = J.str(parts.get("asset:openapi.yaml"), "download_url");
+		assertThat(url).isEqualTo("http://alia.test/packs/order-desk/1.4.0/hub-api/assets/openapi.yaml");
+		// read access: the MCP token, never none and never the pipeline's
+		assertThat(download(url, null).statusCode()).isEqualTo(401);
+		assertThat(download(url, "ci-token").statusCode()).isEqualTo(401);
+		HttpResponse<byte[]> r = download(url, "ide-token");
+		assertThat(r.statusCode()).isEqualTo(200);
+		byte[] stored = java.nio.file.Files.readAllBytes(Fixtures.bundle("1.4.0").resolve("buildpacks/hub-api/assets/openapi.yaml"));
+		assertThat(r.body()).isEqualTo(stored);
+		assertThat(J.sha256(r.body())).isEqualTo(J.str(parts.get("asset:openapi.yaml"), "sha256"));
+		assertThat(r.headers().firstValue("ETag")).contains("\"" + J.sha256(stored) + "\"");
+		assertThat(r.headers().firstValue("X-Pack-Revision")).contains(J.str(pack, "pack_revision"));
+		assertThat(r.headers().firstValue("Content-Type").orElseThrow()).startsWith("application/yaml");
+		assertThat(r.headers().firstValue("Cache-Control")).contains("no-cache");
+		assertThat(download(url, "ide-token", "If-None-Match", "\"" + J.sha256(stored) + "\"").statusCode()).isEqualTo(304);
+		assertThat(download(url + "?pack_revision=" + J.str(pack, "pack_revision"), "ide-token").statusCode()).isEqualTo(200);
+		// every part, the non-ASCII interface paths included, comes back as its sha256
+		for (Map<String, Object> x : parts.values()) {
+			HttpResponse<byte[]> p = download(J.str(x, "download_url"), "ide-token");
+			assertThat(p.statusCode()).as(J.str(x, "id")).isEqualTo(200);
+			assertThat(J.sha256(p.body())).as(J.str(x, "id")).isEqualTo(J.str(x, "sha256"));
+		}
+		// the tool result names the same URL
+		assertThat(J.str(tool("get_asset", Map.of("project", "order-desk", "component", "hub-api", "asset", "openapi.yaml", "version", "1.4.0")), "download_url")).isEqualTo(url);
+		// only parts: pack.json is not one, and a path out of the pack never matches
+		assertThat(download("http://alia.test/packs/order-desk/1.4.0/hub-api/pack.json", "ide-token").statusCode()).isEqualTo(404);
+		assertThat(download("http://alia.test/packs/order-desk/1.4.0/hub-api/assets/../../../manifest.json", "ide-token").statusCode()).isIn(400, 404);
+		assertThat(download("http://alia.test/packs/order-desk/1.4.0/web-app/spec.md", "ide-token").statusCode()).isEqualTo(404);
+		// latest and the draft by their slot
+		HttpResponse<byte[]> latest = download("http://alia.test/packs/order-desk/latest/hub-api/assets/openapi.yaml", "ide-token");
+		assertThat(latest.headers().firstValue("X-Architecture-Version")).contains("1.4.0");
+		String draftUrl = J.str(tool("get_build_part", Map.of("project", "order-desk", "component", "hub-api", "part", "spec", "version", "draft")), "download_url");
+		assertThat(draftUrl).isEqualTo("http://alia.test/packs/order-desk/draft/hub-api/spec.md");
+		HttpResponse<byte[]> draft = download(draftUrl, "ide-token");
+		assertThat(draft.statusCode()).isEqualTo(200);
+		assertThat(draft.headers().firstValue("X-Architecture-Version")).contains("draft");
+	}
+
 	@Test
 	@Order(6)
 	void whatChangedTellsTheDeveloperWhatToUpdate() throws Exception {
@@ -296,6 +352,11 @@ class ServerTest {
 		assertThat(J.strings(body, "added")).isEmpty();
 		String now = J.str(tool("get_build_pack", Map.of("project", "order-desk", "component", "hub-api", "version", "1.4.0")), "pack_revision");
 		assertThat(now).isNotEqualTo(built);
+		// a download for the revision built from is refused with the current one: re-read the pack first
+		HttpResponse<byte[]> stale = download("http://alia.test/packs/order-desk/1.4.0/hub-api/security.md?pack_revision=" + built, "ide-token");
+		assertThat(stale.statusCode()).isEqualTo(409);
+		assertThat(stale.headers().firstValue("X-Pack-Revision")).contains(now);
+		assertThat(J.str(J.obj(new String(stale.body(), java.nio.charset.StandardCharsets.UTF_8)), "pack_revision")).isEqualTo(now);
 		// the revision the repository built from → the replacement since, an action: the security obligations moved
 		Map<String, Object> r = tool("what_changed", Map.of("project", "order-desk", "component", "hub-api", "from", "1.4.0", "from_revision", built));
 		assertThat(J.strings(r, "action_required")).containsExactly("hub-api");

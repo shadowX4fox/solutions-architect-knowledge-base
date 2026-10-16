@@ -145,7 +145,7 @@ public class ArchitectureTools {
 
 	// ---- building one component
 
-	@McpTool(name = "get_build_pack", description = "The build pack of one component for one architecture version — the index only: its parts (spec, security obligations, contract assets, interface contracts, ADRs, standards, runtime view), the ordered build plan, interfaces both ways, flows and budgets, open questions. Then call get_build_instructions and get_build_part. Contracts are never searched: they are read whole.")
+	@McpTool(name = "get_build_pack", description = "The build pack of one component for one architecture version — the index only: its parts (spec, security obligations, contract assets, interface contracts, ADRs, standards, runtime view), the ordered build plan, interfaces both ways, flows and budgets, open questions. Each part has its sha256 and, when the server has a public URL, a download_url serving its bytes as stored (the MCP bearer token). Then call get_build_instructions and get_build_part. Contracts are never searched: they are read whole.")
 	public CallToolResult getBuildPack(@McpToolParam(description = PROJECT) String project,
 			@McpToolParam(description = COMPONENT) String component,
 			@McpToolParam(description = VERSION, required = false) String version) {
@@ -159,7 +159,7 @@ public class ArchitectureTools {
 		return answer(() -> packs.instructions(project, component, version));
 	}
 
-	@McpTool(name = "get_build_part", description = "One part of a build pack, byte for byte, by its id from get_build_pack (spec, security, asset:openapi.yaml, interface:a→b, adr:ADR-101, cross-cutting-standards, runtime-view, instructions). A part over 60,000 characters comes in pages: pass next_offset back as offset.")
+	@McpTool(name = "get_build_part", description = "One part of a build pack, byte for byte, by its id from get_build_pack (spec, security, asset:openapi.yaml, interface:a→b, adr:ADR-101, cross-cutting-standards, runtime-view, instructions). A part over 60,000 characters comes in pages: pass next_offset back as offset. To save a part to disk, prefer its download_url (curl with the MCP bearer token, then check the sha256); the content is for reading — when there is no download_url, write the content of every page unchanged.")
 	public CallToolResult getBuildPart(@McpToolParam(description = PROJECT) String project,
 			@McpToolParam(description = COMPONENT) String component,
 			@McpToolParam(description = "Part id from get_build_pack") String part,
@@ -168,7 +168,7 @@ public class ArchitectureTools {
 		return answer(() -> packs.part(project, component, part, version, offset));
 	}
 
-	@McpTool(name = "get_asset", description = "One contract asset of a component (openapi.yaml, asyncapi.yaml, ddl.sql, schema.proto, *.avsc, schema.graphql, redis-key-schema.md), byte for byte — write it into the repository as is and generate code from it.")
+	@McpTool(name = "get_asset", description = "One contract asset of a component (openapi.yaml, asyncapi.yaml, ddl.sql, schema.proto, *.avsc, schema.graphql, redis-key-schema.md), byte for byte. To save it into the repository, prefer its download_url (curl with the MCP bearer token, then check the sha256); the content is for reading — when there is no download_url, write the content of every page unchanged. Generate code from the saved file.")
 	public CallToolResult getAsset(@McpToolParam(description = PROJECT) String project,
 			@McpToolParam(description = COMPONENT) String component,
 			@McpToolParam(description = "Asset file name, e.g. openapi.yaml") String asset,
