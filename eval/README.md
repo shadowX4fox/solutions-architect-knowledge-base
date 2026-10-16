@@ -50,4 +50,4 @@ What the numbers say:
 ## Limits
 
 - One synthetic corpus, in Spanish, with questions written by the person who chose the labels.
-- A released architecture measured inside the bank is the confirmation, since its text cannot leave the bank and so cannot be committed here.
+- A released architecture measured inside the organization is the confirmation, since its text cannot leave the organization and so cannot be committed here.

@@ -148,7 +148,7 @@ To regenerate the fixtures after a bundle schema change: `SA_SKILLS_DIR=<plugin 
 
 | Item | State |
 |---|---|
-| Sign-in through the bank's identity provider, permissions per project | open; bearer tokens until then |
-| The bank's service template (skeleton, libraries, CI) | outside the architecture; `BUILD.md` rule 6 points the agent to it |
-| Retrieval eval on a real architecture | `eval/` measures on a synthetic one; a released bank architecture, measured inside the bank, confirms the model and the sparse weight |
+| Sign-in through the organization's identity provider, permissions per project | open; bearer tokens until then |
+| The custom service template (skeleton, libraries, CI) | outside the architecture; `BUILD.md` rule 6 points the agent to it |
+| Retrieval eval on a real architecture | `eval/` measures on a synthetic one; a released architecture, measured inside the organization, confirms the model and the sparse weight |
 | Open questions back to the architect | later; the server stays read-only |
