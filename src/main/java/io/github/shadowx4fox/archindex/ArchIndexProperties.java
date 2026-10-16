@@ -1,6 +1,7 @@
 package io.github.shadowx4fox.archindex;
 
 import java.nio.file.Path;
+import java.time.Duration;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -11,7 +12,18 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  */
 @ConfigurationProperties("archindex")
 public record ArchIndexProperties(Path dataDir, String ingestToken, String mcpToken, String publicUrl, long maxBundleBytes,
-		Store store, Qdrant qdrant, File file, Embedding embedding, Search search) {
+		Role role, Duration refreshInterval, Duration retainReplaced, Store store, Qdrant qdrant, File file,
+		Embedding embedding, Search search) {
+
+	/** Several instances share one data directory and one Qdrant collection: one writes, the others read. */
+	public enum Role {
+
+		/** Publishes, indexes and answers: the only instance, or the one writer among several. */
+		ALL,
+		/** Answers only: refuses a publish, never indexes, and reloads what the writer publishes. */
+		READER
+
+	}
 
 	public enum Store {
 
@@ -65,6 +77,15 @@ public record ArchIndexProperties(Path dataDir, String ingestToken, String mcpTo
 		}
 		if (store == null) {
 			store = Store.QDRANT;
+		}
+		if (role == null) {
+			role = Role.ALL;
+		}
+		if (refreshInterval == null || refreshInterval.isNegative() || refreshInterval.isZero()) {
+			refreshInterval = Duration.ofSeconds(5);
+		}
+		if (retainReplaced == null || retainReplaced.isNegative()) {
+			retainReplaced = Duration.ofMinutes(10);
 		}
 		if (qdrant == null) {
 			qdrant = new Qdrant("localhost", 6334, false, null, "architecture");

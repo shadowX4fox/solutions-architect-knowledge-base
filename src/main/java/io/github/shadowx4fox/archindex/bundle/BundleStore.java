@@ -8,6 +8,7 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -33,10 +34,19 @@ import io.github.shadowx4fox.archindex.changes.BundleDiff;
  * The bundles the server holds, on disk and in memory. Layout:
  *
  * <pre>
- * {data}/bundles/{key}/released/{version}/   one per released version
- * {data}/bundles/{key}/draft/                at most one draft per project, replaced by each draft publish
+ * {data}/bundles/.generation                     changes on every publish: readers reload when it moves
+ * {data}/bundles/{key}/HEAD.json                 which directory holds each released version and the draft, and the
+ *                                                directories replaced, kept until the retention passes
+ * {data}/bundles/{key}/released/{version}~{id}/  a released version — a new directory each time its packs move
+ * {data}/bundles/{key}/drafts/{id}/              the draft — a new directory per draft publish
  * {data}/bundles/{key}/revisions/{version}.json  the build packs a second publish replaced, in order, each with its diff
  * </pre>
+ *
+ * A bundle directory never changes once placed, so an instance still serving it — a reader that has not reloaded yet,
+ * a download under way — never sees its files move: a publish writes a new directory and then HEAD.json, and the one
+ * replaced is deleted once {@code retain} has passed. Only one instance writes (the writer, {@code archindex.role=all});
+ * a reader ({@code readOnly}) refuses a publish and calls {@link #refresh()} to follow the writer. A data directory from
+ * before HEAD.json ({@code released/{version}/}, {@code draft/}) is read as it is and taken over by the writer at start.
  *
  * A released version is immutable in what search serves. A second publish of it (the second phase of a release, when
  * the regenerated kit is committed) carries the same chunks, the same ledger and every build pack held for it; it may
@@ -52,6 +62,10 @@ public class BundleStore {
 	public static final String DRAFT = "draft";
 
 	private static final String REVISIONS = "revisions";
+
+	private static final String HEAD = "HEAD.json";
+
+	private static final String GENERATION = ".generation";
 
 	private static final Pattern KEY = Pattern.compile("^[a-z0-9][a-z0-9-]{0,99}$");
 
@@ -130,6 +144,9 @@ public class BundleStore {
 
 		final Map<String, List<Map<String, Object>>> revisions = new ConcurrentHashMap<>();
 
+		/** Directories replaced, relative to the project's folder, with when: deleted once the retention has passed. */
+		final List<Map<String, Object>> retired = new ArrayList<>();
+
 		public NavigableMap<String, Bundle> released() {
 			return released;
 		}
@@ -158,10 +175,34 @@ public class BundleStore {
 
 	private final Map<String, Project> projects = new ConcurrentHashMap<>();
 
+	private final boolean readOnly;
+
+	private final Duration retain;
+
+	private volatile String generation;
+
 	public BundleStore(Path dataDir, long maxBytes) {
+		this(dataDir, maxBytes, false, Duration.ZERO);
+	}
+
+	/**
+	 * {@code readOnly}: a reader instance, following the writer through {@link #refresh()}. {@code retain}: how long a
+	 * replaced bundle directory stays for instances still serving it — longer than a reader takes to reload.
+	 */
+	public BundleStore(Path dataDir, long maxBytes, boolean readOnly, Duration retain) {
 		this.root = dataDir.toAbsolutePath().normalize();
 		this.maxBytes = maxBytes;
+		this.readOnly = readOnly;
+		this.retain = retain;
+		this.generation = readGeneration();
 		load();
+		if (!readOnly) {
+			takeOver();
+		}
+	}
+
+	public boolean readOnly() {
+		return readOnly;
 	}
 
 	private Path bundles() {
@@ -171,30 +212,10 @@ public class BundleStore {
 	private void load() {
 		try {
 			Files.createDirectories(bundles());
-			try (Stream<Path> keys = Files.list(bundles())) {
-				for (Path k : keys.filter(Files::isDirectory).toList()) {
-					String key = k.getFileName().toString();
-					Path rel = k.resolve("released");
-					if (Files.isDirectory(rel)) {
-						try (Stream<Path> vs = Files.list(rel)) {
-							for (Path v : vs.filter(Files::isDirectory).toList()) {
-								tryLoad(v).ifPresent((b) -> project(key).released.put(b.version(), b));
-							}
-						}
-					}
-					Path d = k.resolve(DRAFT);
-					if (Files.isDirectory(d)) {
-						tryLoad(d).ifPresent((b) -> project(key).draft = b);
-					}
-					Path rv = k.resolve(REVISIONS);
-					if (Files.isDirectory(rv)) {
-						try (Stream<Path> fs = Files.list(rv)) {
-							for (Path f : fs.filter((x) -> x.getFileName().toString().endsWith(".json")).toList()) {
-								String v = f.getFileName().toString().replaceFirst("\\.json$", "");
-								project(key).revisions.put(v, new ArrayList<>(J.maps(J.obj(Files.readAllBytes(f)), "revisions")));
-							}
-						}
-					}
+			for (String key : keysOnDisk()) {
+				Project p = read(key, null);
+				if (p != null) {
+					projects.put(key, p);
 				}
 			}
 		}
@@ -203,6 +224,148 @@ public class BundleStore {
 		}
 		log.info("bundles: {} projects, {} released versions", projects.size(),
 				projects.values().stream().mapToInt((p) -> p.released.size()).sum());
+	}
+
+	private List<String> keysOnDisk() throws IOException {
+		try (Stream<Path> keys = Files.list(bundles())) {
+			return keys.filter(Files::isDirectory)
+				.map((k) -> k.getFileName().toString())
+				.filter((k) -> KEY.matcher(k).matches())
+				.toList();
+		}
+	}
+
+	/**
+	 * One project as its folder holds it: through HEAD.json, or — a folder from before it — by its directories. A bundle
+	 * already loaded from the same directory is reused: directories never change.
+	 */
+	private Project read(String key, Project was) throws IOException {
+		Path base = bundles().resolve(key);
+		Map<Path, Bundle> known = new java.util.HashMap<>();
+		if (was != null) {
+			was.released.values().forEach((b) -> known.put(b.dir(), b));
+			was.draft().ifPresent((b) -> known.put(b.dir(), b));
+		}
+		java.util.function.Function<Path, Optional<Bundle>> at = (dir) -> {
+			Bundle b = known.get(dir);
+			return b != null ? Optional.of(b) : tryLoad(dir);
+		};
+		Project p = new Project();
+		Path head = base.resolve(HEAD);
+		if (Files.exists(head)) {
+			Map<String, Object> h = J.obj(Files.readAllBytes(head));
+			for (Map.Entry<String, Object> e : J.map(h, "released").entrySet()) {
+				if (e.getValue() instanceof String rel) {
+					at.apply(inside(base, rel)).ifPresent((b) -> p.released.put(b.version(), b));
+				}
+			}
+			String d = J.str(h, "draft");
+			if (d != null) {
+				at.apply(inside(base, d)).ifPresent((b) -> p.draft = b);
+			}
+			p.retired.addAll(J.maps(h, "retired"));
+		}
+		else {
+			Path rel = base.resolve("released");
+			if (Files.isDirectory(rel)) {
+				try (Stream<Path> vs = Files.list(rel)) {
+					for (Path v : vs.filter(Files::isDirectory).sorted().toList()) {
+						at.apply(v).ifPresent((b) -> p.released.put(b.version(), b));
+					}
+				}
+			}
+			Path d = base.resolve(DRAFT);
+			if (Files.isDirectory(d)) {
+				at.apply(d).ifPresent((b) -> p.draft = b);
+			}
+		}
+		Path rv = base.resolve(REVISIONS);
+		if (Files.isDirectory(rv)) {
+			try (Stream<Path> fs = Files.list(rv)) {
+				for (Path f : fs.filter((x) -> x.getFileName().toString().endsWith(".json")).toList()) {
+					String v = f.getFileName().toString().replaceFirst("\\.json$", "");
+					p.revisions.put(v, new ArrayList<>(J.maps(J.obj(Files.readAllBytes(f)), "revisions")));
+				}
+			}
+		}
+		return p.released.isEmpty() && p.draft == null && was == null && !Files.exists(head) ? null : p;
+	}
+
+	private static Path inside(Path base, String rel) {
+		Path p = base.resolve(rel).normalize();
+		if (!p.startsWith(base)) {
+			throw new IllegalStateException("HEAD.json names a directory outside " + base + ": " + rel);
+		}
+		return p;
+	}
+
+	/**
+	 * A reader follows the writer: when {@code .generation} moved, every project is read again from its HEAD.json and
+	 * swapped in whole. Returns the projects whose bundles or revisions changed, and those gone.
+	 */
+	public java.util.Set<String> refresh() {
+		String now = readGeneration();
+		if (Objects.equals(now, generation)) {
+			return java.util.Set.of();
+		}
+		java.util.Set<String> changed = new TreeSet<>();
+		try {
+			List<String> keys = keysOnDisk();
+			for (String key : keys) {
+				Project was = projects.get(key);
+				Project p = read(key, was);
+				if (p == null) {
+					continue;
+				}
+				if (was == null || !same(was, p)) {
+					projects.put(key, p);
+					changed.add(key);
+				}
+			}
+			for (String key : List.copyOf(projects.keySet())) {
+				if (!keys.contains(key)) {
+					projects.remove(key);
+					changed.add(key);
+				}
+			}
+			generation = now;
+		}
+		catch (IOException | RuntimeException e) {
+			// the writer may be mid-publish on a slow filesystem: keep what is held, try again next time
+			log.warn("could not reload the bundles: {}", e.getMessage());
+		}
+		if (!changed.isEmpty()) {
+			log.info("bundles reloaded: {}", changed);
+		}
+		return changed;
+	}
+
+	private static boolean same(Project a, Project b) {
+		return a.released.size() == b.released.size()
+				&& a.released.entrySet().stream().allMatch((e) -> b.released.get(e.getKey()) == e.getValue())
+				&& a.draft == b.draft && a.revisions.equals(b.revisions);
+	}
+
+	private String readGeneration() {
+		try {
+			Path g = bundles().resolve(GENERATION);
+			return Files.exists(g) ? Files.readString(g).strip() : null;
+		}
+		catch (IOException e) {
+			return generation;
+		}
+	}
+
+	/** The writer at start: a HEAD.json for every project without one, and what was left behind cleaned up. */
+	private void takeOver() {
+		delete(root.resolve(".incoming"));
+		projects.forEach((key, p) -> {
+			if (!Files.exists(bundles().resolve(key).resolve(HEAD))) {
+				writeHead(key, p);
+			}
+			collect(key, p);
+		});
+		bumpGeneration();
 	}
 
 	private Optional<Bundle> tryLoad(Path dir) {
@@ -255,6 +418,9 @@ public class BundleStore {
 	}
 
 	public synchronized Published publish(String key, String version, String channel, InputStream gz) {
+		if (readOnly) {
+			throw new Rejected(403, "this instance only reads (archindex.role=reader): publish to the writer", List.of());
+		}
 		if (key == null || !KEY.matcher(key).matches()) {
 			throw new Rejected(400, "project key must be lowercase kebab-case: " + key, List.of());
 		}
@@ -294,15 +460,17 @@ public class BundleStore {
 			Path base = bundles().resolve(key);
 			if (DRAFT.equals(channel)) {
 				Bundle held = p.draft;
-				Bundle placed = place(incoming, base.resolve(DRAFT));
+				Bundle placed = place(incoming, base.resolve("drafts").resolve(id()));
 				p.draft = placed;
+				retire(p, base, held);
+				commit(key, p);
 				return Published.stored(placed, held == null || !held.chunkSignature().equals(placed.chunkSignature()),
 						version + " stored as the draft of " + key);
 			}
 			Bundle held = p.released.get(version);
 			Published out;
 			if (held == null) {
-				Bundle placed = place(incoming, base.resolve("released").resolve(version));
+				Bundle placed = place(incoming, base.resolve("released").resolve(version + "~" + id()));
 				p.released.put(version, placed);
 				out = Published.stored(placed, true, version + " stored (released)");
 			}
@@ -312,16 +480,129 @@ public class BundleStore {
 					return out;
 				}
 				p.released.put(version, out.bundle());
+				retire(p, base, held);
 			}
 			Bundle d = p.draft;
 			if (d != null && Semver.compare(d.version(), version) <= 0) {
 				p.draft = null;
-				delete(base.resolve(DRAFT));
+				retire(p, base, d);
 			}
+			commit(key, p);
 			return out;
 		}
 		finally {
 			delete(incoming);
+		}
+	}
+
+	private static String id() {
+		return UUID.randomUUID().toString().substring(0, 8);
+	}
+
+	/** A directory no longer named by HEAD.json, kept until the retention has passed. */
+	private static void retire(Project p, Path base, Bundle b) {
+		if (b != null) {
+			Map<String, Object> r = new LinkedHashMap<>();
+			r.put("path", base.relativize(b.dir()).toString().replace('\\', '/'));
+			r.put("at", Instant.now().toString());
+			p.retired.add(r);
+		}
+	}
+
+	/** What a publish changed, made visible: HEAD.json, then the generation readers watch, then what has expired. */
+	private void commit(String key, Project p) {
+		writeHead(key, p);
+		bumpGeneration();
+		collect(key, p);
+	}
+
+	private void writeHead(String key, Project p) {
+		Path base = bundles().resolve(key);
+		Map<String, Object> released = new LinkedHashMap<>();
+		p.released.forEach((v, b) -> released.put(v, base.relativize(b.dir()).toString().replace('\\', '/')));
+		Map<String, Object> h = new LinkedHashMap<>();
+		h.put("project", key);
+		h.put("released", released);
+		h.put("draft", p.draft == null ? null : base.relativize(p.draft.dir()).toString().replace('\\', '/'));
+		synchronized (p.retired) {
+			h.put("retired", List.copyOf(p.retired));
+		}
+		writeAtomically(base.resolve(HEAD), J.write(h));
+	}
+
+	private void bumpGeneration() {
+		String g = Instant.now() + " " + UUID.randomUUID();
+		writeAtomically(bundles().resolve(GENERATION), g);
+		generation = g;
+	}
+
+	private static void writeAtomically(Path file, String content) {
+		try {
+			Files.createDirectories(file.getParent());
+			Path tmp = file.resolveSibling("." + file.getFileName() + "-" + UUID.randomUUID());
+			Files.writeString(tmp, content);
+			move(tmp, file);
+		}
+		catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+	}
+
+	/**
+	 * Deletes the directories replaced longer ago than the retention, and any bundle directory HEAD.json does not know
+	 * that is as old — what a crash between placing and committing left.
+	 */
+	private void collect(String key, Project p) {
+		Path base = bundles().resolve(key);
+		Instant cutoff = Instant.now().minus(retain);
+		java.util.Set<Path> live = new java.util.HashSet<>();
+		p.released.values().forEach((b) -> live.add(b.dir()));
+		if (p.draft != null) {
+			live.add(p.draft.dir());
+		}
+		boolean dropped = false;
+		synchronized (p.retired) {
+			for (var it = p.retired.iterator(); it.hasNext();) {
+				Map<String, Object> r = it.next();
+				Path dir = inside(base, J.str(r, "path"));
+				if (live.contains(dir)) {
+					it.remove();
+					dropped = true;
+				}
+				else if (Instant.parse(J.str(r, "at")).isBefore(cutoff) || Instant.parse(J.str(r, "at")).equals(cutoff)) {
+					delete(dir);
+					it.remove();
+					dropped = true;
+				}
+				else {
+					live.add(dir);
+				}
+			}
+		}
+		List<Path> candidates = new ArrayList<>();
+		try {
+			for (String sub : List.of("released", "drafts")) {
+				Path d = base.resolve(sub);
+				if (Files.isDirectory(d)) {
+					try (Stream<Path> s = Files.list(d)) {
+						s.filter(Files::isDirectory).forEach(candidates::add);
+					}
+				}
+			}
+			if (Files.isDirectory(base.resolve(DRAFT))) {
+				candidates.add(base.resolve(DRAFT));
+			}
+			for (Path c : candidates) {
+				if (!live.contains(c.normalize()) && !Files.getLastModifiedTime(c).toInstant().isAfter(cutoff)) {
+					delete(c);
+				}
+			}
+		}
+		catch (IOException e) {
+			log.warn("could not clean up {}: {}", base, e.getMessage());
+		}
+		if (dropped) {
+			writeHead(key, p);
 		}
 	}
 
@@ -372,7 +653,7 @@ public class BundleStore {
 		if (!replaced.isEmpty()) {
 			record(p, base, held, b, replaced);
 		}
-		Bundle placed = place(incoming, base.resolve("released").resolve(version));
+		Bundle placed = place(incoming, base.resolve("released").resolve(version + "~" + id()));
 		log.info("released {} {}: build packs added {}, replaced {}", placed.projectKey(), version, added, replaced);
 		return new Published(Outcome.PACKS_UPDATED, placed, false, version + " updated — build packs added: "
 				+ none(added) + " · replaced: " + none(replaced) + " · unchanged: " + none(unchanged), added, replaced,
@@ -414,19 +695,11 @@ public class BundleStore {
 		return l.isEmpty() ? "none" : String.join(", ", l);
 	}
 
-	/** Moves an extracted bundle into place, replacing what was there, and loads it from its new home. */
-	private Bundle place(Path incoming, Path target) {
+	/** Moves an extracted bundle into a directory of its own, never one in use, and loads it from there. */
+	private static Bundle place(Path incoming, Path target) {
 		try {
 			Files.createDirectories(target.getParent());
-			Path old = null;
-			if (Files.exists(target)) {
-				old = target.resolveSibling(target.getFileName() + ".old-" + UUID.randomUUID());
-				move(target, old);
-			}
 			move(incoming, target);
-			if (old != null) {
-				delete(old);
-			}
 			return Bundle.load(target);
 		}
 		catch (IOException e) {

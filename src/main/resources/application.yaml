@@ -44,6 +44,12 @@ archindex:
   # the base the IDE reaches this server at (https://alia-mcp.internal); unset, parts list no download_url
   public-url: ${ARCHINDEX_PUBLIC_URL:}
   max-bundle-bytes: 268435456
+  # several instances on one data directory and one Qdrant collection: one "all" (the writer), the others "reader"
+  role: ${ARCHINDEX_ROLE:all}
+  # how often a reader looks for the writer's publishes
+  refresh-interval: ${ARCHINDEX_REFRESH_INTERVAL:5s}
+  # how long a replaced bundle directory stays for instances still serving it
+  retain-replaced: ${ARCHINDEX_RETAIN_REPLACED:10m}
   store: ${ARCHINDEX_STORE:qdrant}
   qdrant:
     host: ${QDRANT_HOST:localhost}

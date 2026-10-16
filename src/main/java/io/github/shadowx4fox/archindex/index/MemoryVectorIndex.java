@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,6 +24,8 @@ public class MemoryVectorIndex implements VectorIndex {
 	private static final int RRF_K = 60;
 
 	protected final Map<String, Point> points = new ConcurrentHashMap<>();
+
+	private final Map<String, String> marks = new ConcurrentHashMap<>();
 
 	@Override
 	public void ensure() {
@@ -55,6 +58,21 @@ public class MemoryVectorIndex implements VectorIndex {
 	public void deleteSlotExcept(String project, String slot, Collection<String> keep) {
 		Set<String> k = new HashSet<>(keep);
 		points.values().removeIf((p) -> inSlot(p, project, slot) && !k.contains(J.str(p.payload(), "chunk_id")));
+	}
+
+	@Override
+	public void markSlot(String project, String slot, String signature, int chunks) {
+		marks.put(project + "/" + slot, signature);
+	}
+
+	@Override
+	public void unmarkSlot(String project, String slot) {
+		marks.remove(project + "/" + slot);
+	}
+
+	@Override
+	public Optional<String> slotSignature(String project, String slot) {
+		return Optional.ofNullable(marks.get(project + "/" + slot));
 	}
 
 	@Override

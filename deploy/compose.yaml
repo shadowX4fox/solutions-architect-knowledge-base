@@ -1,6 +1,7 @@
 # The server with its dependencies, self-hosted: no architecture text leaves the network.
 #   docker compose -f deploy/compose.yaml up -d                                # Qdrant engine: server, qdrant, ollama
 #   docker compose -f deploy/compose.yaml --profile file up -d server-file     # file engine: server-file, ollama — no Qdrant
+#   docker compose -f deploy/compose.yaml --profile scale up -d                # plus a reader on 8081: the same bundles volume and collection
 #   docker compose -f deploy/compose.yaml exec ollama ollama pull qwen3-embedding:0.6b
 # Run one server or the other: both publish 8080. The file engine keeps its vectors with the bundles, in /data/index.
 # For the GPU, give the ollama service the device: AMD — devices /dev/kfd and /dev/dri with image ollama/ollama:rocm; NVIDIA — gpus: all.
@@ -30,6 +31,21 @@ services:
     depends_on:
       - qdrant
       - ollama
+
+  # several instances: "server" is the one writer (role all); readers answer, refuse a publish and follow the writer.
+  # Put a load balancer in front for /mcp and /packs, and send /bundles to the writer.
+  reader:
+    <<: *server
+    profiles: [scale]
+    ports:
+      - "8081:8080"
+    environment:
+      <<: *server-env
+      ARCHINDEX_ROLE: reader
+      ARCHINDEX_STORE: qdrant
+      QDRANT_HOST: qdrant
+    depends_on:
+      - server
 
   server-file:
     <<: *server

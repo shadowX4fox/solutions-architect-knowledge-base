@@ -88,7 +88,7 @@ sha256sum architecture/openapi.yaml
 ## Run
 
 ```bash
-./mvnw test                                   # 25 tests (+ QdrantTest with QDRANT_TEST_HOST set); no Qdrant or Ollama needed (in-memory index, stand-in model)
+./mvnw test                                   # 28 tests (QdrantTest runs with QDRANT_TEST_HOST set); no Qdrant or Ollama needed (in-memory index, stand-in model)
 ./mvnw package -DskipTests
 ollama pull qwen3-embedding:0.6b               # the default model; see eval/README.md for how it was chosen
 ./qdrant                                      # or: docker compose -f deploy/compose.yaml up -d
@@ -112,12 +112,23 @@ docker compose -f deploy/compose.yaml --profile file up -d server-file   # or in
 
 **Several instances.** For a shared server, run the `qdrant` engine. `file` and `memory` keep their vectors in one process, which is enough for a local run on one machine and nothing more.
 
-| Part | Behind a load balancer |
-|---|---|
-| MCP | `protocol: STATELESS`. No session is kept in memory, so any instance answers any call, and an IDE never has to reconnect when its calls land on another instance. The tools never call back into the client (no sampling or elicitation), so stateless loses nothing. |
-| Qdrant | one collection that every instance shares. A chunk already embedded is reused by its content hash, so an instance that re-indexes a slot rewrites points without asking Ollama again. A re-index writes the new chunk set over the points held, then removes the rest, so a slot is never empty to another instance searching it. |
-| Ollama | no state. Run replicas behind their own load balancer, all with the same model: the vectors have to match the collection. Every `search_architecture` embeds its query here, so Ollama runs out of capacity before the server does. |
-| Bundles | **not shared yet.** Each instance reads `{data}` at start and learns of a publish only when it receives it. Until the writer/reader split lands (Open, below), run one instance per data directory, or send `/bundles` to one instance and restart the others after a publish. |
+One instance writes and the others read. All of them share the data directory (a ReadWriteMany volume, or one volume on one host) and the Qdrant collection.
+
+| | `ARCHINDEX_ROLE=all` (the writer, exactly one) | `ARCHINDEX_ROLE=reader` (any number) |
+|---|---|---|
+| `POST /bundles` | publishes | 403: publish to the writer |
+| indexing | embeds, writes to Qdrant, records each slot's chunk set in `<collection>-slots` | never embeds or writes; a slot is ready when the writer's record names its bundle's chunk set |
+| bundles | writes a new directory per publish, then `HEAD.json`, then `.generation` | reloads the projects that changed when `.generation` moves (`ARCHINDEX_REFRESH_INTERVAL`, 5s) |
+| `/mcp`, `/packs` | answers | answers |
+
+Put a load balancer in front of every instance for `/mcp` and `/packs`, and send `/bundles` to the writer (`deploy/compose.yaml --profile scale` runs a writer and a reader).
+
+- **MCP is stateless** (`protocol: STATELESS`). No session is kept in memory, so any instance answers any call, and an IDE never has to reconnect when its calls land on another instance. The tools never call back into the client (no sampling or elicitation), so stateless loses nothing.
+- **A bundle directory never changes once written.** A publish writes `released/{version}~{id}/` or `drafts/{id}/`, then switches `HEAD.json`. A reader that has not reloaded yet, or a download under way, still reads whole files with the hashes it serves. A replaced directory stays for `ARCHINDEX_RETAIN_REPLACED` (10 minutes), which must be longer than a reader takes to reload, then the writer deletes it. A data directory from before `HEAD.json` is read as it is and taken over by the writer at its start.
+- **Search never sees half a slot.** A re-index writes the new chunk set over the points held, then removes the rest. A chunk already embedded is reused by its content hash, and a slot whose record names its chunk set is not re-indexed at a restart.
+- **A reader never creates anything.** Until the writer has created the collections, a reader reports its slots pending and checks again.
+- **Ollama has no state.** Run replicas behind their own load balancer, all with the same model: the vectors have to match the collection. Every `search_architecture` embeds its query, so Ollama runs out of capacity before the server does; readers need Ollama for queries only.
+- **One writer.** Publishes are rare (a release, then its kit), so the writer is a single replica: restart it rather than run two, because two writers on one data directory would overwrite each other's `HEAD.json`.
 
 **Model.** `qwen3-embedding:0.6b`: 32K context, so every chunk the export cuts fits, multilingual, Apache 2.0 upstream, 1,024 dimensions. On the eval it ties the other candidates on ordinary questions and leads on answers deep in long chunks (eval/README.md).
 
@@ -138,7 +149,10 @@ docker compose -f deploy/compose.yaml --profile file up -d server-file   # or in
 | `ARCHINDEX_INGEST_TOKEN` | unset (open, warned) | bearer token for `/bundles/**` |
 | `ARCHINDEX_MCP_TOKEN` | unset (open, warned) | bearer token for `/mcp` and `/packs/**`, until the identity provider is wired |
 | `ARCHINDEX_PUBLIC_URL` | unset (no `download_url`) | the base the IDE reaches the server at, e.g. `https://alia-mcp.internal` |
-| `ARCHINDEX_DATA_DIR` | `data` | bundles on disk |
+| `ARCHINDEX_DATA_DIR` | `data` | bundles on disk; shared by every instance |
+| `ARCHINDEX_ROLE` | `all` | `all`: publishes, indexes and answers (the only instance, or the one writer) · `reader`: answers only, follows the writer; needs `qdrant` |
+| `ARCHINDEX_REFRESH_INTERVAL` | `5s` | how often a reader looks for the writer's publishes |
+| `ARCHINDEX_RETAIN_REPLACED` | `10m` | how long a replaced bundle directory stays for instances still serving it |
 
 ## In the IDE
 
@@ -172,7 +186,7 @@ The microservice repository binds itself with `.architecture.json`, which `get_b
 | `1.4.0-revised` | 1.4.0 with the Hub API pack regenerated: its security obligations moved |
 | `draft` | an unreleased draft |
 
-`BundleTest` holds the Java `what_changed` diff to the plugin's own `changes.json`, and the store to the publish contract. `ServerTest` publishes over HTTP with tokens, calls every tool through the real MCP endpoint and downloads every part. `BuildPackTest` holds a part's pages to its stored bytes.
+`BundleTest` holds the Java `what_changed` diff to the plugin's own `changes.json`, and the store to the publish contract. `ServerTest` publishes over HTTP with tokens, calls every tool through the real MCP endpoint and downloads every part. `BuildPackTest` holds a part's pages to its stored bytes. `ScaleTest` runs a writer and a reader on one data directory and one index. `QdrantTest` holds the indexer, its slot records and a reader's view to a real Qdrant.
 
 To regenerate the fixtures after a bundle schema change: `SA_SKILLS_DIR=<plugin checkout> bun scripts/make-fixtures.ts src/test/resources/bundles/order-desk`.
 
@@ -181,7 +195,6 @@ To regenerate the fixtures after a bundle schema change: `SA_SKILLS_DIR=<plugin 
 | Item | State |
 |---|---|
 | Sign-in through the organization's identity provider, permissions per project | open; bearer tokens until then |
-| Several instances: one writer (`/bundles`, indexing) and N readers sharing the bundle store, with slot state in Qdrant and readers that reload on a publish | next; MCP is stateless and a re-index never empties a slot already |
 | The custom service template (skeleton, libraries, CI) | outside the architecture; `BUILD.md` rule 6 points the agent to it |
 | Retrieval eval on a real architecture | `eval/` measures on a synthetic one; a released architecture, measured inside the organization, confirms the model and the sparse weight |
 | Open questions back to the architect | later; the server stays read-only |

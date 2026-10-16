@@ -296,6 +296,45 @@ class BundleTest {
 	}
 
 	@Test
+	void aReaderFollowsTheWriterAndAReplacedDirectoryStaysForItsRetention() throws Exception {
+		Path data = tmp.resolve("data");
+		// a data directory from before HEAD.json: the reader reads it as it is, the writer takes it over
+		Fixtures.copy(Fixtures.bundle("1.3.0"), data.resolve("bundles/order-desk/released/1.3.0"));
+		Path leftover = Files.createDirectories(data.resolve("bundles/order-desk/released/9.9.9~dead"));
+		Files.setLastModifiedTime(leftover, java.nio.file.attribute.FileTime.from(java.time.Instant.now().minusSeconds(3600)));
+		BundleStore reader = new BundleStore(data, 50_000_000, true, java.time.Duration.ofMinutes(10));
+		assertThat(reader.resolve("order-desk", "1.3.0")).isPresent();
+		BundleStore writer = new BundleStore(data, 50_000_000, false, java.time.Duration.ofMinutes(10));
+		Map<String, Object> head = J.obj(Files.readAllBytes(data.resolve("bundles/order-desk/HEAD.json")));
+		assertThat(J.map(head, "released")).containsEntry("1.3.0", "released/1.3.0");
+		assertThat(leftover).doesNotExist();   // a crash's leftover, older than the retention
+		// a publish reaches the reader on its next refresh; an unchanged version is the same object
+		var before = reader.resolve("order-desk", "1.3.0").orElseThrow();
+		reader.refresh();
+		assertThat(publish(writer, "order-desk", "1.4.0", "released", Fixtures.bundle("1.4.0")).outcome()).isEqualTo(Outcome.STORED);
+		assertThat(reader.resolve("order-desk", "1.4.0")).isEmpty();
+		assertThat(reader.refresh()).containsExactly("order-desk");
+		assertThat(reader.resolve("order-desk", "1.4.0")).isPresent();
+		assertThat(reader.resolve("order-desk", "1.3.0").orElseThrow()).isSameAs(before);
+		assertThat(reader.refresh()).isEmpty();
+		// a pack replaced: a new directory; the one replaced stays for the reader still serving it
+		Path old = reader.resolve("order-desk", "1.4.0").orElseThrow().dir();
+		assertThat(publish(writer, "order-desk", "1.4.0", "released", Fixtures.bundle("1.4.0-revised")).outcome()).isEqualTo(Outcome.PACKS_UPDATED);
+		assertThat(old).isDirectory();
+		assertThat(reader.resolve("order-desk", "1.4.0").orElseThrow().dir()).isEqualTo(old);   // not reloaded yet: still whole
+		assertThat(reader.refresh()).containsExactly("order-desk");
+		assertThat(reader.resolve("order-desk", "1.4.0").orElseThrow().dir()).isNotEqualTo(old);
+		assertThat(reader.find("order-desk").orElseThrow().revisions("1.4.0")).hasSize(1);
+		// a writer with no retention deletes what was replaced at its start
+		new BundleStore(data, 50_000_000, false, java.time.Duration.ZERO);
+		assertThat(old).doesNotExist();
+		assertThat(J.maps(J.obj(Files.readAllBytes(data.resolve("bundles/order-desk/HEAD.json"))), "retired")).isEmpty();
+		// a reader refuses a publish
+		assertThatThrownBy(() -> publish(reader, "order-desk", "1.5.0", "released", Fixtures.bundle("1.4.0")))
+			.isInstanceOfSatisfying(BundleStore.Rejected.class, (e) -> assertThat(e.status()).isEqualTo(403));
+	}
+
+	@Test
 	void aSlotBeingReindexedIsNeverEmptyAndKeepsOnlyItsChunks() throws Exception {
 		BundleStore s = new BundleStore(tmp.resolve("data"), 50_000_000);
 		publish(s, "order-desk", "1.4.0", "draft", Fixtures.bundle("draft"));

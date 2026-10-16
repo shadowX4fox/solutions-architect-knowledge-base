@@ -9,11 +9,13 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
 import io.github.shadowx4fox.archindex.ArchIndexProperties;
+import io.github.shadowx4fox.archindex.bundle.J;
 import io.qdrant.client.PointIdFactory;
 import io.qdrant.client.QdrantClient;
 import io.qdrant.client.QdrantGrpcClient;
@@ -62,6 +64,9 @@ public class QdrantVectorIndex implements VectorIndex, AutoCloseable {
 
 	private final String collection;
 
+	/** {@code <collection>-slots}: one point per indexed slot, its payload the chunk set it holds — what every instance reads. */
+	private final String slots;
+
 	private final int dimensions;
 
 	public QdrantVectorIndex(ArchIndexProperties.Qdrant q, int dimensions) {
@@ -71,33 +76,72 @@ public class QdrantVectorIndex implements VectorIndex, AutoCloseable {
 		}
 		this.client = new QdrantClient(b.build());
 		this.collection = q.collection();
+		this.slots = q.collection() + "-slots";
 		this.dimensions = dimensions;
 	}
 
 	@Override
 	public void ensure() {
-		if (get(client.collectionExistsAsync(collection))) {
-			// a collection made for another model holds vectors of another size: refuse rather than mix them
-			var held = get(client.getCollectionInfoAsync(collection)).getConfig().getParams().getVectorsConfig();
-			long size = held.hasParamsMap() && held.getParamsMap().getMapMap().containsKey(DENSE)
-					? held.getParamsMap().getMapMap().get(DENSE).getSize() : -1;
-			if (size != dimensions) {
-				throw new IllegalStateException("qdrant collection " + collection + " holds " + size
-						+ "-dimension vectors; the embedding model gives " + dimensions
-						+ ". A model switch needs a new collection: set QDRANT_COLLECTION");
+		ensure(true);
+	}
+
+	@Override
+	public void verify() {
+		ensure(false);
+	}
+
+	/**
+	 * The collection and {@code <collection>-slots}, created when {@code create} and missing. Another instance may create
+	 * them at the same moment: a collection that exists by the time the create fails is taken as it is.
+	 */
+	private void ensure(boolean create) {
+		if (!get(client.collectionExistsAsync(collection))) {
+			if (!create) {
+				throw new IllegalStateException("qdrant collection " + collection + " does not exist yet: the writer creates it");
 			}
-			return;
+			try {
+				get(client.createCollectionAsync(CreateCollection.newBuilder()
+					.setCollectionName(collection)
+					.setVectorsConfig(VectorsConfig.newBuilder()
+						.setParamsMap(VectorParamsMap.newBuilder()
+							.putMap(DENSE, VectorParams.newBuilder().setSize(dimensions).setDistance(Distance.Cosine).build())))
+					.setSparseVectorsConfig(SparseVectorConfig.newBuilder()
+						.putMap(SPARSE, SparseVectorParams.newBuilder().setModifier(Modifier.Idf).build()))
+					.build()));
+			}
+			catch (RuntimeException e) {
+				if (!get(client.collectionExistsAsync(collection))) {
+					throw e;
+				}
+			}
 		}
-		get(client.createCollectionAsync(CreateCollection.newBuilder()
-			.setCollectionName(collection)
-			.setVectorsConfig(VectorsConfig.newBuilder()
-				.setParamsMap(VectorParamsMap.newBuilder()
-					.putMap(DENSE, VectorParams.newBuilder().setSize(dimensions).setDistance(Distance.Cosine).build())))
-			.setSparseVectorsConfig(SparseVectorConfig.newBuilder()
-				.putMap(SPARSE, SparseVectorParams.newBuilder().setModifier(Modifier.Idf).build()))
-			.build()));
-		for (String f : KEYWORD_FIELDS) {
-			get(client.createPayloadIndexAsync(collection, f, PayloadSchemaType.Keyword, null, true, null, null));
+		// a collection made for another model holds vectors of another size: refuse rather than mix them
+		var held = get(client.getCollectionInfoAsync(collection)).getConfig().getParams().getVectorsConfig();
+		long size = held.hasParamsMap() && held.getParamsMap().getMapMap().containsKey(DENSE)
+				? held.getParamsMap().getMapMap().get(DENSE).getSize() : -1;
+		if (size != dimensions) {
+			throw new IllegalStateException("qdrant collection " + collection + " holds " + size
+					+ "-dimension vectors; the embedding model gives " + dimensions
+					+ ". A model switch needs a new collection: set QDRANT_COLLECTION");
+		}
+		if (create) {
+			// idempotent: also completes a collection whose creator stopped before its indexes
+			for (String f : KEYWORD_FIELDS) {
+				get(client.createPayloadIndexAsync(collection, f, PayloadSchemaType.Keyword, null, true, null, null));
+			}
+		}
+		if (!get(client.collectionExistsAsync(slots))) {
+			if (!create) {
+				throw new IllegalStateException("qdrant collection " + slots + " does not exist yet: the writer creates it");
+			}
+			try {
+				get(client.createCollectionAsync(slots, VectorParams.newBuilder().setSize(1).setDistance(Distance.Dot).build()));
+			}
+			catch (RuntimeException e) {
+				if (!get(client.collectionExistsAsync(slots))) {
+					throw e;
+				}
+			}
 		}
 	}
 
@@ -162,6 +206,39 @@ public class QdrantVectorIndex implements VectorIndex, AutoCloseable {
 			f.addMustNot(matchKeywords("chunk_id", List.copyOf(keep)));
 		}
 		get(client.deleteAsync(collection, f.build()));
+	}
+
+	@Override
+	public boolean shared() {
+		return true;
+	}
+
+	@Override
+	public void markSlot(String project, String slot, String signature, int chunks) {
+		get(client.upsertAsync(slots, List.of(PointStruct.newBuilder()
+			.setId(slotId(project, slot))
+			.setVectors(VectorsFactory.vectors(1f))
+			.putAllPayload(payload(Map.of("project", project, "slot", slot, "signature", signature, "chunks", chunks,
+					"at", java.time.Instant.now().toString())))
+			.build())));
+	}
+
+	@Override
+	public void unmarkSlot(String project, String slot) {
+		get(client.deleteAsync(slots, List.of(slotId(project, slot))));
+	}
+
+	@Override
+	public Optional<String> slotSignature(String project, String slot) {
+		return get(client.retrieveAsync(slots, slotId(project, slot), true, false, null)).stream()
+			.map((p) -> p.getPayloadMap().get("signature"))
+			.filter((v) -> v != null && v.hasStringValue())
+			.map(Value::getStringValue)
+			.findFirst();
+	}
+
+	private static io.qdrant.client.grpc.Common.PointId slotId(String project, String slot) {
+		return PointIdFactory.id(UUID.fromString(J.uuidOf("slot/" + project + "/" + slot)));
 	}
 
 	@Override

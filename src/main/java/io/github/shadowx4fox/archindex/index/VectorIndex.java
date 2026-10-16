@@ -3,6 +3,7 @@ package io.github.shadowx4fox.archindex.index;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import io.github.shadowx4fox.archindex.index.SparseEncoder.SparseVec;
 
@@ -28,6 +29,11 @@ public interface VectorIndex {
 	/** Creates the collection and its payload indexes when missing. */
 	void ensure();
 
+	/** What a reader does instead of {@link #ensure()}: checks the store is there and usable, never creates it. */
+	default void verify() {
+		ensure();
+	}
+
 	/** Dense vectors already computed for these texts in this project, by content hash: an unchanged chunk is never re-embedded. */
 	Map<String, float[]> densesByHash(String project, Collection<String> contentHashes);
 
@@ -52,6 +58,29 @@ public interface VectorIndex {
 	 */
 	default boolean persistent() {
 		return false;
+	}
+
+	/**
+	 * Whether other server instances see these points: a reader instance ({@code archindex.role=reader}) needs a store
+	 * the writer fills, and only Qdrant is one.
+	 */
+	default boolean shared() {
+		return false;
+	}
+
+	/**
+	 * Records that a slot holds the chunk set {@code signature} in full, written by the indexer when it finishes the
+	 * slot: every instance reads it to know the slot is ready, and a restart skips a slot already held.
+	 */
+	default void markSlot(String project, String slot, String signature, int chunks) {
+	}
+
+	default void unmarkSlot(String project, String slot) {
+	}
+
+	/** The chunk set a slot was last indexed with, as {@link #markSlot} recorded it. */
+	default Optional<String> slotSignature(String project, String slot) {
+		return Optional.empty();
 	}
 
 	/** Makes what was written durable; called when the indexer finishes a project. */

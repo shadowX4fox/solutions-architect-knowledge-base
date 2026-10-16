@@ -43,6 +43,11 @@ class QdrantTest {
 				super.upsert(batch);
 			}
 		}) {
+			// a reader never creates the collection: it waits for the writer
+			org.assertj.core.api.Assertions.assertThatThrownBy(index::verify).hasMessageContaining("the writer creates it");
+			index.ensure();
+			index.ensure();   // again, as a second instance starting at the same time: the collection is taken as it is
+			index.verify();
 			BundleStore s = new BundleStore(tmp.resolve("data"), 50_000_000);
 			s.publish("order-desk", "1.4.0", "draft", new ByteArrayInputStream(Fixtures.tgz(Fixtures.bundle("draft"))));
 			reconcile(s, index);
@@ -51,23 +56,40 @@ class QdrantTest {
 					new SparseEncoder().document("gone"), Map.of("project", "order-desk", "slot", "draft", "chunk_id", "gone"))));
 			assertThat(index.count("order-desk", "draft")).isEqualTo(24);
 			seen.clear();
+			index.unmarkSlot("order-desk", "draft");   // as before marks: the draft is indexed again
 			reconcile(s, index);
 			assertThat(seen).isNotEmpty().allSatisfy((n) -> assertThat(n).isGreaterThanOrEqualTo(23));
 			assertThat(index.count("order-desk", "draft")).isEqualTo(23);
+			// the writer marked the slot with its chunk set: a restart writes nothing, a reader takes it as ready
+			String sig = s.resolve("order-desk", "draft").orElseThrow().chunkSignature();
+			assertThat(index.slotSignature("order-desk", "draft")).contains(sig);
+			seen.clear();
+			assertThat(reconcile(s, index, false).state("order-desk", "draft").status()).isEqualTo(Indexer.Status.READY);
+			assertThat(seen).isEmpty();
+			assertThat(reconcile(s, index, true).state("order-desk", "draft").status()).isEqualTo(Indexer.Status.READY);
+			index.unmarkSlot("order-desk", "draft");
+			assertThat(reconcile(s, index, true).state("order-desk", "draft").status()).isEqualTo(Indexer.Status.PENDING);
+			assertThat(seen).isEmpty();   // a reader never writes
 		}
 		finally {
 			try (var client = new io.qdrant.client.QdrantClient(
 					io.qdrant.client.QdrantGrpcClient.newBuilder(cfg.host(), cfg.port(), false).build())) {
 				client.deleteCollectionAsync(collection).get();
+				client.deleteCollectionAsync(collection + "-slots").get();
 			}
 		}
 	}
 
 	private static void reconcile(BundleStore s, VectorIndex index) throws Exception {
+		reconcile(s, index, false);
+	}
+
+	private static Indexer reconcile(BundleStore s, VectorIndex index, boolean follower) throws Exception {
 		var cfg = new ArchIndexProperties.Embedding("q: ", "", 1024, 32, 0);
-		new Indexer(s, index, new Embedder(new Fixtures.HashingEmbeddingModel(), cfg, "stand-in"), new SparseEncoder())
-			.reconcileAll()
-			.get();
+		Indexer i = new Indexer(s, index, new Embedder(new Fixtures.HashingEmbeddingModel(), cfg, "stand-in"),
+				new SparseEncoder(), follower);
+		i.reconcileAll().get();
+		return i;
 	}
 
 }

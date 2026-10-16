@@ -25,6 +25,9 @@ import io.github.shadowx4fox.archindex.bundle.J;
  * per chunk set. A chunk whose text another slot of the project already embedded reuses that vector — the ids hold
  * across releases and only an edited chunk changes its hash, so a release re-embeds only what it changed. Runs on one
  * background thread; search reports a slot that is not ready instead of answering from half an index.
+ * <p>
+ * A slot indexed in full is marked in the index with its chunk set ({@link VectorIndex#markSlot}). A follower — a reader
+ * instance — never writes: it takes a slot as ready when the writer's mark names the chunk set its bundle holds.
  */
 public class Indexer implements AutoCloseable {
 
@@ -50,6 +53,8 @@ public class Indexer implements AutoCloseable {
 
 	private final Map<String, SlotState> states = new ConcurrentHashMap<>();
 
+	private final boolean follower;
+
 	/** Set on the worker thread once {@link VectorIndex#ensure()} succeeds. */
 	private volatile boolean ensured;
 
@@ -60,10 +65,24 @@ public class Indexer implements AutoCloseable {
 	});
 
 	public Indexer(BundleStore store, VectorIndex index, Embedder embedder, SparseEncoder sparse) {
+		this(store, index, embedder, sparse, false);
+	}
+
+	/** {@code follower}: a reader instance — reads the writer's marks, never embeds, writes or deletes. */
+	public Indexer(BundleStore store, VectorIndex index, Embedder embedder, SparseEncoder sparse, boolean follower) {
 		this.store = store;
 		this.index = index;
 		this.embedder = embedder;
 		this.sparse = sparse;
+		this.follower = follower;
+	}
+
+	/** Whether every slot of the project is ready: a follower checks the others again on its next refresh. */
+	public boolean settled(String project) {
+		return states.entrySet()
+			.stream()
+			.filter((e) -> e.getKey().startsWith(project + "/"))
+			.allMatch((e) -> e.getValue().status() == Status.READY);
 	}
 
 	public static String slot(Bundle b) {
@@ -119,14 +138,24 @@ public class Indexer implements AutoCloseable {
 			return true;
 		}
 		try {
-			index.ensure();
+			if (follower) {
+				index.verify();
+			}
+			else {
+				index.ensure();
+			}
 			ensured = true;
 			log.info("vector index: {}", index.describe());
 			return true;
 		}
 		catch (RuntimeException e) {
 			// the store cannot be used as configured (unreachable, or made for another model): every slot says why
-			log.error("vector index unavailable: {}", e.getMessage());
+			if (follower) {
+				log.info("waiting for the writer's index: {}", e.getMessage());
+			}
+			else {
+				log.error("vector index unavailable: {}", e.getMessage());
+			}
 			states.replaceAll((k, s) -> new SlotState(Status.FAILED, s.signature(), s.chunks(), 0, 0, e.getMessage(), Instant.now()));
 			return false;
 		}
@@ -159,9 +188,16 @@ public class Indexer implements AutoCloseable {
 		held.add(BundleStore.DRAFT);
 		for (String s : held) {
 			if (!wanted.containsKey(s)) {
-				safely(() -> index.deleteSlot(project, s));
+				if (!follower) {
+					safely(() -> index.deleteSlot(project, s));
+					safely(() -> index.unmarkSlot(project, s));
+				}
 				states.remove(key(project, s));
 			}
+		}
+		if (follower) {
+			wanted.values().forEach(this::follow);
+			return;
 		}
 		for (Bundle b : wanted.values()) {
 			SlotState s = states.get(key(project, slot(b)));
@@ -173,13 +209,38 @@ public class Indexer implements AutoCloseable {
 		safely(index::flush);
 	}
 
+	/** A reader's view of a slot: ready when the writer's mark names this bundle's chunk set. */
+	private void follow(Bundle b) {
+		String project = b.projectKey();
+		String slot = slot(b);
+		String sig = b.chunkSignature();
+		try {
+			boolean ready = index.slotSignature(project, slot).filter(sig::equals).isPresent();
+			SlotState was = states.get(key(project, slot));
+			if (ready && (was == null || was.status() != Status.READY || !sig.equals(was.signature()))) {
+				log.info("{} {} ready (indexed by the writer)", project, slot);
+			}
+			states.put(key(project, slot), ready
+					? new SlotState(Status.READY, sig, b.chunks().size(), 0, b.chunks().size(), null, Instant.now())
+					: new SlotState(Status.PENDING, sig, b.chunks().size(), 0, 0, "the writer has not indexed it yet", Instant.now()));
+		}
+		catch (RuntimeException e) {
+			states.put(key(project, slot), new SlotState(Status.FAILED, sig, b.chunks().size(), 0, 0, e.getMessage(), Instant.now()));
+		}
+	}
+
 	private void indexSlot(Bundle b, boolean startup) {
 		String project = b.projectKey();
 		String slot = slot(b);
 		String sig = b.chunkSignature();
 		List<Chunk> chunks = b.chunks();
 		try {
-			if (startup && index.persistent() && b.released() && index.count(project, slot) == chunks.size()) {
+			// marked with this chunk set and whole: nothing to do (a restart, or another writer before this one)
+			boolean marked = index.slotSignature(project, slot).filter(sig::equals).isPresent();
+			if ((marked || startup && index.persistent() && b.released()) && index.count(project, slot) == chunks.size()) {
+				if (!marked) {
+					index.markSlot(project, slot, sig, chunks.size());
+				}
 				states.put(key(project, slot), new SlotState(Status.READY, sig, chunks.size(), 0, chunks.size(), null, Instant.now()));
 				return;
 			}
@@ -202,6 +263,7 @@ public class Indexer implements AutoCloseable {
 			}
 			index.upsert(batch);
 			index.deleteSlotExcept(project, slot, chunks.stream().map(Chunk::id).toList());
+			index.markSlot(project, slot, sig, chunks.size());
 			states.put(key(project, slot), new SlotState(Status.READY, sig, chunks.size(), missing.size(),
 					chunks.size() - missing.size(), null, Instant.now()));
 			log.info("indexed {} {}: {} chunks, {} embedded, {} reused", project, slot, chunks.size(), missing.size(),

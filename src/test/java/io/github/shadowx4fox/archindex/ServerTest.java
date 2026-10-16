@@ -385,7 +385,7 @@ class ServerTest {
 		assertThat(J.maps(r, "replacements")).isEmpty();
 		assertThat(J.str(r, "summary")).contains("- contracts: changed openapi.yaml");
 		// the history outlives a restart
-		BundleStore again = new BundleStore(data, 50_000_000);
+		BundleStore again = new BundleStore(data, 50_000_000, true, java.time.Duration.ofMinutes(10));
 		assertThat(again.find("order-desk").orElseThrow().revisions("1.4.0")).hasSize(1);
 	}
 

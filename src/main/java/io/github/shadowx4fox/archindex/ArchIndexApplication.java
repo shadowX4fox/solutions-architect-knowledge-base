@@ -20,6 +20,7 @@ import io.github.shadowx4fox.archindex.index.FileVectorIndex;
 import io.github.shadowx4fox.archindex.index.Indexer;
 import io.github.shadowx4fox.archindex.index.MemoryVectorIndex;
 import io.github.shadowx4fox.archindex.index.QdrantVectorIndex;
+import io.github.shadowx4fox.archindex.index.Refresher;
 import io.github.shadowx4fox.archindex.index.SearchService;
 import io.github.shadowx4fox.archindex.index.SparseEncoder;
 import io.github.shadowx4fox.archindex.index.VectorIndex;
@@ -41,7 +42,8 @@ public class ArchIndexApplication {
 
 	@Bean
 	BundleStore bundleStore(ArchIndexProperties p) {
-		return new BundleStore(p.dataDir(), p.maxBundleBytes());
+		return new BundleStore(p.dataDir(), p.maxBundleBytes(), p.role() == ArchIndexProperties.Role.READER,
+				p.retainReplaced());
 	}
 
 	@Bean
@@ -68,7 +70,16 @@ public class ArchIndexApplication {
 
 	@Bean
 	Indexer indexer(BundleStore store, VectorIndex index, Embedder embedder, SparseEncoder sparse, ArchIndexProperties p) {
-		return new Indexer(store, index, embedder, sparse);
+		if (p.role() == ArchIndexProperties.Role.READER && !index.shared()) {
+			throw new IllegalStateException("archindex.role=reader reads the index the writer fills: it needs archindex.store=qdrant, not "
+					+ index.describe());
+		}
+		return new Indexer(store, index, embedder, sparse, p.role() == ArchIndexProperties.Role.READER);
+	}
+
+	@Bean
+	Refresher refresher(BundleStore store, Indexer indexer, ArchIndexProperties p) {
+		return new Refresher(store, indexer, p.refreshInterval());
 	}
 
 	@Bean
@@ -128,6 +139,9 @@ public class ArchIndexApplication {
 	@EventListener(ApplicationReadyEvent.class)
 	void indexOnStart(ApplicationReadyEvent e) {
 		e.getApplicationContext().getBean(Indexer.class).reconcileAll();
+		if (e.getApplicationContext().getBean(BundleStore.class).readOnly()) {
+			e.getApplicationContext().getBean(Refresher.class).start();
+		}
 	}
 
 }
