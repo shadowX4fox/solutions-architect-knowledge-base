@@ -130,6 +130,18 @@ Put a load balancer in front of every instance for `/mcp` and `/packs`, and send
 - **Ollama has no state.** Run replicas behind their own load balancer, all with the same model: the vectors have to match the collection. Every `search_architecture` embeds its query, so Ollama runs out of capacity before the server does; readers need Ollama for queries only.
 - **One writer.** Publishes are rare (a release, then its kit), so the writer is a single replica: restart it rather than run two, because two writers on one data directory would overwrite each other's `HEAD.json`.
 
+Three URLs, each with a fixed target:
+
+| URL | Set in | With a load balancer | Without one |
+|---|---|---|---|
+| publish, `/bundles` | CI: `SA_INDEX_SERVER` | the writer: a `/bundles` route, or its own address | the writer's address. A reader answers 403. |
+| MCP, `/mcp` | the IDE (`.vscode/mcp.json`, `claude mcp add`), and `server` in each repository's `.architecture.json` (`SA_INDEX_MCP_URL`) | the load balancer | any instance. Spread the IDEs yourself (per team, per region), or give one DNS name several A records. MCP is stateless, so either works, but DNS checks no health and clients cache it. |
+| download base, `ARCHINDEX_PUBLIC_URL` | each instance's environment | the load balancer, on every instance | each instance's own address, so an agent downloads from the instance that gave it the `pack_revision` |
+
+- `ARCHINDEX_PUBLIC_URL` must resolve on the developer's machine, where curl runs. Never use a container hostname (`http://server:8080`). `localhost` is right only for a fully local setup.
+- `.architecture.json` is committed in every service repository, so its `server` should be a stable DNS name you can repoint (`alia-mcp.internal`), never one instance's host and port.
+- Behind a load balancer, a download can land on an instance that has not reloaded yet. It answers 404 for a version it does not hold yet, or 409 to `?pack_revision=` for a pack replaced since; either way the agent retries or reads the pack again.
+
 **Model.** `qwen3-embedding:0.6b`: 32K context, so every chunk the export cuts fits, multilingual, Apache 2.0 upstream, 1,024 dimensions. On the eval it ties the other candidates on ordinary questions and leads on answers deep in long chunks (eval/README.md).
 
 **GPU.** Ollama uses the GPU on its own: CUDA, or ROCm 7 on AMD (`ollama ps` shows `100% GPU`). On an AMD Radeon RX 9060 XT it embeds about 19 chunks a second; on that machine's CPU, 1.1. A full index of a large architecture is minutes on a GPU and tens of minutes on a CPU, and a release re-embeds only the chunks it changed.
