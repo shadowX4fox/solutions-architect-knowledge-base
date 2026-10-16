@@ -50,6 +50,9 @@ public class Indexer implements AutoCloseable {
 
 	private final Map<String, SlotState> states = new ConcurrentHashMap<>();
 
+	/** Set on the worker thread once {@link VectorIndex#ensure()} succeeds. */
+	private volatile boolean ensured;
+
 	private final ExecutorService worker = Executors.newSingleThreadExecutor((r) -> {
 		Thread t = new Thread(r, "archindex-indexer");
 		t.setDaemon(true);
@@ -84,23 +87,49 @@ public class Indexer implements AutoCloseable {
 		List<String> keys = new ArrayList<>(store.projects().keySet());
 		keys.forEach((k) -> markPending(k));
 		return worker.submit(() -> {
-			try {
-				index.ensure();
-				log.info("vector index: {}", index.describe());
+			if (ensureIndex()) {
+				keys.forEach((k) -> reconcileNow(k, true));
 			}
-			catch (RuntimeException e) {
-				// the store cannot be used as configured (unreachable, or made for another model): every slot says why
-				log.error("vector index unavailable: {}", e.getMessage());
-				states.replaceAll((k, s) -> new SlotState(Status.FAILED, s.signature(), s.chunks(), 0, 0, e.getMessage(), Instant.now()));
-				return;
-			}
-			keys.forEach((k) -> reconcileNow(k, true));
 		});
 	}
 
 	public Future<?> reconcile(String project) {
 		markPending(project);
-		return worker.submit(() -> reconcileNow(project, false));
+		return worker.submit(() -> {
+			boolean late = !ensured;
+			if (!ensureIndex()) {
+				return;
+			}
+			if (late) {
+				// the store was unavailable at start: every project waits on it, not only the one just published
+				new ArrayList<>(store.projects().keySet()).forEach((k) -> reconcileNow(k, true));
+			}
+			else {
+				reconcileNow(project, false);
+			}
+		});
+	}
+
+	/**
+	 * Makes the store usable once, before anything is written to it. Until it succeeds nothing is indexed — a file
+	 * index that could not be read is never overwritten, and a collection that does not exist is never written to.
+	 */
+	private boolean ensureIndex() {
+		if (ensured) {
+			return true;
+		}
+		try {
+			index.ensure();
+			ensured = true;
+			log.info("vector index: {}", index.describe());
+			return true;
+		}
+		catch (RuntimeException e) {
+			// the store cannot be used as configured (unreachable, or made for another model): every slot says why
+			log.error("vector index unavailable: {}", e.getMessage());
+			states.replaceAll((k, s) -> new SlotState(Status.FAILED, s.signature(), s.chunks(), 0, 0, e.getMessage(), Instant.now()));
+			return false;
+		}
 	}
 
 	private void markPending(String project) {

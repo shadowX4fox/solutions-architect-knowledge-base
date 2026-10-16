@@ -25,7 +25,7 @@ public final class Semver {
 			return a.compareTo(b);
 		}
 		for (int i = 1; i <= 3; i++) {
-			int c = Long.compare(Long.parseLong(x.group(i)), Long.parseLong(y.group(i)));
+			int c = numeric(x.group(i), y.group(i));
 			if (c != 0) {
 				return c;
 			}
@@ -35,7 +35,25 @@ public final class Semver {
 		if (pa == null || pb == null) {
 			return pa == null ? (pb == null ? 0 : 1) : -1;
 		}
-		return pa.compareTo(pb);
+		// identifier by identifier: numeric ones by value and before alphanumeric ones, so rc.9 sorts before rc.10
+		String[] ia = pa.split("\\.", -1);
+		String[] ib = pb.split("\\.", -1);
+		for (int i = 0; i < Math.min(ia.length, ib.length); i++) {
+			boolean na = ia[i].matches("\\d+");
+			boolean nb = ib[i].matches("\\d+");
+			int c = na && nb ? numeric(ia[i], ib[i]) : na ? -1 : nb ? 1 : ia[i].compareTo(ib[i]);
+			if (c != 0) {
+				return c;
+			}
+		}
+		return Integer.compare(ia.length, ib.length);
+	}
+
+	/** Two digit strings by value, of any length. */
+	private static int numeric(String a, String b) {
+		String x = a.replaceFirst("^0+(?=.)", "");
+		String y = b.replaceFirst("^0+(?=.)", "");
+		return x.length() != y.length() ? Integer.compare(x.length(), y.length()) : x.compareTo(y);
 	}
 
 }

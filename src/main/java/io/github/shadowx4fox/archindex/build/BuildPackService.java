@@ -106,9 +106,10 @@ public class BuildPackService {
 	}
 
 	private Map<String, Object> read(Located l, Map<String, Object> part, Integer offset) {
-		Path dir = l.bundle().dir().resolve("buildpacks").resolve(l.slug()).normalize();
-		Path file = dir.resolve(J.str(part, "path")).normalize();
-		if (!file.startsWith(dir)) {
+		Path dir = l.bundle().packDir(l.slug());
+		String rel = J.str(part, "path");
+		Path file = rel == null ? null : dir.resolve(rel).normalize();
+		if (file == null || !file.startsWith(dir)) {
 			throw new ToolException("part path leaves the pack");
 		}
 		String text;
@@ -122,7 +123,7 @@ public class BuildPackService {
 		if (from > text.length()) {
 			throw new ToolException("offset " + from + " is past the end (" + text.length() + " characters)");
 		}
-		int to = maxPartChars > 0 ? Math.min(text.length(), from + maxPartChars) : text.length();
+		int to = Paging.end(text, from, maxPartChars);
 		Map<String, Object> m = new LinkedHashMap<>();
 		m.put("project", l.bundle().projectKey());
 		m.put("architecture_version", l.bundle().version());

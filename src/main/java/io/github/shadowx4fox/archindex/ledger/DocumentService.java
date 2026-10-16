@@ -85,7 +85,7 @@ public class DocumentService {
 		if (from > content.length()) {
 			throw new ToolException("offset " + from + " is past the end (" + content.length() + " characters)");
 		}
-		int to = maxChars > 0 ? Math.min(content.length(), from + maxChars) : content.length();
+		int to = io.github.shadowx4fox.archindex.build.Paging.end(content, from, maxChars);
 		Chunk first = kept.get(0).chunk();
 		Map<String, Object> m = new LinkedHashMap<>();
 		m.put("project", b.projectKey());

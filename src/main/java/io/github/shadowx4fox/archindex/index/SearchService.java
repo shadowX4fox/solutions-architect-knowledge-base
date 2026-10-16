@@ -66,8 +66,8 @@ public class SearchService {
 		}
 		String slug = null;
 		if (component != null && !component.isBlank()) {
-			if (scope.size() != 1) {
-				throw new ToolException("a component filter needs one project and version");
+			if (scope.isEmpty() || scope.stream().map(Bundle::projectKey).distinct().count() != 1) {
+				throw new ToolException("a component filter needs one project");
 			}
 			slug = J.str(bundles.component(scope.get(0), component), "slug");
 		}
@@ -76,12 +76,14 @@ public class SearchService {
 		for (Bundle b : scope) {
 			String slot = Indexer.slot(b);
 			Indexer.SlotState s = indexer.state(b.projectKey(), slot);
-			if (s != null && s.status() == Indexer.Status.READY) {
+			// ready for this chunk set: a slot indexed for the bundle a publish just replaced is not
+			if (s != null && s.status() == Indexer.Status.READY && b.chunkSignature().equals(s.signature())) {
 				ready.add(new VectorIndex.Scope(b.projectKey(), slot));
 			}
 			else {
 				notes.add(b.projectKey() + " " + slot + " is not searchable yet ("
-						+ (s == null ? "not indexed" : s.status().name().toLowerCase()) + (s != null && s.error() != null ? ": " + s.error() : "")
+						+ (s == null ? "not indexed" : s.status() == Indexer.Status.READY ? "pending" : s.status().name().toLowerCase())
+						+ (s != null && s.error() != null ? ": " + s.error() : "")
 						+ ") — the ledger and build-pack tools answer for it now");
 			}
 		}

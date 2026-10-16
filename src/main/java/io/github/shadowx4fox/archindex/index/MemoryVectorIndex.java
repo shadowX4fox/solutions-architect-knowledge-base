@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -81,22 +82,20 @@ public class MemoryVectorIndex implements VectorIndex {
 			}
 		}
 		sparse.sort(Map.Entry.<Point, Double>comparingByValue().reversed());
-		Map<String, Double> fused = new HashMap<>();
+		// keyed by the pooled point itself: the indexer may remove it from the map while this search runs
+		Map<Point, Double> fused = new IdentityHashMap<>();
 		for (int r = 0; r < byDense.size(); r++) {
-			fused.merge(byDense.get(r).id(), 1.0 / (RRF_K + r + 1), Double::sum);
+			fused.merge(byDense.get(r), 1.0 / (RRF_K + r + 1), Double::sum);
 		}
 		for (int r = 0; r < Math.min(sparse.size(), q.candidates()); r++) {
-			fused.merge(sparse.get(r).getKey().id(), q.sparseWeight() / (RRF_K + r + 1), Double::sum);
+			fused.merge(sparse.get(r).getKey(), q.sparseWeight() / (RRF_K + r + 1), Double::sum);
 		}
 		return fused.entrySet()
 			.stream()
-			.sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+			.sorted(Map.Entry.<Point, Double>comparingByValue().reversed())
 			.limit(q.limit())
-			.map((e) -> {
-				Point p = points.get(e.getKey());
-				return new Hit(J.str(p.payload(), "chunk_id"), J.str(p.payload(), "project"), J.str(p.payload(), "slot"),
-						e.getValue());
-			})
+			.map((e) -> new Hit(J.str(e.getKey().payload(), "chunk_id"), J.str(e.getKey().payload(), "project"),
+					J.str(e.getKey().payload(), "slot"), e.getValue()))
 			.toList();
 	}
 

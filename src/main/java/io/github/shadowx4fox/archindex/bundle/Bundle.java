@@ -34,6 +34,8 @@ public final class Bundle {
 
 	private final Map<String, Object> changes;
 
+	private final String chunkSignature;
+
 	private Bundle(Path dir, Map<String, Object> manifest, List<Chunk> chunks, Map<String, Object> ledger,
 			Map<String, Map<String, Object>> packs, Map<String, Object> changes) {
 		this.dir = dir;
@@ -45,6 +47,9 @@ public final class Bundle {
 		this.ledger = ledger;
 		this.packs = Collections.unmodifiableMap(packs);
 		this.changes = changes;
+		StringBuilder sb = new StringBuilder();
+		chunks.stream().map((c) -> c.id() + ":" + c.contentHash()).sorted().forEach((x) -> sb.append(x).append('\n'));
+		this.chunkSignature = J.sha256(sb.toString());
 	}
 
 	public static Bundle load(Path dir) {
@@ -136,15 +141,19 @@ public final class Bundle {
 		return Optional.ofNullable(changes);
 	}
 
+	/** The directory a pack's part paths are relative to: the pack file's own, as the manifest places it. */
 	public Path packDir(String slug) {
-		return dir.resolve("buildpacks").resolve(slug);
+		return J.maps(manifest, "buildpacks")
+			.stream()
+			.filter((b) -> slug.equals(J.str(b, "component")) && J.str(b, "path") != null)
+			.map((b) -> dir.resolve(J.str(b, "path")).normalize().getParent())
+			.findFirst()
+			.orElseGet(() -> dir.resolve("buildpacks").resolve(slug).normalize());
 	}
 
 	/** The chunk set as (id, content hash) pairs: two bundles with the same set serve the same search. */
 	public String chunkSignature() {
-		StringBuilder sb = new StringBuilder();
-		chunks.stream().map((c) -> c.id() + ":" + c.contentHash()).sorted().forEach((s) -> sb.append(s).append('\n'));
-		return J.sha256(sb.toString());
+		return chunkSignature;
 	}
 
 	public List<Map<String, Object>> skipped() {

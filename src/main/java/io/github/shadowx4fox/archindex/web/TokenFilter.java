@@ -12,7 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Bearer tokens until the bank's identity provider is wired (an open decision): {@code archindex.ingest-token} guards
+ * Bearer tokens until the organization's identity provider is wired (an open decision): {@code archindex.ingest-token} guards
  * {@code /bundles/**} — the pipeline secret {@code SA_INDEX_TOKEN} — and {@code archindex.mcp-token}, when set, guards
  * the MCP endpoint. An unset token leaves its path open; the server logs that at start.
  */
@@ -37,7 +37,8 @@ public class TokenFilter extends OncePerRequestFilter {
 	@Override
 	protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain)
 			throws ServletException, IOException {
-		String path = req.getRequestURI().substring(req.getContextPath().length());
+		// the decoded, normalized path the dispatcher routes on — never the raw URI, where /%62undles still reaches /bundles
+		String path = req.getServletPath() + (req.getPathInfo() == null ? "" : req.getPathInfo());
 		String want = path.startsWith("/bundles") ? ingestToken : path.startsWith(mcpPath) ? mcpToken : null;
 		if (want != null && !matches(req.getHeader("Authorization"), want)) {
 			res.setStatus(401);
