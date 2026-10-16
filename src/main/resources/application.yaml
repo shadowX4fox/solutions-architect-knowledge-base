@@ -12,7 +12,8 @@ spring:
         name: Alia
         version: 0.1.0
         type: SYNC
-        protocol: STREAMABLE
+        # no session held in memory: any instance answers any call (the tools never call back into the client)
+        protocol: STATELESS
         instructions: >
           You are Alia, the architecture navigator — the same Alia who briefs in the architecture command center.
           This server holds the architecture of the systems this team builds, as released by its architects. Ask it

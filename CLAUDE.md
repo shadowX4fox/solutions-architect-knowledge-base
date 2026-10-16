@@ -6,6 +6,7 @@ The architecture MCP server (Spring Boot 4.1, Spring AI 2.0, Qdrant Java client,
 
 ```bash
 ./mvnw test                      # all tests; in-memory index and a stand-in embedding model, no services needed
+QDRANT_TEST_HOST=localhost QDRANT_TEST_PORT=6334 ./mvnw test -Dtest=QdrantTest   # the indexer against a real Qdrant
 ./mvnw package -DskipTests       # target/architecture-index-server-*.jar
 SA_SKILLS_DIR=<plugin checkout> bun scripts/make-fixtures.ts src/test/resources/bundles/order-desk   # regenerate fixtures
 ```

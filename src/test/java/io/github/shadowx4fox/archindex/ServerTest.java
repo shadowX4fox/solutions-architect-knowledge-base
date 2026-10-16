@@ -94,7 +94,7 @@ class ServerTest {
 
 	// ---- MCP over Streamable HTTP
 
-	private String session;
+	private boolean initialized;
 
 	private int rpcId;
 
@@ -105,12 +105,10 @@ class ServerTest {
 			.header("Accept", "application/json, text/event-stream")
 			.header("Authorization", "Bearer ide-token")
 			.POST(HttpRequest.BodyPublishers.ofString(J.write(Map.of("jsonrpc", "2.0", "id", ++rpcId, "method", method, "params", params))));
-		if (session != null) {
-			b.header("Mcp-Session-Id", session);
-		}
 		HttpResponse<String> r = http.send(b.build(), HttpResponse.BodyHandlers.ofString());
 		assertThat(r.statusCode()).as(r.body()).isEqualTo(200);
-		r.headers().firstValue("Mcp-Session-Id").ifPresent((s) -> session = s);
+		// stateless: no session is held, so any instance behind a load balancer answers any call
+		assertThat(r.headers().firstValue("Mcp-Session-Id")).isEmpty();
 		String body = r.body().trim();
 		if (!body.startsWith("{")) {   // an SSE answer: the JSON is on the data: line
 			body = body.lines().filter((l) -> l.startsWith("data:")).map((l) -> l.substring(5).trim()).reduce((a, x) -> x).orElseThrow();
@@ -119,7 +117,7 @@ class ServerTest {
 	}
 
 	private void initialize() throws Exception {
-		if (session != null) {
+		if (initialized) {
 			return;
 		}
 		Map<String, Object> r = rpc("initialize", Map.of("protocolVersion", "2025-06-18", "capabilities", Map.of(),
@@ -130,10 +128,10 @@ class ServerTest {
 			.header("Content-Type", "application/json")
 			.header("Accept", "application/json, text/event-stream")
 			.header("Authorization", "Bearer ide-token")
-			.header("Mcp-Session-Id", session)
 			.POST(HttpRequest.BodyPublishers.ofString("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}"))
 			.build();
 		http.send(n, HttpResponse.BodyHandlers.discarding());
+		initialized = true;
 	}
 
 	/** Calls a tool; returns its text parsed as JSON when it is JSON. */
@@ -189,6 +187,9 @@ class ServerTest {
 			.header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString("{}")).build(),
 				HttpResponse.BodyHandlers.ofString());
 		assertThat(anon.statusCode()).isEqualTo(401);
+		// a call that reaches an instance which never saw this client's initialize is answered all the same
+		Map<String, Object> cold = J.map(rpc("tools/call", Map.of("name", "list_projects", "arguments", Map.of())), "result");
+		assertThat(cold.get("isError")).isNotEqualTo(Boolean.TRUE);
 		initialize();
 		List<String> names = J.maps(J.map(rpc("tools/list", Map.of()), "result"), "tools").stream().map((t) -> J.str(t, "name")).toList();
 		assertThat(names).containsExactlyInAnyOrder("list_projects", "get_architecture", "get_component", "list_integrations",

@@ -92,6 +92,13 @@ public class FileVectorIndex extends MemoryVectorIndex {
 	}
 
 	@Override
+	public void deleteSlotExcept(String project, String slot, java.util.Collection<String> keep) {
+		long before = points.size();
+		super.deleteSlotExcept(project, slot, keep);
+		dirty |= points.size() != before;
+	}
+
+	@Override
 	public boolean persistent() {
 		return true;
 	}

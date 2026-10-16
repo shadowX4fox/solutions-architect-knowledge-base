@@ -88,7 +88,7 @@ sha256sum architecture/openapi.yaml
 ## Run
 
 ```bash
-./mvnw test                                   # 24 tests; no Qdrant or Ollama needed (in-memory index, stand-in model)
+./mvnw test                                   # 25 tests (+ QdrantTest with QDRANT_TEST_HOST set); no Qdrant or Ollama needed (in-memory index, stand-in model)
 ./mvnw package -DskipTests
 ollama pull qwen3-embedding:0.6b               # the default model; see eval/README.md for how it was chosen
 ./qdrant                                      # or: docker compose -f deploy/compose.yaml up -d
@@ -109,6 +109,15 @@ ARCHINDEX_INGEST_TOKEN=… java -jar target/architecture-index-server-0.1.0-SNAP
 ARCHINDEX_STORE=file java -jar target/architecture-index-server-0.1.0-SNAPSHOT.jar
 docker compose -f deploy/compose.yaml --profile file up -d server-file   # or in containers: the server and Ollama, no Qdrant
 ```
+
+**Several instances.** For a shared server, run the `qdrant` engine. `file` and `memory` keep their vectors in one process, which is enough for a local run on one machine and nothing more.
+
+| Part | Behind a load balancer |
+|---|---|
+| MCP | `protocol: STATELESS`. No session is kept in memory, so any instance answers any call, and an IDE never has to reconnect when its calls land on another instance. The tools never call back into the client (no sampling or elicitation), so stateless loses nothing. |
+| Qdrant | one collection that every instance shares. A chunk already embedded is reused by its content hash, so an instance that re-indexes a slot rewrites points without asking Ollama again. A re-index writes the new chunk set over the points held, then removes the rest, so a slot is never empty to another instance searching it. |
+| Ollama | no state. Run replicas behind their own load balancer, all with the same model: the vectors have to match the collection. Every `search_architecture` embeds its query here, so Ollama runs out of capacity before the server does. |
+| Bundles | **not shared yet.** Each instance reads `{data}` at start and learns of a publish only when it receives it. Until the writer/reader split lands (Open, below), run one instance per data directory, or send `/bundles` to one instance and restart the others after a publish. |
 
 **Model.** `qwen3-embedding:0.6b`: 32K context, so every chunk the export cuts fits, multilingual, Apache 2.0 upstream, 1,024 dimensions. On the eval it ties the other candidates on ordinary questions and leads on answers deep in long chunks (eval/README.md).
 
@@ -172,6 +181,7 @@ To regenerate the fixtures after a bundle schema change: `SA_SKILLS_DIR=<plugin 
 | Item | State |
 |---|---|
 | Sign-in through the organization's identity provider, permissions per project | open; bearer tokens until then |
+| Several instances: one writer (`/bundles`, indexing) and N readers sharing the bundle store, with slot state in Qdrant and readers that reload on a publish | next; MCP is stateless and a re-index never empties a slot already |
 | The custom service template (skeleton, libraries, CI) | outside the architecture; `BUILD.md` rule 6 points the agent to it |
 | Retrieval eval on a real architecture | `eval/` measures on a synthetic one; a released architecture, measured inside the organization, confirms the model and the sparse weight |
 | Open questions back to the architect | later; the server stays read-only |

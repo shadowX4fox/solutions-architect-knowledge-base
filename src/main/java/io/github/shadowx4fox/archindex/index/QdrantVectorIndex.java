@@ -156,6 +156,15 @@ public class QdrantVectorIndex implements VectorIndex, AutoCloseable {
 	}
 
 	@Override
+	public void deleteSlotExcept(String project, String slot, Collection<String> keep) {
+		Filter.Builder f = slotFilter(project, slot).toBuilder();
+		if (!keep.isEmpty()) {
+			f.addMustNot(matchKeywords("chunk_id", List.copyOf(keep)));
+		}
+		get(client.deleteAsync(collection, f.build()));
+	}
+
+	@Override
 	public long count(String project, String slot) {
 		return get(client.countAsync(collection, slotFilter(project, slot), true));
 	}

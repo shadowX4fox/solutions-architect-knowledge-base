@@ -190,7 +190,7 @@ public class Indexer implements AutoCloseable {
 			for (int i = 0; i < missing.size(); i++) {
 				known.put(missing.get(i).contentHash(), fresh.get(i));
 			}
-			index.deleteSlot(project, slot);
+			// upsert over the points held (their ids are the chunk ids), then drop the rest: never an empty slot
 			List<VectorIndex.Point> batch = new ArrayList<>();
 			for (Chunk c : chunks) {
 				batch.add(new VectorIndex.Point(J.uuidOf(project + "/" + slot + "/" + c.id()), known.get(c.contentHash()),
@@ -201,6 +201,7 @@ public class Indexer implements AutoCloseable {
 				}
 			}
 			index.upsert(batch);
+			index.deleteSlotExcept(project, slot, chunks.stream().map(Chunk::id).toList());
 			states.put(key(project, slot), new SlotState(Status.READY, sig, chunks.size(), missing.size(),
 					chunks.size() - missing.size(), null, Instant.now()));
 			log.info("indexed {} {}: {} chunks, {} embedded, {} reused", project, slot, chunks.size(), missing.size(),

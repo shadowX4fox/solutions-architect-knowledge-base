@@ -35,6 +35,12 @@ public interface VectorIndex {
 
 	void deleteSlot(String project, String slot);
 
+	/**
+	 * Removes the slot's points whose chunk id is not in {@code keep}: called after the new chunk set is upserted, so a
+	 * slot being re-indexed is never empty to another instance searching it.
+	 */
+	void deleteSlotExcept(String project, String slot, Collection<String> keep);
+
 	long count(String project, String slot);
 
 	/** Dense and sparse candidates under the scopes and filters, fused by weighted reciprocal rank (dense 1, sparse {@code sparseWeight}). */

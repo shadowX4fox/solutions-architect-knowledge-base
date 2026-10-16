@@ -295,6 +295,31 @@ class BundleTest {
 		assertThatThrownBy(() -> new FileVectorIndex(file, 768).ensure()).hasMessageContaining("1024-dimension");
 	}
 
+	@Test
+	void aSlotBeingReindexedIsNeverEmptyAndKeepsOnlyItsChunks() throws Exception {
+		BundleStore s = new BundleStore(tmp.resolve("data"), 50_000_000);
+		publish(s, "order-desk", "1.4.0", "draft", Fixtures.bundle("draft"));
+		List<Long> seen = new java.util.ArrayList<>();
+		var index = new io.github.shadowx4fox.archindex.index.MemoryVectorIndex() {
+			@Override
+			public void upsert(List<VectorIndex.Point> batch) {
+				seen.add(count("order-desk", "draft"));
+				super.upsert(batch);
+			}
+		};
+		reconcile(s, index);
+		long chunks = index.count("order-desk", "draft");
+		assertThat(chunks).isEqualTo(23);
+		// a point of a chunk the draft no longer has, as another instance or an older draft left it
+		index.upsert(List.of(new VectorIndex.Point("stale", Fixtures.HashingEmbeddingModel.vector("gone"),
+				new SparseEncoder().document("gone"), Map.of("project", "order-desk", "slot", "draft", "chunk_id", "gone"))));
+		seen.clear();
+		// a restart re-indexes the draft: while it writes, the slot keeps its points; after, only its chunks
+		reconcile(s, index);
+		assertThat(seen).isNotEmpty().allSatisfy((n) -> assertThat(n).isGreaterThanOrEqualTo(chunks));
+		assertThat(index.count("order-desk", "draft")).isEqualTo(chunks);
+	}
+
 	private static Indexer reconcile(BundleStore s, VectorIndex index) throws Exception {
 		var cfg = new io.github.shadowx4fox.archindex.ArchIndexProperties.Embedding("q: ", "", 1024, 32, 0);
 		Indexer indexer = new Indexer(s, index, new Embedder(new Fixtures.HashingEmbeddingModel(), cfg, "stand-in"),

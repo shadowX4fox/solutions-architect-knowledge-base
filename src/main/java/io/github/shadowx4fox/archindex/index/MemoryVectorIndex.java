@@ -52,6 +52,12 @@ public class MemoryVectorIndex implements VectorIndex {
 	}
 
 	@Override
+	public void deleteSlotExcept(String project, String slot, Collection<String> keep) {
+		Set<String> k = new HashSet<>(keep);
+		points.values().removeIf((p) -> inSlot(p, project, slot) && !k.contains(J.str(p.payload(), "chunk_id")));
+	}
+
+	@Override
 	public long count(String project, String slot) {
 		return points.values().stream().filter((p) -> inSlot(p, project, slot)).count();
 	}
