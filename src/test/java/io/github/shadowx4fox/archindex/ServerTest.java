@@ -26,6 +26,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
+import io.github.shadowx4fox.archindex.bundle.BundleStore;
 import io.github.shadowx4fox.archindex.bundle.J;
 import io.github.shadowx4fox.archindex.index.Indexer;
 
@@ -281,6 +282,49 @@ class ServerTest {
 		Map<String, Object> computed = tool("what_changed", Map.of("project", "order-desk", "from", "1.3.0", "to", "draft"));
 		assertThat(computed).containsEntry("source", "computed from the two bundles");
 		assertThat(J.str(tool("what_changed", Map.of("project", "order-desk", "from", "1.4.0", "to", "1.3.0"), true), "text")).contains("is newer than");
+	}
+
+	@Test
+	@Order(7)
+	void aPackReplacedWithinItsVersionIsWhatChangedSinceTheRevisionBuiltFrom() throws Exception {
+		String built = J.str(tool("get_build_pack", Map.of("project", "order-desk", "component", "hub-api", "version", "1.4.0")), "pack_revision");
+		// the kit regenerated after the tag: Hub API's security obligations moved → 200, its pack replaced
+		HttpResponse<String> p = post("/bundles/order-desk/1.4.0?channel=released", Fixtures.tgz(Fixtures.bundle("1.4.0-revised")), "ci-token");
+		assertThat(p.statusCode()).isEqualTo(200);
+		Map<String, Object> body = J.obj(p.body());
+		assertThat(J.strings(body, "replaced")).containsExactly("hub-api");
+		assertThat(J.strings(body, "added")).isEmpty();
+		String now = J.str(tool("get_build_pack", Map.of("project", "order-desk", "component", "hub-api", "version", "1.4.0")), "pack_revision");
+		assertThat(now).isNotEqualTo(built);
+		// the revision the repository built from → the replacement since, an action: the security obligations moved
+		Map<String, Object> r = tool("what_changed", Map.of("project", "order-desk", "component", "hub-api", "from", "1.4.0", "from_revision", built));
+		assertThat(J.strings(r, "action_required")).containsExactly("hub-api");
+		assertThat(J.maps(r, "replacements")).hasSize(1);
+		assertThat(J.map(J.map(J.maps(r, "replacements").get(0), "packs"), "hub-api")).containsEntry("from", built).containsEntry("to", now);
+		assertThat(J.str(r, "summary")).contains("# What changed — order-desk 1.4.0, build packs revised",
+				"- documents: Security Obligations, Build instructions");
+		assertThat(r).containsEntry("pack_revision", now);
+		// already on the latest revision: nothing since
+		r = tool("what_changed", Map.of("project", "order-desk", "component", "hub-api", "from", "1.4.0", "to", "1.4.0", "from_revision", now));
+		assertThat(J.maps(r, "replacements")).isEmpty();
+		assertThat(J.strings(r, "action_required")).isEmpty();
+		// BUILD.md's placeholder, never replaced: every replacement of the version, and a note to record the revision
+		r = tool("what_changed", Map.of("project", "order-desk", "component", "hub-api", "from", "1.4.0", "from_revision", "<pack_revision from get_build_pack>"));
+		assertThat(J.maps(r, "replacements")).hasSize(1);
+		assertThat(J.str(r, "note")).contains("placeholder");
+		// a revision the server never held is an error naming the ones it did, never an empty answer
+		assertThat(J.str(tool("what_changed", Map.of("project", "order-desk", "component", "hub-api", "from", "1.4.0", "from_revision", "0".repeat(64)), true), "text"))
+			.contains("is not a revision", built, now);
+		assertThat(J.str(tool("what_changed", Map.of("project", "order-desk", "from", "1.4.0", "from_revision", built), true), "text"))
+			.contains("name that component");
+		// across versions: 1.3.0's pack was never replaced, so only the version diff follows its revision
+		String old = J.str(tool("get_build_pack", Map.of("project", "order-desk", "component", "hub-api", "version", "1.3.0")), "pack_revision");
+		r = tool("what_changed", Map.of("project", "order-desk", "component", "hub-api", "from", "1.3.0", "from_revision", old));
+		assertThat(J.maps(r, "replacements")).isEmpty();
+		assertThat(J.str(r, "summary")).contains("- contracts: changed openapi.yaml");
+		// the history outlives a restart
+		BundleStore again = new BundleStore(data, 50_000_000);
+		assertThat(again.find("order-desk").orElseThrow().revisions("1.4.0")).hasSize(1);
 	}
 
 }

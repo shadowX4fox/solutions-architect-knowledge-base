@@ -8,7 +8,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.time.Instant;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -24,24 +26,31 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.github.shadowx4fox.archindex.changes.BundleDiff;
+
 /**
  * The bundles the server holds, on disk and in memory. Layout:
  *
  * <pre>
  * {data}/bundles/{key}/released/{version}/   one per released version
  * {data}/bundles/{key}/draft/                at most one draft per project, replaced by each draft publish
+ * {data}/bundles/{key}/revisions/{version}.json  the build packs a second publish replaced, in order, each with its diff
  * </pre>
  *
  * A released version is immutable in what search serves. A second publish of it (the second phase of a release, when
  * the regenerated kit is committed) carries the same chunks, the same ledger and every build pack held for it; it may
  * add packs and replace them — a pack is replaced when its revision, the sha256 of its pack.json, moved. Anything else
- * is refused with its reason, and what is held stays.
+ * is refused with its reason, and what is held stays. The bundle held is replaced, so each replacement is kept apart
+ * as a revision — the packs' revisions on both sides and {@code diffBundles(held, incoming)} — for {@code what_changed}
+ * to answer a developer who built from an earlier revision of the same version.
  */
 public class BundleStore {
 
 	private static final Logger log = LoggerFactory.getLogger(BundleStore.class);
 
 	public static final String DRAFT = "draft";
+
+	private static final String REVISIONS = "revisions";
 
 	private static final Pattern KEY = Pattern.compile("^[a-z0-9][a-z0-9-]{0,99}$");
 
@@ -115,6 +124,8 @@ public class BundleStore {
 
 		volatile Bundle draft;
 
+		final Map<String, List<Map<String, Object>>> revisions = new ConcurrentHashMap<>();
+
 		public NavigableMap<String, Bundle> released() {
 			return released;
 		}
@@ -125,6 +136,14 @@ public class BundleStore {
 
 		public Optional<Bundle> latest() {
 			return released.isEmpty() ? Optional.empty() : Optional.of(released.lastEntry().getValue());
+		}
+
+		/**
+		 * The pack replacements of a released version, oldest first: {@code at}, {@code packs} ({slug: {from, to}} — the
+		 * revisions on both sides) and {@code changes} (the same-version diff).
+		 */
+		public List<Map<String, Object>> revisions(String version) {
+			return List.copyOf(revisions.getOrDefault(version, List.of()));
 		}
 
 	}
@@ -162,6 +181,15 @@ public class BundleStore {
 					Path d = k.resolve(DRAFT);
 					if (Files.isDirectory(d)) {
 						tryLoad(d).ifPresent((b) -> project(key).draft = b);
+					}
+					Path rv = k.resolve(REVISIONS);
+					if (Files.isDirectory(rv)) {
+						try (Stream<Path> fs = Files.list(rv)) {
+							for (Path f : fs.filter((x) -> x.getFileName().toString().endsWith(".json")).toList()) {
+								String v = f.getFileName().toString().replaceFirst("\\.json$", "");
+								project(key).revisions.put(v, new ArrayList<>(J.maps(J.obj(Files.readAllBytes(f)), "revisions")));
+							}
+						}
 					}
 				}
 			}
@@ -275,7 +303,7 @@ public class BundleStore {
 				out = Published.stored(placed, true, version + " stored (released)");
 			}
 			else {
-				out = republish(held, b, incoming, base.resolve("released").resolve(version));
+				out = republish(p, held, b, incoming, base);
 				if (out.outcome() != Outcome.PACKS_UPDATED) {
 					return out;
 				}
@@ -298,7 +326,7 @@ public class BundleStore {
 	 * refused. Without packs, or with the same ones, nothing moves. Otherwise the incoming bundle — a superset of the
 	 * packs held — replaces the version whole, so the server never writes a manifest of its own.
 	 */
-	private Published republish(Bundle held, Bundle b, Path incoming, Path target) {
+	private Published republish(Project p, Bundle held, Bundle b, Path incoming, Path base) {
 		String version = held.version();
 		if (!held.chunkSignature().equals(b.chunkSignature())) {
 			return Published.refused(held, Conflict.CHUNKS_DIFFER, List.of(), "released " + version
@@ -337,11 +365,45 @@ public class BundleStore {
 			return new Published(Outcome.UNCHANGED, held, false, version + " held with the same build packs", List.of(),
 					List.of(), unchanged, null, List.of());
 		}
-		Bundle placed = place(incoming, target);
+		if (!replaced.isEmpty()) {
+			record(p, base, held, b, replaced);
+		}
+		Bundle placed = place(incoming, base.resolve("released").resolve(version));
 		log.info("released {} {}: build packs added {}, replaced {}", placed.projectKey(), version, added, replaced);
 		return new Published(Outcome.PACKS_UPDATED, placed, false, version + " updated — build packs added: "
 				+ none(added) + " · replaced: " + none(replaced) + " · unchanged: " + none(unchanged), added, replaced,
 				unchanged, null, List.of());
+	}
+
+	/** Appends a replacement to the version's revisions, written before the bundle moves, so no replaced pack goes unrecorded. */
+	private void record(Project p, Path base, Bundle held, Bundle b, List<String> replaced) {
+		Map<String, Object> packs = new LinkedHashMap<>();
+		for (String s : replaced) {
+			Map<String, Object> r = new LinkedHashMap<>();
+			r.put("from", held.packRevision(s).orElse(null));
+			r.put("to", b.packRevision(s).orElse(null));
+			packs.put(s, r);
+		}
+		Map<String, Object> entry = new LinkedHashMap<>();
+		entry.put("at", Instant.now().toString());
+		entry.put("packs", packs);
+		entry.put("changes", BundleDiff.diff(held, b, null, false));
+		List<Map<String, Object>> all = new ArrayList<>(p.revisions.getOrDefault(held.version(), List.of()));
+		all.add(entry);
+		Map<String, Object> file = new LinkedHashMap<>();
+		file.put("project", held.projectKey());
+		file.put("version", held.version());
+		file.put("revisions", all);
+		try {
+			Path dir = Files.createDirectories(base.resolve(REVISIONS));
+			Path tmp = dir.resolve("." + held.version() + "-" + UUID.randomUUID());
+			Files.writeString(tmp, J.write(file));
+			move(tmp, dir.resolve(held.version() + ".json"));
+		}
+		catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
+		p.revisions.put(held.version(), all);
 	}
 
 	private static String none(List<String> l) {
@@ -373,7 +435,7 @@ public class BundleStore {
 			Files.move(from, to, StandardCopyOption.ATOMIC_MOVE);
 		}
 		catch (AtomicMoveNotSupportedException e) {
-			Files.move(from, to);
+			Files.move(from, to, StandardCopyOption.REPLACE_EXISTING);
 		}
 	}
 

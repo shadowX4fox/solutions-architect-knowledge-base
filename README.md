@@ -30,7 +30,7 @@ Every capability is a tool, because every IDE client supports tools while prompt
 | `get_build_pack` | pack | the index: parts, ordered plan, interfaces both ways, flows, open questions |
 | `get_build_instructions` | pack | `BUILD.md`: the `.architecture.json` binding, the rules, plan and done list |
 | `get_build_part` · `get_asset` | pack | one part byte for byte (spec, `asset:openapi.yaml`, `interface:a→b`, `adr:ADR-101` …), paged over 60,000 characters |
-| `what_changed` | bundles | what a release changed for a component since the version built against; `action_required` where code must move |
+| `what_changed` | bundles | what changed for a component since the version and the `pack_revision` built against (both in `.architecture.json`): the build pack replacements of that version made since, then what a newer release changed; `action_required` where code must move |
 
 Versions: omitted or `latest` is the newest released version, `draft` is the unreleased draft. A component with no build pack in the asked version is an error that names the reason and the versions that have one. The server never falls back to another version on its own.
 
@@ -50,6 +50,7 @@ The rules:
 - A pack is replaced when its revision moved: the `sha256` the manifest lists for its `pack.json`, which lists every part's hash. `get_build_pack` and `get_build_part` return it as `pack_revision`.
 - The ledger is compared exactly, without the clock an export before plugin v8.150.1 wrote into it. Pin `SA_PLUGIN_REF`, so both publishes of a release run the same plugin.
 - A re-run of the tag job, or of the kit job with the same packs, changes nothing.
+- Each replacement is kept under `{data}/bundles/{key}/revisions/{version}.json`: the pack revisions on both sides and the same-version diff, computed when the pack was replaced, because the bundle held is replaced. `what_changed` with `from_revision` lists the replacements after that revision, then the diff to the newer version. BUILD.md's placeholder counts as no revision recorded, and a revision the server never held is an error naming the ones it did.
 - A project has one draft. A release of the draft's version or a newer one removes it.
 - Every bundle passes the same check as `export-index.js --check` before it is kept: every listed file present with its sha256, nothing unlisted, every chunk's hash, and every pack part.
 - Extraction refuses links and any path that leaves the bundle.

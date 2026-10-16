@@ -177,12 +177,13 @@ public class ArchitectureTools {
 		return answer(() -> packs.asset(project, component, asset, version, offset));
 	}
 
-	@McpTool(name = "what_changed", description = "What a newer architecture release changed for one component since the version it was built against: facts, contracts, interfaces, integrations, flows and budgets, ADRs, open questions — and whether code must move (action_required). Use after a release, then update the service and .architecture.json.")
+	@McpTool(name = "what_changed", description = "What changed for one component since the version and the build pack revision it was built against: facts, contracts, interfaces, integrations, flows and budgets, ADRs, security obligations, open questions — and whether code must move (action_required). Use after a release, or when get_build_pack returns another pack_revision for the same version; then update the service and .architecture.json.")
 	public CallToolResult whatChanged(@McpToolParam(description = PROJECT) String project,
-			@McpToolParam(description = COMPONENT + " (omit for every container that changed)", required = false) String component,
+			@McpToolParam(description = COMPONENT + " (omit for every container that changed; required with from_revision)", required = false) String component,
 			@McpToolParam(description = "The version built against — the one in .architecture.json") String from,
-			@McpToolParam(description = "The newer version (default: the latest released)", required = false) String to) {
-		return answer(() -> changes.whatChanged(project, component, from, to));
+			@McpToolParam(description = "The pack_revision built from — the one in .architecture.json. With it, the build pack replacements of that version made since come first", required = false) String from_revision,
+			@McpToolParam(description = "The newer version (default: the latest released; the same version for the replacements within it)", required = false) String to) {
+		return answer(() -> changes.whatChanged(project, component, from, from_revision, to));
 	}
 
 }

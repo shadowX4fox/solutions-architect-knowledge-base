@@ -4,18 +4,19 @@ You are building **Hub API** (`od-hub-api`) — API Service, Spring Boot, Kafka 
 
 ## Bind the repository first
 
-Write `.architecture.json` at the root of the repository, or check the one there names this component and this version:
+Write `.architecture.json` at the root of the repository, or check the one there names this component and this version. Call `get_build_pack(project: "order-desk", component: "hub-api")` and replace the `pack_revision` placeholder with the `pack_revision` it returns — the revision of this pack you are building from:
 
 ```json
 {
   "server": "http://localhost:8080/mcp",
   "project": "order-desk",
   "component": "hub-api",
-  "architecture_version": "1.4.0"
+  "architecture_version": "1.4.0",
+  "pack_revision": "<pack_revision from get_build_pack>"
 }
 ```
 
-When the architecture releases a new version, call `what_changed(project: "order-desk", component: "hub-api", from: "<the version in this file>", to: "<the new version>")`, update the service, then this file.
+When the architecture releases a new version, or this pack is revised within its version (`get_build_pack` returns another `pack_revision`), call `what_changed(project: "order-desk", component: "hub-api", from: "<the version in this file>", from_revision: "<the pack_revision in this file>", to: "<the new version>")`, update the service, then this file.
 
 ## Rules
 
@@ -26,7 +27,7 @@ When the architecture releases a new version, call `what_changed(project: "order
 5. **The cross-cutting standards and the governing ADRs apply to every line.** Errors, versioning, identity, idempotency, observability and resilience follow `cross-cutting-standards` and the `adr:` parts; where the service needs a choice they do not make, ask.
 6. **Budgets are requirements.** Each phase this component takes part in has a latency budget; measure the component against its share.
 7. **The stack comes from the team's service template**, not from this pack: the pack states the technology, not the project skeleton, libraries or CI.
-8. **Record the version.** Every commit that implements this pack names architecture version 1.4.0.
+8. **Record the version and the revision.** Every commit that implements this pack names architecture version 1.4.0 and the `pack_revision` in `.architecture.json`.
 
 ## Build plan
 
@@ -103,4 +104,4 @@ None.
 - [ ] the acceptance criteria of the Component Specification pass as automated tests
 - [ ] every latency budget above is measured
 - [ ] every open question is answered or left as a `TODO(architecture)` that quotes it
-- [ ] `.architecture.json` names version 1.4.0
+- [ ] `.architecture.json` names version 1.4.0 and the `pack_revision` you built from
