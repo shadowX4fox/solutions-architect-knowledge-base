@@ -1,8 +1,22 @@
-# Architecture Index Server
+# Alia — the architecture MCP server
 
-The architecture MCP server: a developer adds one remote MCP server to VS Code, JetBrains or any MCP client, asks the architecture questions while working, and builds one component from its spec.
+**Your architecture, served to every developer's IDE: ask it while you work, build a component from its spec, escalate what needs an architect.**
 
-It serves the `sa-index/1` bundles that the [solutions-architect-skills](https://github.com/shadowx4fox/solutions-architect-skills) plugin exports (`sa-delivery:architecture-index-export`) and CI publishes (`ci/publish-index.sh`). The plugin produces data only. This server embeds the chunks, keeps them in Qdrant, answers exact questions from the facts ledger, and serves build packs byte for byte.
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/projects/jdk/21/)
+[![Spring Boot 4.1](https://img.shields.io/badge/Spring%20Boot-4.1-6db33f.svg)](https://spring.io/projects/spring-boot)
+[![MCP](https://img.shields.io/badge/MCP-Streamable%20HTTP-purple.svg)](https://modelcontextprotocol.io)
+[![Companion plugin](https://img.shields.io/badge/companion-solutions--architect--skills-blue.svg)](https://github.com/shadowX4fox/solutions-architect-skills)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
+
+A developer adds one remote MCP server to VS Code, JetBrains, Claude Code or any MCP client. From then on, their coding
+agent can ask the architecture *why* a call is asynchronous, list *exactly* what talks to a service, read a whole ADR, and
+build one component from its build pack — every contract byte for byte, every answer citing the version it came from.
+
+Alia serves the `sa-index/1` bundles that the
+[Solutions Architect Skills](https://github.com/shadowX4fox/solutions-architect-skills) plugin exports from a versioned
+`ARCHITECTURE.md`. The plugin produces data only. This server embeds it, answers exact questions from the facts ledger,
+and serves build packs as stored. It is self-hosted: no architecture text leaves your network.
 
 ```
 architecture repo ──tag──▶ CI: export-index.js ──POST /bundles/{key}/{version}──▶ server ──▶ Qdrant (dense + sparse)
@@ -10,165 +24,68 @@ architecture repo ──tag──▶ CI: export-index.js ──POST /bundles/{ke
 IDE (VS Code · JetBrains) ◀──── MCP, Streamable HTTP /mcp ────────────────────────┘  └──▶ bundles on disk (ledger, packs)
 ```
 
-Stack: Spring Boot 4.1 · Spring AI 2.0 (MCP server, Ollama embedding model) · Qdrant Java client 1.19 · Java 21.
+---
 
-## Tools
+## Contents
 
-Every capability is a tool, because every IDE client supports tools while prompts and resources vary by client.
+- [Why](#why) · [Quick start](#quick-start) · [Connect your IDE](#connect-your-ide) · [Tools](#tools)
+- [How it works](#how-it-works) — publishing, downloads, indexing, escalations
+- [Deploy](#deploy) · [Configuration](#configuration)
+- [Development](#development) · [Roadmap](#roadmap)
+- [Contributing](#contributing) · [Security](#security) · [License](#license)
 
-| Tool | Answers from | Use |
-|---|---|---|
-| `list_projects` | store | which architectures, versions, drafts and build packs the server holds |
-| `get_architecture` | ledger | one version at a glance: systems, components, which have a build pack and why the others do not |
-| `get_component` | ledger | type, technology, internal name, its docs/05 integrations, flows and budgets, build pack availability |
-| `list_integrations` | ledger | the `I-nn` inventory, whole or naming one component (From/To as written, never a guessed direction) |
-| `list_flows` · `get_flow` | ledger | flows by number, name or `UC-nn`, each phase with hops and latency budget |
-| `list_decisions` | ledger | ADRs or TDRs, by status |
-| `search_architecture` | Qdrant | reasons and explanations: dense + sparse (exact ids such as `ADR-112`, `I-07`) fused by weighted RRF; each hit has file, lines, anchor, version |
-| `get_chunk` | bundle | the whole text of a hit |
-| `get_document` | bundle | a whole document (by file, ADR/TDR id or component) rebuilt from its chunks in line order, with the lines covered and the gaps |
-| `get_build_pack` | pack | the index: parts (each with its `sha256` and `download_url`), ordered plan, interfaces both ways, flows, open questions |
-| `get_build_instructions` | pack | `BUILD.md`: the `.architecture.json` binding, the rules, plan and done list |
-| `get_build_part` · `get_asset` | pack | one part byte for byte (spec, `asset:openapi.yaml`, `interface:a→b`, `adr:ADR-101` …), paged over 60,000 characters, to read; to save one, its `download_url` |
-| `what_changed` | bundles | what changed for a component since the version and the `pack_revision` built against (both in `.architecture.json`): the build pack replacements of that version made since, then what a newer release changed; `action_required` where code must move |
+---
 
-Versions: omitted or `latest` is the newest released version, `draft` is the unreleased draft. A component with no build pack in the asked version is an error that names the reason and the versions that have one. The server never falls back to another version on its own.
+## Why
 
-## Publishing contract
+Coding agents guess when they have nothing to read. An architecture they cannot query becomes a guess too: an invented
+timeout, a renamed field, an endpoint left open "for now". Alia gives the agent the architecture itself:
 
-`ci/publish-index.sh` in the plugin calls it. The pipeline secret `SA_INDEX_TOKEN` is `ARCHINDEX_INGEST_TOKEN` here.
+- **Exact answers where exactness matters.** Lists and relations — components, integrations, flows, ADRs, TDRs — come
+  from the facts ledger, complete, never from search. A component is matched by exact name, never partially.
+- **Search for the reasons.** Hybrid retrieval (meaning plus exact identifiers such as `ADR-112` or `I-07`) for the
+  *why*, each hit citing its file, lines and version.
+- **Contracts are never paraphrased.** OpenAPI, AsyncAPI, DDL and every build pack part are served byte for byte, with
+  their `sha256`, and downloadable with `curl` so the model never retypes them.
+- **Versioned like code.** Released versions are immutable; a draft is separate; `what_changed` tells a service exactly
+  what moved since the version and the pack revision it was built from.
+- **A human in the loop where it counts.** For maintenance (RUN) teams, a change that crosses an escalation trigger is
+  never applied: it becomes an issue for an architect, filed only after the user said yes.
 
-| Request | Answer |
-|---|---|
-| `GET /bundles/{key}/before/{version}` | 200 `application/gzip`: the newest released bundle older than `version`, which the export diffs against for `changes.json` · 404 none |
-| `POST /bundles/{key}/{version}?channel=released\|draft` (gzipped tar) | 201 stored · 200 a released version held, the body naming the build packs `added`, `replaced` and `unchanged` · 409 refused, the body's `reason` `chunks_differ`, `ledger_differs` or `packs_missing` with the `packs` · 400 the URL does not match the bundle · 413 too large · 422 the bundle fails its check (findings in the body) |
-| `GET /bundles` | what is held, per slot, with the indexing state |
+---
 
-The rules:
+## Quick start
 
-- A released version is immutable in what search serves. A second publish of it — the second phase of a release, when the regenerated handoff kit is committed — carries the same chunks, the same ledger and every build pack the server holds for that version. It may add packs and replace them; it never drops one. Anything else is refused and what is held stays.
-- A pack is replaced when its revision moved: the `sha256` the manifest lists for its `pack.json`, which lists every part's hash. `get_build_pack` and `get_build_part` return it as `pack_revision`.
-- The ledger is compared exactly, without the clock an export before plugin v8.150.1 wrote into it. Pin `SA_PLUGIN_REF`, so both publishes of a release run the same plugin.
-- A re-run of the tag job, or of the kit job with the same packs, changes nothing.
-- Each replacement is kept under `{data}/bundles/{key}/revisions/{version}.json`: the pack revisions on both sides and the same-version diff, computed when the pack was replaced, because the bundle held is replaced. `what_changed` with `from_revision` lists the replacements after that revision, then the diff to the newer version. BUILD.md's placeholder counts as no revision recorded, and a revision the server never held is an error naming the ones it did.
-- A project has one draft. A release of the draft's version or a newer one removes it.
-- Every bundle passes the same check as `export-index.js --check` before it is kept: every listed file present with its sha256, nothing unlisted, every chunk's hash, and every pack part.
-- Extraction refuses links and any path that leaves the bundle.
-
-## Downloading a part
-
-An agent saves a contract asset with curl, so the model never re-types it, and git shows the contract diff. `get_build_pack` lists a `download_url` on every part when `ARCHINDEX_PUBLIC_URL` is set.
-
-| Request | Answer |
-|---|---|
-| `GET /packs/{key}/{version}/{slug}/{path}[?pack_revision=…]` | 200 the file as stored, `ETag: "<sha256>"`, `X-Pack-Revision`, `Cache-Control: no-cache` · 304 `If-None-Match` matched · 404 no such project, version, pack or part · 409 `pack_revision` is not the current one, the body and `X-Pack-Revision` naming it |
-
-- `{version}` is a released version, `latest` or `draft`. `{path}` is the part's `path` in `pack.json`; nothing else in the bundle is served.
-- It takes the MCP token (`ARCHINDEX_MCP_TOKEN`), never the pipeline's.
-- Only the current revision is served: the server keeps no replaced pack. An agent that recorded a `pack_revision` passes it, and a 409 sends it back to `get_build_pack` and `what_changed`.
-- Without a download, `get_build_part`'s pages joined in order are the stored bytes; no page ends inside a surrogate pair, and nothing is trimmed or normalized (`BuildPackTest`).
+You need Docker. The stack is the server, [Qdrant](https://qdrant.tech) and [Ollama](https://ollama.com).
 
 ```bash
-curl -fsSL -H "Authorization: Bearer $ALIA_TOKEN" -o architecture/openapi.yaml "$DOWNLOAD_URL?pack_revision=$PACK_REVISION"
-sha256sum architecture/openapi.yaml
+git clone https://github.com/shadowX4fox/solutions-architect-knowledge-base.git
+cd solutions-architect-knowledge-base
+
+export ARCHINDEX_INGEST_TOKEN=change-me-ci ARCHINDEX_MCP_TOKEN=change-me-ide
+docker compose -f deploy/compose.yaml up -d
+docker compose -f deploy/compose.yaml exec ollama ollama pull qwen3-embedding:0.6b
+
+# publish the synthetic Order Desk example that ships with the tests
+tar -czf - -C src/test/resources/bundles/order-desk/1.4.0 . | curl -H "Authorization: Bearer $ARCHINDEX_INGEST_TOKEN" \
+  -H "Content-Type: application/gzip" --data-binary @- "http://localhost:8080/bundles/order-desk/1.4.0?channel=released"
 ```
 
-## Indexing
+Then [connect your IDE](#connect-your-ide) to `http://localhost:8080/mcp` with the MCP token, and ask: *"What talks to
+Hub API in order-desk?"*
 
-- One Qdrant collection for every project. Each point carries a named dense vector (`dense`, cosine, 1,024) and a named sparse vector (`sparse`, Qdrant's `idf` modifier), with keyword payload indexes on `project`, `slot`, `kind`, `components`, `adrs`, `content_hash`, `doc_language` and `chunk_id`.
-- A slot is a released version or the draft. The store keeps no text: a hit resolves against the bundle on disk.
-- A chunk whose text the project has already embedded reuses that vector. Chunk ids hold across releases, so a release re-embeds only what it changed. On the fixture, 1.4.0 re-embeds 5 of 22 chunks.
-- At start, a released slot whose points are already in Qdrant is taken as ready.
-- Indexing runs on one background thread. `search_architecture` reports a slot that is not ready yet, while the ledger and build-pack tools answer for it at once.
-- The fusion weighs the dense list 1 and the sparse list `ARCHINDEX_SPARSE_WEIGHT` (0.3). At equal weight the exact-term list cost ordinary questions their best hit; at 0.3 identifiers still come first (eval/README.md).
-- Embedding prompts are the model's: Qwen3-Embedding takes an instruction on the query and nothing on documents. Ollama adds none, so both are settings.
-- The window Ollama reads (`ARCHINDEX_EMBEDDING_CONTEXT`, 8192) goes on every request. Spring AI 2.0.1 drops `spring.ai.ollama.embedding.options.num-ctx`, and without it Ollama loads the model at 4096 and cuts a long chunk silently.
-- A collection created for one model refuses a model of another dimension at start, and every slot reports why. A model switch takes a new `QDRANT_COLLECTION`.
+For your own architecture, document it with the plugin and let CI publish each release: the plugin's
+`sa-delivery:architecture-index-export` skill and its `ci/publish-index.sh` do the export and the upload.
 
-## Run
+**Without Docker:** `./mvnw package -DskipTests`, `ollama pull qwen3-embedding:0.6b`, then
+`ARCHINDEX_STORE=file ARCHINDEX_INGEST_TOKEN=… java -jar target/architecture-index-server-*.jar` — the `file` engine
+needs no Qdrant (see [Deploy](#deploy)).
 
-```bash
-./mvnw test                                   # 28 tests (QdrantTest runs with QDRANT_TEST_HOST set); no Qdrant or Ollama needed (in-memory index, stand-in model)
-./mvnw package -DskipTests
-ollama pull qwen3-embedding:0.6b               # the default model; see eval/README.md for how it was chosen
-./qdrant                                      # or: docker compose -f deploy/compose.yaml up -d
-ARCHINDEX_INGEST_TOKEN=… java -jar target/architecture-index-server-0.1.0-SNAPSHOT.jar
-```
+---
 
-**Without Qdrant.** `ARCHINDEX_STORE` picks the engine behind `search_architecture`; only Ollama is still needed.
+## Connect your IDE
 
-| Engine | Where the vectors live | At start | For |
-|---|---|---|---|
-| `qdrant` | the Qdrant collection | a released slot already held is ready | a shared server |
-| `file` | one file, `<data-dir>/index/vectors-<dimensions>.bin` (`ARCHINDEX_FILE_PATH`) | read from the file; a released slot already held is ready | one machine, local runs |
-| `memory` | the process | everything re-embedded | tests and throwaway runs |
-
-`file` and `memory` search in process by brute force, with the same fusion as Qdrant (cosine dense, idf-weighted sparse, weighted RRF). The file is written whole after each indexing pass and refuses a model of another dimension, as the collection does.
-
-```bash
-ARCHINDEX_STORE=file java -jar target/architecture-index-server-0.1.0-SNAPSHOT.jar
-docker compose -f deploy/compose.yaml --profile file up -d server-file   # or in containers: the server and Ollama, no Qdrant
-```
-
-**Several instances.** For a shared server, run the `qdrant` engine. `file` and `memory` keep their vectors in one process, which is enough for a local run on one machine and nothing more.
-
-One instance writes and the others read. All of them share the data directory (a ReadWriteMany volume, or one volume on one host) and the Qdrant collection.
-
-| | `ARCHINDEX_ROLE=all` (the writer, exactly one) | `ARCHINDEX_ROLE=reader` (any number) |
-|---|---|---|
-| `POST /bundles` | publishes | 403: publish to the writer |
-| indexing | embeds, writes to Qdrant, records each slot's chunk set in `<collection>-slots` | never embeds or writes; a slot is ready when the writer's record names its bundle's chunk set |
-| bundles | writes a new directory per publish, then `HEAD.json`, then `.generation` | reloads the projects that changed when `.generation` moves (`ARCHINDEX_REFRESH_INTERVAL`, 5s) |
-| `/mcp`, `/packs` | answers | answers |
-
-Put a load balancer in front of every instance for `/mcp` and `/packs`, and send `/bundles` to the writer (`deploy/compose.yaml --profile scale` runs a writer and a reader).
-
-- **MCP is stateless** (`protocol: STATELESS`). No session is kept in memory, so any instance answers any call, and an IDE never has to reconnect when its calls land on another instance. The tools never call back into the client (no sampling or elicitation), so stateless loses nothing.
-- **A bundle directory never changes once written.** A publish writes `released/{version}~{id}/` or `drafts/{id}/`, then switches `HEAD.json`. A reader that has not reloaded yet, or a download under way, still reads whole files with the hashes it serves. A replaced directory stays for `ARCHINDEX_RETAIN_REPLACED` (10 minutes), which must be longer than a reader takes to reload, then the writer deletes it. A data directory from before `HEAD.json` is read as it is and taken over by the writer at its start.
-- **Search never sees half a slot.** A re-index writes the new chunk set over the points held, then removes the rest. A chunk already embedded is reused by its content hash, and a slot whose record names its chunk set is not re-indexed at a restart.
-- **A reader never creates anything.** Until the writer has created the collections, a reader reports its slots pending and checks again.
-- **Ollama has no state.** Run replicas behind their own load balancer, all with the same model: the vectors have to match the collection. Every `search_architecture` embeds its query, so Ollama runs out of capacity before the server does; readers need Ollama for queries only.
-- **One writer.** Publishes are rare (a release, then its kit), so the writer is a single replica: restart it rather than run two, because two writers on one data directory would overwrite each other's `HEAD.json`.
-
-Three URLs, each with a fixed target:
-
-| URL | Set in | With a load balancer | Without one |
-|---|---|---|---|
-| publish, `/bundles` | CI: `SA_INDEX_SERVER` | the writer: a `/bundles` route, or its own address | the writer's address. A reader answers 403. |
-| MCP, `/mcp` | the IDE (`.vscode/mcp.json`, `claude mcp add`), and `server` in each repository's `.architecture.json` (`SA_INDEX_MCP_URL`) | the load balancer | any instance. Spread the IDEs yourself (per team, per region), or give one DNS name several A records. MCP is stateless, so either works, but DNS checks no health and clients cache it. |
-| download base, `ARCHINDEX_PUBLIC_URL` | each instance's environment | the load balancer, on every instance | each instance's own address, so an agent downloads from the instance that gave it the `pack_revision` |
-
-- `ARCHINDEX_PUBLIC_URL` must resolve on the developer's machine, where curl runs. Never use a container hostname (`http://server:8080`). `localhost` is right only for a fully local setup.
-- `.architecture.json` is committed in every service repository, so its `server` should be a stable DNS name you can repoint (`alia-mcp.internal`), never one instance's host and port.
-- Behind a load balancer, a download can land on an instance that has not reloaded yet. It answers 404 for a version it does not hold yet, or 409 to `?pack_revision=` for a pack replaced since; either way the agent retries or reads the pack again.
-
-**Model.** `qwen3-embedding:0.6b`: 32K context, so every chunk the export cuts fits, multilingual, Apache 2.0 upstream, 1,024 dimensions. On the eval it ties the other candidates on ordinary questions and leads on answers deep in long chunks (eval/README.md).
-
-**GPU.** Ollama uses the GPU on its own: CUDA, or ROCm 7 on AMD (`ollama ps` shows `100% GPU`). On an AMD Radeon RX 9060 XT it embeds about 19 chunks a second; on that machine's CPU, 1.1. A full index of a large architecture is minutes on a GPU and tens of minutes on a CPU, and a release re-embeds only the chunks it changed.
-
-**EmbeddingGemma 2 does not run here.** Every `embeddinggemma-2` tag needs Ollama's MLX runtime, which the Linux package does not ship (Ollama 0.40.4, checked 2026-10-14): `this model requires MLX support, but the MLX runtime is not available`.
-
-| Setting | Default | |
-|---|---|---|
-| `ARCHINDEX_STORE` | `qdrant` | `file`: in process, kept in one file, no Qdrant · `memory`: in process, re-embeds at start |
-| `ARCHINDEX_FILE_PATH` | `<data-dir>/index/vectors-<dimensions>.bin` | the `file` engine's file |
-| `ARCHINDEX_EMBEDDING_MODEL` | `qwen3-embedding:0.6b` | Ollama tag. Another model needs its prompts (`ARCHINDEX_EMBEDDING_QUERYPREFIX`, `…_DOCUMENTPREFIX`), its dimensions and a new collection |
-| `ARCHINDEX_EMBEDDING_DIMENSIONS` | `1024` | the model's output size |
-| `ARCHINDEX_EMBEDDING_CONTEXT` | `8192` | tokens Ollama reads per chunk |
-| `ARCHINDEX_SPARSE_WEIGHT` | `0.3` | the sparse list's weight in the fusion |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | |
-| `QDRANT_HOST` · `QDRANT_GRPC_PORT` · `QDRANT_API_KEY` · `QDRANT_TLS` · `QDRANT_COLLECTION` | `localhost` · `6334` · – · `false` · `architecture-qwen3-0.6b-1024` | |
-| `ARCHINDEX_INGEST_TOKEN` | unset (open, warned) | bearer token for `/bundles/**` |
-| `ARCHINDEX_MCP_TOKEN` | unset (open, warned) | bearer token for `/mcp` and `/packs/**`, until the identity provider is wired |
-| `ARCHINDEX_PUBLIC_URL` | unset (no `download_url`) | the base the IDE reaches the server at, e.g. `https://alia-mcp.internal` |
-| `ARCHINDEX_DATA_DIR` | `data` | bundles on disk; shared by every instance |
-| `ARCHINDEX_ROLE` | `all` | `all`: publishes, indexes and answers (the only instance, or the one writer) · `reader`: answers only, follows the writer; needs `qdrant` |
-| `ARCHINDEX_REFRESH_INTERVAL` | `5s` | how often a reader looks for the writer's publishes |
-| `ARCHINDEX_RETAIN_REPLACED` | `10m` | how long a replaced bundle directory stays for instances still serving it |
-
-## In the IDE
-
-VS Code, `.vscode/mcp.json`:
+**VS Code**, `.vscode/mcp.json`:
 
 ```json
 { "servers": { "alia": { "type": "http", "url": "https://alia-mcp.internal/mcp",
@@ -176,37 +93,318 @@ VS Code, `.vscode/mcp.json`:
   "inputs": [ { "id": "alia-token", "type": "promptString", "description": "Alia MCP token", "password": true } ] }
 ```
 
-JetBrains: in the AI Assistant MCP settings, add a Streamable HTTP server with the same URL and header.
+**JetBrains:** in the AI Assistant MCP settings, add a Streamable HTTP server with the same URL and header.
 
-Claude Code: `claude mcp add --transport http alia https://alia-mcp.internal/mcp --header "Authorization: Bearer $TOKEN"`.
+**Claude Code:** `claude mcp add --transport http alia https://alia-mcp.internal/mcp --header "Authorization: Bearer $TOKEN"`.
 
-The microservice repository binds itself with `.architecture.json`, which `get_build_instructions` writes for it:
+A service repository binds itself to the architecture with `.architecture.json`, which `get_build_instructions` writes:
 
 ```json
 { "server": "https://alia-mcp.internal/mcp", "project": "order-desk", "component": "hub-api", "architecture_version": "1.4.0" }
 ```
 
-## Tests and fixtures
+---
 
-`src/test/resources/bundles/order-desk/` holds five bundles of a synthetic project (Order Desk), exported by the plugin from its own test project:
+## Tools
+
+Every capability is a tool, because every IDE client supports tools, while support for prompts and resources varies.
+
+| Tool | Answers from | Use |
+|---|---|---|
+| `list_projects` | store | which architectures, versions, drafts and build packs the server holds |
+| `get_architecture` | ledger | one version at a glance: systems, components, which have a build pack and why the others do not; `support`, the RUN-team policy |
+| `get_component` | ledger | type, technology, internal name, its integrations, flows and budgets, build pack availability |
+| `list_integrations` | ledger | the `I-nn` inventory, whole or naming one component (From/To as written, never a guessed direction) |
+| `list_flows` · `get_flow` | ledger | flows by number, name or `UC-nn`, each phase with hops and latency budget |
+| `list_decisions` | ledger | ADRs or TDRs, by status |
+| `search_architecture` | vector index | reasons and explanations: dense + sparse fused by weighted RRF; each hit has file, lines, anchor, version |
+| `get_chunk` | bundle | the whole text of a hit |
+| `get_document` | bundle | a whole document (by file, ADR/TDR id or component) rebuilt from its chunks in line order |
+| `get_build_pack` | pack | the index: parts (each with its `sha256` and `download_url`), ordered plan, interfaces both ways, flows, open questions |
+| `get_build_instructions` | pack | `BUILD.md`: the `.architecture.json` binding, the rules, the plan and the done list |
+| `get_build_part` · `get_asset` | pack | one part byte for byte (spec, `asset:openapi.yaml`, `interface:a→b`, `adr:ADR-101` …), paged over 60,000 characters |
+| `what_changed` | bundles | what changed for a component since the version and `pack_revision` it was built against; `action_required` where code must move |
+| `preview_escalation` | release, ledger | a change that crosses a trigger, as the issue it would open (`[ESC-?] …`), with the commands that file it; writes nothing |
+| `record_escalation` | — | the filed issue's URL, logged against its preview |
+
+Versions: omitted or `latest` is the newest released version; `draft` is the unreleased draft. A component with no build
+pack in the asked version is an error naming the reason and the versions that have one. The server never falls back to
+another version on its own.
+
+---
+
+## How it works
+
+### Publishing
+
+The plugin's `ci/publish-index.sh` calls this contract. Its pipeline secret `SA_INDEX_TOKEN` is `ARCHINDEX_INGEST_TOKEN` here.
+
+| Request | Answer |
+|---|---|
+| `GET /bundles/{key}/before/{version}` | 200 `application/gzip`: the newest released bundle older than `version`, which the export diffs against for `changes.json` · 404 none |
+| `POST /bundles/{key}/{version}?channel=released\|draft` (gzipped tar) | 201 stored · 200 a released version held, the body naming the build packs `added`, `replaced` and `unchanged` · 409 refused, `reason` `chunks_differ`, `ledger_differs` or `packs_missing` · 400 the URL does not match the bundle · 413 too large · 422 the bundle fails its check |
+| `GET /bundles` | what is held, per slot, with the indexing state |
+
+- **A released version is immutable** in what search serves. A second publish of it — the second phase of a release, when
+  the regenerated handoff kit is committed — carries the same chunks, the same ledger and every build pack held. It may
+  add packs and replace them, never drop one. Anything else is refused and what is held stays.
+- **A pack is replaced when its revision moved:** the `sha256` the manifest lists for its `pack.json`, which lists every
+  part's hash. `get_build_pack` returns it as `pack_revision`.
+- The ledger is compared exactly, without the clock an export before plugin v8.150.1 wrote into it. Pin `SA_PLUGIN_REF`
+  so both publishes of a release run the same plugin. A re-run of the same job changes nothing.
+- Each replacement is kept under `{data}/bundles/{key}/revisions/{version}.json`, so `what_changed` with `from_revision`
+  lists the replacements since that revision, then the diff to the newer version.
+- A project has one draft; a release of the draft's version or a newer one removes it.
+- Every bundle passes the same check as `export-index.js --check` before it is kept: every listed file with its sha256,
+  nothing unlisted, every chunk's hash, every pack part. Extraction refuses links and paths that leave the bundle.
+
+### Downloading a part
+
+An agent saves a contract asset with curl, so the model never retypes it and git shows the contract diff.
+`get_build_pack` lists a `download_url` on every part when `ARCHINDEX_PUBLIC_URL` is set.
+
+| Request | Answer |
+|---|---|
+| `GET /packs/{key}/{version}/{slug}/{path}[?pack_revision=…]` | 200 the file as stored, `ETag: "<sha256>"`, `X-Pack-Revision` · 304 `If-None-Match` matched · 404 no such project, version, pack or part · 409 `pack_revision` is not the current one |
+
+```bash
+curl -fsSL -H "Authorization: Bearer $ALIA_TOKEN" -o architecture/openapi.yaml "$DOWNLOAD_URL?pack_revision=$PACK_REVISION"
+sha256sum architecture/openapi.yaml
+```
+
+- `{version}` is a released version, `latest` or `draft`; `{path}` is the part's `path` in `pack.json`, and nothing else
+  in the bundle is served. It takes the MCP token, never the pipeline's.
+- Only the current revision is served. A 409 sends the agent back to `get_build_pack` and `what_changed`.
+- Without a download, `get_build_part`'s pages joined in order are the stored bytes: no page ends inside a surrogate
+  pair, and nothing is trimmed or normalized.
+
+### Indexing
+
+- One Qdrant collection for every project. Each point carries a named dense vector (`dense`, cosine, 1,024) and a named
+  sparse vector (`sparse`, Qdrant's `idf` modifier), with keyword payload indexes on `project`, `slot`, `kind`,
+  `components`, `adrs`, `content_hash`, `doc_language` and `chunk_id`.
+- A slot is a released version or the draft. The index keeps no text: a hit resolves against the bundle on disk.
+- A chunk whose text the project has already embedded reuses its vector, and chunk ids hold across releases, so a release
+  re-embeds only what it changed.
+- Indexing runs on one background thread. `search_architecture` reports a slot not ready yet, while the ledger and
+  build-pack tools answer for it at once.
+- The fusion weighs the dense list 1 and the sparse list `ARCHINDEX_SPARSE_WEIGHT` (0.3): at equal weight the exact-term
+  list cost ordinary questions their best hit; at 0.3 identifiers still come first ([eval/README.md](eval/README.md)).
+- Embedding prompts are the model's: Qwen3-Embedding takes an instruction on the query and nothing on documents.
+- The context window Ollama reads (`ARCHINDEX_EMBEDDING_CONTEXT`, 8192) is sent on every request: without it Ollama
+  loads the model at 4096 and cuts a long chunk silently.
+- A collection created for one model refuses a model of another dimension. A model switch takes a new `QDRANT_COLLECTION`.
+
+### Escalations
+
+A RUN team (`support.mode` is `run` in the release's manifest, plugin v10.3.0 and later) asks the released architecture
+from the IDE. An agent may make the writes under `support.tier0_writes` when nothing is in doubt. A change that crosses one
+of `support.triggers` is not applied: it becomes an escalation for a human architect, filed as an issue on the
+architecture repository's git host. The flow mirrors the plugin's `escalate.js`:
+
+1. **`preview_escalation`** checks the request against the latest release only, never a draft, and only for a RUN-team
+   project with a release. It validates the request as `escalate.js validate` does: an unknown trigger, a trigger with no
+   evidence (`low-confidence` aside) or an unknown route is refused. Components go under their canonical names. It
+   returns the issue as `escalate.js` renders it, the release's open escalations, and `file_with`: the commands for the
+   project's host (`gh`, `glab`, `az boards` or Gitea's API). Nothing is written.
+2. **The agent shows the user the issue.** Only after a yes does it file it with the developer's own access. It first
+   checks the open escalation issues for the `preview_id`, so a preview filed twice is found.
+3. **`record_escalation`** logs the issue's URL against its `preview_id`.
+
+The server calls no git host and holds no token. It names where each project files (`archindex.escalation.projects`);
+the caller never chooses. The issue is titled `[ESC-?]`: the plugin's `escalate.js import` writes the record into the
+architecture repository and numbers it. The `preview_id` is the issue's fingerprint, carried in the body as a comment.
+The log `archindex.escalation` has one line per preview (project, route, triggers, who asked) and one per filing (the
+URL), joined on the `preview_id` — the count of escalations per team, with no store behind it.
+
+---
+
+## Deploy
+
+### Engines
+
+`ARCHINDEX_STORE` picks the engine behind `search_architecture`; only Ollama is needed besides it.
+
+| Engine | Where the vectors live | At start | For |
+|---|---|---|---|
+| `qdrant` | the Qdrant collection | a released slot already held is ready | a shared server |
+| `file` | one file, `<data-dir>/index/vectors-<dimensions>.bin` | read from the file | one machine, local runs |
+| `memory` | the process | everything re-embedded | tests and throwaway runs |
+
+`file` and `memory` search in process by brute force with the same fusion as Qdrant.
+
+```bash
+docker compose -f deploy/compose.yaml up -d                              # Qdrant engine: server, qdrant, ollama
+docker compose -f deploy/compose.yaml --profile file up -d server-file   # file engine: no Qdrant
+docker compose -f deploy/compose.yaml --profile scale up -d              # plus a reader on 8081
+```
+
+### Several instances
+
+For a shared server, run the `qdrant` engine. One instance writes and any number read; all share the data directory (a
+ReadWriteMany volume, or one volume on one host) and the Qdrant collection.
+
+| | `ARCHINDEX_ROLE=all` (the writer, exactly one) | `ARCHINDEX_ROLE=reader` (any number) |
+|---|---|---|
+| `POST /bundles` | publishes | 403: publish to the writer |
+| indexing | embeds, writes to Qdrant, records each slot's chunk set | never embeds or writes; a slot is ready when the writer's record names its chunk set |
+| bundles | writes a new directory per publish, then `HEAD.json`, then `.generation` | reloads the projects that changed when `.generation` moves |
+| `/mcp`, `/packs` | answers | answers |
+
+- **MCP is stateless.** No session is held in memory, so any instance answers any call behind a load balancer.
+- **A bundle directory never changes once written.** A replaced one stays for `ARCHINDEX_RETAIN_REPLACED` (10 minutes),
+  longer than a reader takes to reload, then the writer deletes it.
+- **Search never sees half a slot.** A re-index writes the new chunk set over the points held, then removes the rest.
+- **One writer.** Publishes are rare, so the writer is a single replica: two writers on one data directory would
+  overwrite each other's `HEAD.json`.
+- **Ollama has no state.** Run replicas behind their own load balancer, all with the same model.
+
+Three URLs, each with a fixed target:
+
+| URL | Set in | With a load balancer | Without one |
+|---|---|---|---|
+| publish, `/bundles` | CI: `SA_INDEX_SERVER` | the writer | the writer's address; a reader answers 403 |
+| MCP, `/mcp` | the IDE, and `server` in each `.architecture.json` | the load balancer | any instance |
+| download base, `ARCHINDEX_PUBLIC_URL` | each instance's environment | the load balancer | each instance's own address |
+
+`ARCHINDEX_PUBLIC_URL` must resolve on the developer's machine, where curl runs — never a container hostname. Make
+`.architecture.json`'s `server` a stable DNS name you can repoint.
+
+### Model and hardware
+
+`qwen3-embedding:0.6b` is the default: 32K context (every chunk the export cuts fits), multilingual, Apache 2.0, 1,024
+dimensions. On the [retrieval eval](eval/README.md) it ties the other candidates on ordinary questions and leads on
+answers deep in long chunks.
+
+Ollama uses the GPU on its own: CUDA, or ROCm on AMD. On an AMD Radeon RX 9060 XT it embeds about 19 chunks a second; on
+a CPU, about 1. A release re-embeds only the chunks it changed. EmbeddingGemma 2 needs Ollama's MLX runtime, which the
+Linux package does not ship (checked with Ollama 0.40.4).
+
+---
+
+## Configuration
+
+| Setting | Default | |
+|---|---|---|
+| `ARCHINDEX_INGEST_TOKEN` | unset (open, warned) | bearer token for `/bundles/**` |
+| `ARCHINDEX_MCP_TOKEN` | unset (open, warned) | bearer token for `/mcp` and `/packs/**` |
+| `ARCHINDEX_PUBLIC_URL` | unset (no `download_url`) | the base the IDE reaches the server at, e.g. `https://alia-mcp.internal` |
+| `ARCHINDEX_DATA_DIR` | `data` | bundles on disk; shared by every instance |
+| `ARCHINDEX_ROLE` | `all` | `all`: publishes, indexes and answers · `reader`: answers only, follows the writer; needs `qdrant` |
+| `ARCHINDEX_REFRESH_INTERVAL` | `5s` | how often a reader looks for the writer's publishes |
+| `ARCHINDEX_RETAIN_REPLACED` | `10m` | how long a replaced bundle directory stays |
+| `ARCHINDEX_STORE` | `qdrant` | `qdrant` · `file` · `memory` |
+| `ARCHINDEX_FILE_PATH` | `<data-dir>/index/vectors-<dimensions>.bin` | the `file` engine's file |
+| `ARCHINDEX_EMBEDDING_MODEL` | `qwen3-embedding:0.6b` | Ollama tag; another model needs its prompts (`ARCHINDEX_EMBEDDING_QUERYPREFIX`, `…_DOCUMENTPREFIX`), its dimensions and a new collection |
+| `ARCHINDEX_EMBEDDING_DIMENSIONS` | `1024` | the model's output size |
+| `ARCHINDEX_EMBEDDING_CONTEXT` | `8192` | tokens Ollama reads per chunk |
+| `ARCHINDEX_SPARSE_WEIGHT` | `0.3` | the sparse list's weight in the fusion |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | |
+| `QDRANT_HOST` · `QDRANT_GRPC_PORT` · `QDRANT_API_KEY` · `QDRANT_TLS` · `QDRANT_COLLECTION` | `localhost` · `6334` · – · `false` · `architecture-qwen3-0.6b-1024` | |
+
+Where each project's escalations are filed, in `application.yaml` or the equivalent environment variables
+(`ARCHINDEX_ESCALATION_PROJECTS_0_PROJECT`, …):
+
+```yaml
+archindex:
+  escalation:
+    projects:
+      - project: order-desk
+        host: github                      # github | gitlab | gitea | azure
+        repository: acme/order-desk-architecture   # GitLab: the project path · Azure DevOps: organization/project
+        server: github.acme.internal      # unset: github.com, gitlab.com, dev.azure.com · Gitea: required
+        work-item-type: Issue             # Azure DevOps only
+```
+
+A project without an entry is not escalated through the server: the agent sends the user to the architects directly.
+
+---
+
+## Development
+
+Spring Boot 4.1 · Spring AI 2.0 (MCP server, Ollama embedding model) · Qdrant Java client 1.19 · Jackson 3 · Java 21.
+
+```bash
+./mvnw test                      # every test; in-memory index and a stand-in embedding model, no services needed
+QDRANT_TEST_HOST=localhost QDRANT_TEST_PORT=6334 ./mvnw test -Dtest=QdrantTest   # the indexer against a real Qdrant
+./mvnw package -DskipTests       # target/architecture-index-server-*.jar
+```
+
+### Fixtures
+
+`src/test/resources/bundles/order-desk/` holds five bundles of a synthetic project, *Order Desk*, exported by the plugin
+from its own test project:
 
 | Bundle | What it is |
 |---|---|
-| `1.3.0-search` | phase 1 at the tag |
+| `1.3.0-search` | the release tag, before the handoff kit |
 | `1.3.0` | with the Hub API build pack |
-| `1.4.0` | contract, budget, technology and integration changes, plus its `changes.json` |
+| `1.4.0` | contract, budget, technology and integration changes, its `changes.json`, an open escalation |
 | `1.4.0-revised` | 1.4.0 with the Hub API pack regenerated: its security obligations moved |
 | `draft` | an unreleased draft |
 
-`BundleTest` holds the Java `what_changed` diff to the plugin's own `changes.json`, and the store to the publish contract. `ServerTest` publishes over HTTP with tokens, calls every tool through the real MCP endpoint and downloads every part. `BuildPackTest` holds a part's pages to its stored bytes. `ScaleTest` runs a writer and a reader on one data directory and one index. `QdrantTest` holds the indexer, its slot records and a reader's view to a real Qdrant.
+`src/test/resources/escalation/issues.json` holds the escalation issues the plugin renders for four requests, the
+awkward text included.
 
-To regenerate the fixtures after a bundle schema change: `SA_SKILLS_DIR=<plugin checkout> bun scripts/make-fixtures.ts src/test/resources/bundles/order-desk`.
+| Test | Holds |
+|---|---|
+| `BundleTest` | the Java `what_changed` diff to the plugin's own `changes.json`; the store to the publishing contract |
+| `EscalateTest` | the Java escalation issue to the plugin's, byte for byte |
+| `EscalationTest` | the RUN-team policy gates and each host's filing commands |
+| `ServerTest` | every tool through the real MCP endpoint, publishing over HTTP with tokens, every part downloaded |
+| `BuildPackTest` | a part's pages to its stored bytes |
+| `ScaleTest` | a writer and a reader on one data directory and one index |
+| `QdrantTest` | the indexer and a reader's view against a real Qdrant |
 
-## Open
+Regenerate the fixtures after a bundle schema change, or a change to the plugin's escalation rendering:
+
+```bash
+SA_SKILLS_DIR=<solutions-architect-skills checkout> bun scripts/make-fixtures.ts src/test/resources/bundles/order-desk
+```
+
+### Retrieval eval
+
+[`eval/`](eval/README.md) measures an embedding model the way the server ranks — hit@1 and hit@5 on ordinary questions,
+answers deep in long chunks, and exact identifiers. Run it before changing the model, its prompts or the sparse weight.
+
+---
+
+## Roadmap
 
 | Item | State |
 |---|---|
-| Sign-in through the organization's identity provider, permissions per project | open; bearer tokens until then |
-| The custom service template (skeleton, libraries, CI) | outside the architecture; `BUILD.md` rule 6 points the agent to it |
-| Retrieval eval on a real architecture | `eval/` measures on a synthetic one; a released architecture, measured inside the organization, confirms the model and the sparse weight |
-| Open questions back to the architect | later; the server stays read-only |
+| Sign-in through an identity provider, permissions per project | open; bearer tokens until then |
+| A service template (skeleton, libraries, CI) | outside the architecture; `BUILD.md` points the agent to the organization's own |
+| Retrieval eval on a real architecture | `eval/` measures on a synthetic one; confirm the model and the sparse weight on yours |
+
+---
+
+## Contributing
+
+Pull requests are welcome. Bugs and ideas go to [Issues](https://github.com/shadowX4fox/solutions-architect-knowledge-base/issues).
+`./mvnw test` must pass before a PR. A change is held to these rules — [CLAUDE.md](CLAUDE.md) carries them in full:
+
+- **The plugin owns the bundle schema and the publishing contract.** This server reads `sa-index/1` and never redefines
+  it. A schema change starts in [the plugin](https://github.com/shadowX4fox/solutions-architect-skills), then the fixtures
+  are regenerated here.
+- **Ports stay ports.** `BundleChecker`, `BundleDiff` and `Escalate` are the plugin's own functions, field for field, each
+  held to the plugin's output by a test.
+- **Lists and relations come from the ledger, never from search.** A build never goes through embeddings.
+- **Fixtures are synthetic.** Never commit a bundle exported from a real organization's architecture.
+- **Commits** are scoped Conventional Commits — `<type>(<scope>): <description>`, `!` for a breaking change.
+
+## Security
+
+Report a vulnerability privately through GitHub's **Report a vulnerability** (Security → Advisories) rather than in a
+public issue, with what is affected, how to reproduce it and its impact.
+
+The server is meant to run inside your network: set `ARCHINDEX_INGEST_TOKEN` and `ARCHINDEX_MCP_TOKEN` (it warns when
+either is missing), keep them out of versioned files, and put TLS in front of it. It calls no external service besides
+your Ollama and Qdrant.
+
+## License
+
+[MIT](LICENSE) © 2026 shadowx4fox.
+
+Dependencies, container images and the embedding model carry their own licenses: Spring Boot and Spring AI (Apache 2.0),
+the Qdrant client and Qdrant (Apache 2.0), Ollama (MIT), Qwen3-Embedding (Apache 2.0).
