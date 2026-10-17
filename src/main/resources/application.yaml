@@ -10,7 +10,7 @@ spring:
     mcp:
       server:
         name: Alia
-        version: 0.1.0
+        version: "@project.version@"
         type: SYNC
         # no session held in memory: any instance answers any call (the tools never call back into the client)
         protocol: STATELESS
