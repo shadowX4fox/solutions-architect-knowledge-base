@@ -37,6 +37,8 @@ import io.github.shadowx4fox.archindex.index.Indexer;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
 		"archindex.store=memory", "archindex.ingest-token=ci-token", "archindex.mcp-token=ide-token",
 		"archindex.public-url=http://alia.test",
+		"archindex.escalation.projects[0].project=order-desk", "archindex.escalation.projects[0].host=github",
+		"archindex.escalation.projects[0].repository=acme/order-desk-architecture",
 		"spring.ai.model.embedding=none" })
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class ServerTest {
@@ -194,7 +196,8 @@ class ServerTest {
 		List<String> names = J.maps(J.map(rpc("tools/list", Map.of()), "result"), "tools").stream().map((t) -> J.str(t, "name")).toList();
 		assertThat(names).containsExactlyInAnyOrder("list_projects", "get_architecture", "get_component", "list_integrations",
 				"list_flows", "get_flow", "list_decisions", "search_architecture", "get_chunk", "get_document", "get_build_pack",
-				"get_build_instructions", "get_build_part", "get_asset", "what_changed");
+				"get_build_instructions", "get_build_part", "get_asset", "what_changed", "preview_escalation",
+				"record_escalation");
 	}
 
 	@Test
@@ -387,6 +390,44 @@ class ServerTest {
 		// the history outlives a restart
 		BundleStore again = new BundleStore(data, 50_000_000, true, java.time.Duration.ofMinutes(10));
 		assertThat(again.find("order-desk").orElseThrow().revisions("1.4.0")).hasSize(1);
+	}
+
+	@Test
+	@Order(8)
+	void aRunTeamEscalatesThroughThePolicyTheReleaseCarries() throws Exception {
+		Map<String, Object> a = tool("get_architecture", Map.of("project", "order-desk"));
+		Map<String, Object> support = J.map(a, "support");
+		assertThat(support).containsEntry("mode", "run").containsEntry("tier0", true).containsEntry("released", "architecture-v1.4.0");
+		assertThat(J.strings(support, "tier0_writes")).containsExactly("tdr-workaround", "tdr-status", "adr-proposed", "doc-fix");
+		assertThat(J.map(support, "triggers")).containsKeys("security-iam", "low-confidence");
+		assertThat(J.maps(support, "escalations_open")).extracting((e) -> e.get("id")).containsExactly("ESC-001");
+		assertThat(J.map(a, "escalation_filing")).containsEntry("enabled", true).containsEntry("host", "github");
+		// 1.3.0 was exported before any escalation: its policy holds none open
+		assertThat(J.maps(J.map(tool("get_architecture", Map.of("project", "order-desk", "version", "1.3.0")), "support"), "escalations_open")).isEmpty();
+
+		Map<String, Object> args = new java.util.LinkedHashMap<>();
+		args.put("project", "order-desk");
+		args.put("title", "Ledger Store needs a read replica for the partner reports");
+		args.put("request", "Can we add a read replica of the ledger for the partner reports?");
+		args.put("triggers", List.of("new-integration", "low-confidence"));
+		args.put("evidence", List.of(Map.of("trigger", "new-integration", "where", "docs/05-integration-points.md:12", "note", "no I-nn row for a replica")));
+		args.put("components", List.of("ledger-store"));
+		args.put("route", "tier-2");
+		Map<String, Object> p = tool("preview_escalation", args);
+		String body = J.str(J.map(p, "issue"), "body");
+		assertThat(body).contains("| Components | Ledger Store |", "| new-integration | docs/05-integration-points.md:12 — no I-nn row for a replica |",
+				"| low-confidence | low AI confidence |", "**Route**: Tier 2 — design authority (CHANGE work).");
+		assertThat(J.strings(J.map(p, "issue"), "labels")).containsExactly("architecture-escalation", "tier-2", "trigger:new-integration", "trigger:low-confidence");
+		assertThat(J.str(J.map(p, "file_with"), "repository")).isEqualTo("acme/order-desk-architecture");
+		// a trigger outside the closed list is refused, nothing previewed
+		args.put("triggers", List.of("new-integration", "gut-feeling"));
+		assertThat(J.str(tool("preview_escalation", args, true), "text")).contains("unknown trigger \"gut-feeling\"");
+
+		Map<String, Object> r = tool("record_escalation", Map.of("project", "order-desk", "preview_id", J.str(p, "preview_id"),
+				"url", "https://github.com/acme/order-desk-architecture/issues/41"));
+		assertThat(r).containsEntry("id", "ESC-?");
+		assertThat(J.str(tool("record_escalation", Map.of("project", "order-desk", "preview_id", J.str(p, "preview_id"),
+				"url", "https://github.com/someone/else/issues/1"), true), "text")).contains("not an issue of acme/order-desk-architecture");
 	}
 
 }

@@ -1,8 +1,8 @@
 {
  "schema": "sa-index/1",
  "generator": "sa-delivery:architecture-index-export",
- "generator_version": "8.150.3",
- "generated_at": "2026-10-16T01:36:24.306Z",
+ "generator_version": "10.4.1",
+ "generated_at": "2026-10-17T18:33:33.246Z",
  "project": {
   "key": "order-desk",
   "name": "Order Desk"
@@ -16,12 +16,37 @@
  },
  "channel": "released",
  "git": {
-  "sha": "cfe55b2e577c316065571386a09a1d34027ea0dd",
+  "sha": "c5ebda2498b2cce5c0a6d08782ca34463fd1c101",
   "tag": "architecture-v1.3.0",
-  "tag_sha": "cfe55b2e577c316065571386a09a1d34027ea0dd",
+  "tag_sha": "c5ebda2498b2cce5c0a6d08782ca34463fd1c101",
   "at_tag": true,
   "matches_tag": true,
   "dirty": false
+ },
+ "support": {
+  "mode": "run",
+  "tier0": true,
+  "released": "architecture-v1.3.0",
+  "tier0_writes": [
+   "tdr-workaround",
+   "tdr-status",
+   "adr-proposed",
+   "doc-fix"
+  ],
+  "triggers": {
+   "new-integration": "a new external integration",
+   "data-classification": "a data classification change",
+   "cross-domain": "cross-domain impact",
+   "security-iam": "a security or IAM change",
+   "regulatory": "regulatory or audit scope",
+   "new-technology": "a new technology or vendor",
+   "low-confidence": "low AI confidence"
+  },
+  "routes": {
+   "tier-1": "Tier 1 — SA office hours",
+   "tier-2": "Tier 2 — design authority (CHANGE work)"
+  },
+  "escalations_open": []
  },
  "embedding": {
   "unit": "chunk",

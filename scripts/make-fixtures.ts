@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, cpSync } f
 // The project text is copied from the plugin's tests/export-index.test.ts (fixture()), so the bundles are what the plugin writes.
 const SA = process.env.SA_SKILLS_DIR; if (!SA) { console.error("set SA_SKILLS_DIR to a solutions-architect-skills checkout"); process.exit(2); }
 const { exportIndex } = require(join(SA, "plugins/sa-delivery/skills/architecture-index-export/scripts/export-index.js"));
+const E = require(join(SA, "plugins/sa-records/scripts/shared/escalate.js"));
 const BASE = mkdtempSync(join(tmpdir(), "sa-index-"));
 const P = join(BASE, "order-desk");
 const w = (p: string, s: string) => { mkdirSync(dirname(join(P, p)), { recursive: true }); writeFileSync(join(P, p), s); };
@@ -49,12 +50,16 @@ function fixture(version = "1.3.0") {
 }
 const chunks = (out: string) => readFileSync(join(out, "chunks.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l));
 
+const ESC_001 = { title: "Hub API calls the partner ledger with a shared client secret", request: "Can we call the partner ledger from Hub API with the client secret we were given?",
+  triggers: ["security-iam"], evidence: [{ trigger: "security-iam", where: "docs/07-security-architecture.md:88", note: "mTLS between services; the change adds a shared secret" }],
+  proposal: ["Store the secret in the vault and send it as a header."], questions: ["Is a shared secret acceptable for the partner ledger?"], components: ["Hub API"], requested_by: "RUN team", route: "tier-1" };
 const OUT = process.argv[2]; rmSync(OUT, { recursive: true, force: true });
 const env = { ...process.env, GIT_CEILING_DIRECTORIES: BASE, GIT_AUTHOR_NAME: "t", GIT_AUTHOR_EMAIL: "t@t", GIT_COMMITTER_NAME: "t", GIT_COMMITTER_EMAIL: "t@t" };
 const git = (...a: string[]) => spawnSync("git", a, { cwd: P, env, encoding: "utf8" });
 const opts = { kitCheck: clean, projectKey: "order-desk", server: "http://localhost:8080/mcp" };
 fixture("1.3.0");
 const SAVED = join(BASE, "kit"); cpSync(join(P, "handoffs"), SAVED, { recursive: true }); rmSync(join(P, "handoffs"), { recursive: true });
+w(".sa-skills/project.json", JSON.stringify({ support: "run" }) + "\n");   // a RUN-team project: Tier 0 from the first release
 git("init", "-q"); git("add", "-A"); git("commit", "-qm", "release 1.3.0"); git("tag", "architecture-v1.3.0");
 exportIndex(P, { ...opts, out: join(OUT, "1.3.0-search") });
 cpSync(SAVED, join(P, "handoffs"), { recursive: true }); git("add", "-A"); git("commit", "-qm", "kit 1.3.0");
@@ -68,6 +73,7 @@ edit("handoffs/interfaces/hub-api→ledger-store.md", "[NOT DOCUMENTED — pool 
 edit("docs/04-data-flow-patterns.md", "**Latency budget (p95)**: 80 ms", "**Latency budget (p95)**: 90 ms");
 edit("docs/components/desk/02-hub-api.md", "**Technology:** [Spring Boot]", "**Technology:** [Spring Boot], [Kafka]");
 edit("docs/05-integration-points.md", "| I-01 | Web App | Hub API | HTTPS/JSON | sync |", "| I-01 | Web App | Hub API | HTTPS/JSON | async |");
+E.create(P, ESC_001, { today: "2026-10-17" });   // an open escalation, in escalations_open from 1.4.0 on
 git("add", "-A"); git("commit", "-qm", "release 1.4.0"); git("tag", "architecture-v1.4.0");
 exportIndex(P, { ...opts, out: join(OUT, "1.4.0"), previous: join(OUT, "1.3.0") });
 // 1.4.0 again: the kit regenerated after the tag, Hub API's security obligations moved — a second publish that replaces its pack
@@ -79,3 +85,37 @@ edit("docs/01-system-overview.md", "Shops phone orders in.", "Shops phone and e-
 exportIndex(P, { ...opts, out: join(OUT, "draft") });
 rmSync(BASE, { recursive: true, force: true });
 for (const d of ["1.3.0-search", "1.3.0", "1.4.0", "1.4.0-revised", "draft"]) { const m = JSON.parse(readFileSync(join(OUT, d, "manifest.json"), "utf8")); console.log(d, m.channel, m.architecture.version, m.counts.chunks, m.buildpacks.map((b: any) => b.component), m.changes?.action_required ?? ""); }
+
+// the escalation issue as the plugin renders it (escalate.js issueBody, `ESC-?` as the MCP server files it): the contract
+// EscalateTest holds the server's port to, byte for byte — and requestOf() reads each back the same with the server's
+// fingerprint comment after the body
+const RS = "architecture-v1.4.0";
+const CASES: Record<string, any> = {
+  "order-desk": ESC_001,
+  "every-field": { title: "Órdenes en lote — un proveedor nuevo 🧾", request: "We need batch orders from the new partner.\nThey send a CSV | a JSON file.",
+    triggers: ["new-integration", "new-technology", "security-iam"],
+    evidence: [{ trigger: "new-integration", where: "docs/05-integration-points.md:12", note: "no I-nn row for the partner" }, { trigger: "new-integration", where: "the request", note: "\"from the new partner\"" },
+      { trigger: "new-technology", note: "SFTP — not in the technology list" }, { trigger: "security-iam", where: "adr/ADR-012-service-mesh.md:9" }],
+    proposal: ["  Add I-03 Partner SFTP → Hub API.  ", "", "A batch endpoint | async"], questions: ["Which team owns the SFTP server?", "Is the CSV signed?"],
+    components: ["Hub API", " Ledger Store "], integrations: ["I-01", "I-02"], adrs: ["ADR-012", "ADR-101"], tdrs: ["TDR-001"], requested_by: "  Payments RUN team  ", route: "tier-2" },
+  "low-confidence": { title: "Unsure whether the retry budget covers the partner", request: "Does the 300 ms target still hold if we retry twice?", triggers: ["low-confidence"] },
+  "text-that-looks-like-markup": { title: "Text the renderer must not end early", route: "tier-1",
+    request: "\uFEFF\u00A0 First line.\r\n_Note_: the vendor said so.\n## Context\n**Route**: tier-2.\n<!-- not a comment -->\nRun:\n```bash\ncurl x\n```\nand ````four````.\n\n\u3000 last line\u0085 \u2028\n",
+    triggers: ["data-classification", "cross-domain", "regulatory"],
+    evidence: [{ trigger: "data-classification", where: "docs/08.md:3", note: "a — b — c" }, { trigger: "cross-domain", where: "x | y" }, { trigger: "regulatory", note: "audit\nscope" }],
+    proposal: ["step one \u00A0\n\u3000 step two", "## Open questions for the architect", "<!-- x -->"], questions: ["_Close it with care_", "why\n<!-- c -->", "\u2003 padded \u2003"] },
+};
+const golden: any[] = [];
+for (const [name, req] of Object.entries(CASES)) {
+  const p = mkdtempSync(join(tmpdir(), "esc-"));
+  E.create(p, req, { today: "2026-10-17" });
+  const rec = E.records(p)[0], meta = { ...rec.meta, id: "ESC-?", architecture: RS };
+  rmSync(p, { recursive: true, force: true });
+  const issue = { title: E.issueTitle({ ...rec, meta }), labels: E.labelsOf({ ...rec, meta }), body: E.issueBody({ ...rec, meta, file: "—" }) };
+  const back = E.requestOf({ ...issue, body: issue.body }), marked = E.requestOf({ ...issue, body: issue.body + "<!-- sa-escalation: 0123456789abcdef -->\n" });
+  if (JSON.stringify(back) !== JSON.stringify(marked)) throw new Error(`${name}: requestOf reads the fingerprint comment into the request`);
+  golden.push({ name, architecture: RS, request: req, issue, read_back: back });
+}
+const GOLDEN = join(OUT, "..", "..", "escalation", "issues.json");
+mkdirSync(dirname(GOLDEN), { recursive: true }); writeFileSync(GOLDEN, JSON.stringify(golden, null, 2) + "\n");
+console.log("escalation", golden.map((g) => g.name).join(", "));

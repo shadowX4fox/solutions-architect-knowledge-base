@@ -1,8 +1,8 @@
 {
  "schema": "sa-index/1",
  "generator": "sa-delivery:architecture-index-export",
- "generator_version": "8.150.3",
- "generated_at": "2026-10-16T01:36:24.317Z",
+ "generator_version": "10.4.1",
+ "generated_at": "2026-10-17T18:33:33.257Z",
  "project": {
   "key": "order-desk",
   "name": "Order Desk"
@@ -16,12 +16,37 @@
  },
  "channel": "released",
  "git": {
-  "sha": "6f604930051d8a94b27815ad351d94b300d77a47",
+  "sha": "b99a5498db43c5ead732fda73893b80866af8bc3",
   "tag": "architecture-v1.3.0",
-  "tag_sha": "cfe55b2e577c316065571386a09a1d34027ea0dd",
+  "tag_sha": "c5ebda2498b2cce5c0a6d08782ca34463fd1c101",
   "at_tag": false,
   "matches_tag": true,
   "dirty": false
+ },
+ "support": {
+  "mode": "run",
+  "tier0": true,
+  "released": "architecture-v1.3.0",
+  "tier0_writes": [
+   "tdr-workaround",
+   "tdr-status",
+   "adr-proposed",
+   "doc-fix"
+  ],
+  "triggers": {
+   "new-integration": "a new external integration",
+   "data-classification": "a data classification change",
+   "cross-domain": "cross-domain impact",
+   "security-iam": "a security or IAM change",
+   "regulatory": "regulatory or audit scope",
+   "new-technology": "a new technology or vendor",
+   "low-confidence": "low AI confidence"
+  },
+  "routes": {
+   "tier-1": "Tier 1 — SA office hours",
+   "tier-2": "Tier 2 — design authority (CHANGE work)"
+  },
+  "escalations_open": []
  },
  "embedding": {
   "unit": "chunk",
@@ -68,8 +93,8 @@
  "files": [
   {
    "path": "buildpacks/hub-api/BUILD.md",
-   "bytes": 6708,
-   "sha256": "8a58718ea3bce23a9b8ed88ec92e8c8856c5f984ad3b59e385c419682f68981c"
+   "bytes": 8046,
+   "sha256": "a3c0050ae941dd20c88dd01ab146d04eec886fff27294012c0d0bcb7dbe2b524"
   },
   {
    "path": "buildpacks/hub-api/adrs/ADR-012-service-mesh.md",
@@ -114,7 +139,7 @@
   {
    "path": "buildpacks/hub-api/pack.json",
    "bytes": 6296,
-   "sha256": "2fd13ae332ee2856da9ee3f558f7c0d56e2aab6309a5683b4639a6be7bf2473d"
+   "sha256": "b2753d9ca68d87670d52f8a4e230a08a900bb9cea8dbc1b115df13165b8f5ad1"
   },
   {
    "path": "buildpacks/hub-api/runtime-view.md",

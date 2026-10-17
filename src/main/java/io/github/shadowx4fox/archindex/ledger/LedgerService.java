@@ -69,6 +69,8 @@ public class LedgerService {
 		m.put("build_packs", List.copyOf(b.packs().keySet()));
 		m.put("no_build_pack", b.skipped());
 		m.put("git", J.map(b.manifest(), "git"));
+		Map<String, Object> support = J.map(b.manifest(), "support");
+		m.put("support", support.isEmpty() ? null : support);
 		return m;
 	}
 

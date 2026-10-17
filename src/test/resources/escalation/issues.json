@@ -1,0 +1,323 @@
+[
+  {
+    "name": "order-desk",
+    "architecture": "architecture-v1.4.0",
+    "request": {
+      "title": "Hub API calls the partner ledger with a shared client secret",
+      "request": "Can we call the partner ledger from Hub API with the client secret we were given?",
+      "triggers": [
+        "security-iam"
+      ],
+      "evidence": [
+        {
+          "trigger": "security-iam",
+          "where": "docs/07-security-architecture.md:88",
+          "note": "mTLS between services; the change adds a shared secret"
+        }
+      ],
+      "proposal": [
+        "Store the secret in the vault and send it as a header."
+      ],
+      "questions": [
+        "Is a shared secret acceptable for the partner ledger?"
+      ],
+      "components": [
+        "Hub API"
+      ],
+      "requested_by": "RUN team",
+      "route": "tier-1"
+    },
+    "issue": {
+      "title": "[ESC-?] Hub API calls the partner ledger with a shared client secret",
+      "labels": [
+        "architecture-escalation",
+        "tier-1",
+        "trigger:security-iam"
+      ],
+      "body": "| | |\n|---|---|\n| Architecture | architecture-v1.4.0 |\n| Route | Tier 1 — SA office hours |\n| Requested by | RUN team |\n| Components | Hub API |\n| Integrations | — |\n| ADRs / TDRs | — |\n| Record | — |\n\n## Request\n\n```text\nCan we call the partner ledger from Hub API with the client secret we were given?\n```\n\n## Why it needs an architect\n\n| Trigger | Evidence |\n|---|---|\n| security-iam | docs/07-security-architecture.md:88 — mTLS between services; the change adds a shared secret |\n\n**Route**: Tier 1 — SA office hours.\n\n## What the AI would propose (not applied)\n\n- Store the secret in the vault and send it as a header.\n\n## Open questions for the architect\n\n- Is a shared secret acceptable for the partner ledger?\n\n_Import it into the architecture repository with `escalate.js import <project> <this issue>`; the import gives it its ESC number._\n"
+    },
+    "read_back": {
+      "title": "Hub API calls the partner ledger with a shared client secret",
+      "request": "Can we call the partner ledger from Hub API with the client secret we were given?",
+      "triggers": [
+        "security-iam"
+      ],
+      "evidence": [
+        {
+          "trigger": "security-iam",
+          "where": "docs/07-security-architecture.md:88",
+          "note": "mTLS between services; the change adds a shared secret"
+        }
+      ],
+      "proposal": [
+        "Store the secret in the vault and send it as a header."
+      ],
+      "questions": [
+        "Is a shared secret acceptable for the partner ledger?"
+      ],
+      "components": [
+        "Hub API"
+      ],
+      "integrations": [],
+      "adrs": [],
+      "tdrs": [],
+      "requested_by": "RUN team",
+      "route": "tier-1",
+      "architecture": "architecture-v1.4.0"
+    }
+  },
+  {
+    "name": "every-field",
+    "architecture": "architecture-v1.4.0",
+    "request": {
+      "title": "Órdenes en lote — un proveedor nuevo 🧾",
+      "request": "We need batch orders from the new partner.\nThey send a CSV | a JSON file.",
+      "triggers": [
+        "new-integration",
+        "new-technology",
+        "security-iam"
+      ],
+      "evidence": [
+        {
+          "trigger": "new-integration",
+          "where": "docs/05-integration-points.md:12",
+          "note": "no I-nn row for the partner"
+        },
+        {
+          "trigger": "new-integration",
+          "where": "the request",
+          "note": "\"from the new partner\""
+        },
+        {
+          "trigger": "new-technology",
+          "note": "SFTP — not in the technology list"
+        },
+        {
+          "trigger": "security-iam",
+          "where": "adr/ADR-012-service-mesh.md:9"
+        }
+      ],
+      "proposal": [
+        "  Add I-03 Partner SFTP → Hub API.  ",
+        "",
+        "A batch endpoint | async"
+      ],
+      "questions": [
+        "Which team owns the SFTP server?",
+        "Is the CSV signed?"
+      ],
+      "components": [
+        "Hub API",
+        " Ledger Store "
+      ],
+      "integrations": [
+        "I-01",
+        "I-02"
+      ],
+      "adrs": [
+        "ADR-012",
+        "ADR-101"
+      ],
+      "tdrs": [
+        "TDR-001"
+      ],
+      "requested_by": "  Payments RUN team  ",
+      "route": "tier-2"
+    },
+    "issue": {
+      "title": "[ESC-?] Órdenes en lote — un proveedor nuevo 🧾",
+      "labels": [
+        "architecture-escalation",
+        "tier-2",
+        "trigger:new-integration",
+        "trigger:new-technology",
+        "trigger:security-iam"
+      ],
+      "body": "| | |\n|---|---|\n| Architecture | architecture-v1.4.0 |\n| Route | Tier 2 — design authority (CHANGE work) |\n| Requested by | Payments RUN team |\n| Components | Hub API, Ledger Store |\n| Integrations | I-01, I-02 |\n| ADRs / TDRs | ADR-012, ADR-101, TDR-001 |\n| Record | — |\n\n## Request\n\n```text\nWe need batch orders from the new partner.\nThey send a CSV | a JSON file.\n```\n\n## Why it needs an architect\n\n| Trigger | Evidence |\n|---|---|\n| new-integration | docs/05-integration-points.md:12 — no I-nn row for the partner |\n| new-integration | the request — \"from the new partner\" |\n| new-technology | SFTP — not in the technology list |\n| security-iam | adr/ADR-012-service-mesh.md:9 |\n\n**Route**: Tier 2 — design authority (CHANGE work).\n\n## What the AI would propose (not applied)\n\n- Add I-03 Partner SFTP → Hub API.\n- A batch endpoint | async\n\n## Open questions for the architect\n\n- Which team owns the SFTP server?\n- Is the CSV signed?\n\n_Import it into the architecture repository with `escalate.js import <project> <this issue>`; the import gives it its ESC number._\n"
+    },
+    "read_back": {
+      "title": "Órdenes en lote — un proveedor nuevo 🧾",
+      "request": "We need batch orders from the new partner.\nThey send a CSV | a JSON file.",
+      "triggers": [
+        "new-integration",
+        "new-technology",
+        "security-iam"
+      ],
+      "evidence": [
+        {
+          "trigger": "new-integration",
+          "where": "docs/05-integration-points.md:12",
+          "note": "no I-nn row for the partner"
+        },
+        {
+          "trigger": "new-integration",
+          "where": "the request",
+          "note": "\"from the new partner\""
+        },
+        {
+          "trigger": "new-technology",
+          "where": "SFTP",
+          "note": "not in the technology list"
+        },
+        {
+          "trigger": "security-iam",
+          "where": "adr/ADR-012-service-mesh.md:9"
+        }
+      ],
+      "proposal": [
+        "Add I-03 Partner SFTP → Hub API.",
+        "A batch endpoint | async"
+      ],
+      "questions": [
+        "Which team owns the SFTP server?",
+        "Is the CSV signed?"
+      ],
+      "components": [
+        "Hub API",
+        "Ledger Store"
+      ],
+      "integrations": [
+        "I-01",
+        "I-02"
+      ],
+      "adrs": [
+        "ADR-012",
+        "ADR-101"
+      ],
+      "tdrs": [
+        "TDR-001"
+      ],
+      "requested_by": "Payments RUN team",
+      "route": "tier-2",
+      "architecture": "architecture-v1.4.0"
+    }
+  },
+  {
+    "name": "low-confidence",
+    "architecture": "architecture-v1.4.0",
+    "request": {
+      "title": "Unsure whether the retry budget covers the partner",
+      "request": "Does the 300 ms target still hold if we retry twice?",
+      "triggers": [
+        "low-confidence"
+      ]
+    },
+    "issue": {
+      "title": "[ESC-?] Unsure whether the retry budget covers the partner",
+      "labels": [
+        "architecture-escalation",
+        "tier-1",
+        "trigger:low-confidence"
+      ],
+      "body": "| | |\n|---|---|\n| Architecture | architecture-v1.4.0 |\n| Route | Tier 1 — SA office hours |\n| Requested by | — |\n| Components | — |\n| Integrations | — |\n| ADRs / TDRs | — |\n| Record | — |\n\n## Request\n\n```text\nDoes the 300 ms target still hold if we retry twice?\n```\n\n## Why it needs an architect\n\n| Trigger | Evidence |\n|---|---|\n| low-confidence | low AI confidence |\n\n**Route**: Tier 1 — SA office hours.\n\n## What the AI would propose (not applied)\n\n- Nothing proposed.\n\n## Open questions for the architect\n\n- None.\n\n_Import it into the architecture repository with `escalate.js import <project> <this issue>`; the import gives it its ESC number._\n"
+    },
+    "read_back": {
+      "title": "Unsure whether the retry budget covers the partner",
+      "request": "Does the 300 ms target still hold if we retry twice?",
+      "triggers": [
+        "low-confidence"
+      ],
+      "evidence": [],
+      "proposal": [],
+      "questions": [],
+      "components": [],
+      "integrations": [],
+      "adrs": [],
+      "tdrs": [],
+      "requested_by": "",
+      "route": "tier-1",
+      "architecture": "architecture-v1.4.0"
+    }
+  },
+  {
+    "name": "text-that-looks-like-markup",
+    "architecture": "architecture-v1.4.0",
+    "request": {
+      "title": "Text the renderer must not end early",
+      "route": "tier-1",
+      "request": "﻿  First line.\r\n_Note_: the vendor said so.\n## Context\n**Route**: tier-2.\n<!-- not a comment -->\nRun:\n```bash\ncurl x\n```\nand ````four````.\n\n　 last line  \n",
+      "triggers": [
+        "data-classification",
+        "cross-domain",
+        "regulatory"
+      ],
+      "evidence": [
+        {
+          "trigger": "data-classification",
+          "where": "docs/08.md:3",
+          "note": "a — b — c"
+        },
+        {
+          "trigger": "cross-domain",
+          "where": "x | y"
+        },
+        {
+          "trigger": "regulatory",
+          "note": "audit\nscope"
+        }
+      ],
+      "proposal": [
+        "step one  \n　 step two",
+        "## Open questions for the architect",
+        "<!-- x -->"
+      ],
+      "questions": [
+        "_Close it with care_",
+        "why\n<!-- c -->",
+        "  padded  "
+      ]
+    },
+    "issue": {
+      "title": "[ESC-?] Text the renderer must not end early",
+      "labels": [
+        "architecture-escalation",
+        "tier-1",
+        "trigger:data-classification",
+        "trigger:cross-domain",
+        "trigger:regulatory"
+      ],
+      "body": "| | |\n|---|---|\n| Architecture | architecture-v1.4.0 |\n| Route | Tier 1 — SA office hours |\n| Requested by | — |\n| Components | — |\n| Integrations | — |\n| ADRs / TDRs | — |\n| Record | — |\n\n## Request\n\n`````text\nFirst line.\n_Note_: the vendor said so.\n## Context\n**Route**: tier-2.\n<!-- not a comment -->\nRun:\n```bash\ncurl x\n```\nand ````four````.\n\n　 last line\n`````\n\n## Why it needs an architect\n\n| Trigger | Evidence |\n|---|---|\n| data-classification | docs/08.md:3 — a — b — c |\n| cross-domain | x \\| y |\n| regulatory | audit scope |\n\n**Route**: Tier 1 — SA office hours.\n\n## What the AI would propose (not applied)\n\n- step one step two\n- ## Open questions for the architect\n- <!-- x -->\n\n## Open questions for the architect\n\n- _Close it with care_\n- why <!-- c -->\n- padded\n\n_Import it into the architecture repository with `escalate.js import <project> <this issue>`; the import gives it its ESC number._\n"
+    },
+    "read_back": {
+      "title": "Text the renderer must not end early",
+      "request": "First line.\n_Note_: the vendor said so.\n## Context\n**Route**: tier-2.\n<!-- not a comment -->\nRun:\n```bash\ncurl x\n```\nand ````four````.\n\n　 last line",
+      "triggers": [
+        "data-classification",
+        "cross-domain",
+        "regulatory"
+      ],
+      "evidence": [
+        {
+          "trigger": "data-classification",
+          "where": "docs/08.md:3",
+          "note": "a — b — c"
+        },
+        {
+          "trigger": "cross-domain",
+          "where": "x | y"
+        },
+        {
+          "trigger": "regulatory",
+          "where": "audit scope"
+        }
+      ],
+      "proposal": [
+        "step one step two",
+        "## Open questions for the architect",
+        "<!-- x -->"
+      ],
+      "questions": [
+        "_Close it with care_",
+        "why <!-- c -->",
+        "padded"
+      ],
+      "components": [],
+      "integrations": [],
+      "adrs": [],
+      "tdrs": [],
+      "requested_by": "",
+      "route": "tier-1",
+      "architecture": "architecture-v1.4.0"
+    }
+  }
+]
