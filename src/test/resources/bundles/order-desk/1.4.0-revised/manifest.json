@@ -1,8 +1,8 @@
 {
  "schema": "sa-index/1",
  "generator": "sa-delivery:architecture-index-export",
- "generator_version": "10.4.1",
- "generated_at": "2026-10-17T18:33:33.281Z",
+ "generator_version": "10.4.3",
+ "generated_at": "2026-10-17T19:48:33.062Z",
  "project": {
   "key": "order-desk",
   "name": "Order Desk"
@@ -16,9 +16,9 @@
  },
  "channel": "released",
  "git": {
-  "sha": "eeddfd50b8af3049c3d061af00486f126a4a5303",
+  "sha": "f5bbb8f895ec6d4a7798b877cb6ac505b36bafe8",
   "tag": "architecture-v1.4.0",
-  "tag_sha": "072600619ed98de3f56e3545ba087f91c803f2bf",
+  "tag_sha": "479eabba15f2082dae51b7b0f2c2dd803ca6a90b",
   "at_tag": false,
   "matches_tag": true,
   "dirty": false
