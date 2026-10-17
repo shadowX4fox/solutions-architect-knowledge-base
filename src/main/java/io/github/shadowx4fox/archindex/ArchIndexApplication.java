@@ -15,6 +15,7 @@ import org.springframework.context.event.EventListener;
 import io.github.shadowx4fox.archindex.build.BuildPackService;
 import io.github.shadowx4fox.archindex.bundle.BundleStore;
 import io.github.shadowx4fox.archindex.changes.ChangesService;
+import io.github.shadowx4fox.archindex.escalation.EscalationService;
 import io.github.shadowx4fox.archindex.index.Embedder;
 import io.github.shadowx4fox.archindex.index.FileVectorIndex;
 import io.github.shadowx4fox.archindex.index.Indexer;
@@ -117,9 +118,14 @@ public class ArchIndexApplication {
 	}
 
 	@Bean
+	EscalationService escalationService(Bundles bundles, ArchIndexProperties p) {
+		return new EscalationService(bundles, p.escalation());
+	}
+
+	@Bean
 	ArchitectureTools architectureTools(LedgerService ledger, SearchService search, BuildPackService packs,
-			ChangesService changes, DocumentService documents) {
-		return new ArchitectureTools(ledger, search, packs, changes, documents);
+			ChangesService changes, DocumentService documents, EscalationService escalations) {
+		return new ArchitectureTools(ledger, search, packs, changes, documents, escalations);
 	}
 
 	@Bean

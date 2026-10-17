@@ -1,6 +1,7 @@
 package io.github.shadowx4fox.archindex.mcp;
 
 import java.util.List;
+import java.util.Map;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
@@ -11,6 +12,8 @@ import org.springframework.ai.mcp.annotation.McpToolParam;
 import io.github.shadowx4fox.archindex.build.BuildPackService;
 import io.github.shadowx4fox.archindex.bundle.J;
 import io.github.shadowx4fox.archindex.changes.ChangesService;
+import io.github.shadowx4fox.archindex.escalation.Escalate;
+import io.github.shadowx4fox.archindex.escalation.EscalationService;
 import io.github.shadowx4fox.archindex.index.SearchService;
 import io.github.shadowx4fox.archindex.ledger.DocumentService;
 import io.github.shadowx4fox.archindex.ledger.LedgerService;
@@ -18,8 +21,8 @@ import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 
 /**
  * The MCP surface. Everything is a tool — every IDE client supports tools, while prompts and resources vary by client.
- * Three kinds: exact answers from the ledger, ranked search, and the build pack read part by part. Every answer is
- * JSON naming the project and the architecture version it came from.
+ * Exact answers from the ledger, ranked search, the build pack read part by part, and a RUN team's escalation. Every
+ * answer is JSON naming the project and the architecture version it came from.
  */
 public class ArchitectureTools {
 
@@ -41,13 +44,16 @@ public class ArchitectureTools {
 
 	private final DocumentService documents;
 
+	private final EscalationService escalations;
+
 	public ArchitectureTools(LedgerService ledger, SearchService search, BuildPackService packs, ChangesService changes,
-			DocumentService documents) {
+			DocumentService documents, EscalationService escalations) {
 		this.ledger = ledger;
 		this.search = search;
 		this.packs = packs;
 		this.changes = changes;
 		this.documents = documents;
+		this.escalations = escalations;
 	}
 
 	static CallToolResult answer(Supplier<Object> s) {
@@ -71,10 +77,16 @@ public class ArchitectureTools {
 		return answer(ledger::projects);
 	}
 
-	@McpTool(name = "get_architecture", description = "One architecture version at a glance: status, language, systems, every component (slug, canonical name, internal name, C4 level, type, technology), chunk counts, which components have a build pack and why the others do not.")
+	@McpTool(name = "get_architecture", description = "One architecture version at a glance: status, language, systems, every component (slug, canonical name, internal name, C4 level, type, technology), chunk counts, which components have a build pack and why the others do not — and support, the RUN-team policy: whether Tier 0 applies, the writes an agent may make alone (tier0_writes), the closed list of escalation triggers, the routes and the escalations already open. Before proposing a change, check it against triggers; a crossed trigger is escalated (preview_escalation), never applied.")
 	public CallToolResult getArchitecture(@McpToolParam(description = PROJECT) String project,
 			@McpToolParam(description = VERSION, required = false) String version) {
-		return answer(() -> ledger.architecture(project, version));
+		return answer(() -> {
+			Map<String, Object> m = ledger.architecture(project, version);
+			if (m.get("support") instanceof Map<?, ?>) {
+				m.put("escalation_filing", escalations.filing(J.str(m, "project")));
+			}
+			return m;
+		});
 	}
 
 	// ---- exact answers from the ledger
@@ -184,6 +196,33 @@ public class ArchitectureTools {
 			@McpToolParam(description = "The pack_revision built from — the one in .architecture.json. With it, the build pack replacements of that version made since come first", required = false) String from_revision,
 			@McpToolParam(description = "The newer version (default: the latest released; the same version for the replacements within it)", required = false) String to) {
 		return answer(() -> changes.whatChanged(project, component, from, from_revision, to));
+	}
+
+	// ---- a RUN team's escalation
+
+	@McpTool(name = "preview_escalation", description = "A change that crosses an escalation trigger (get_architecture's support.triggers) is never applied: it becomes an escalation for a human architect, filed as an issue on the architecture's git host. This returns that issue exactly as it would be opened — title [ESC-?] …, labels, body — checked against the latest release's support policy, the preview_id, the escalations already open, and file_with: the commands that file it with the developer's own access. Nothing is written. Show the user the issue and ask; only after a yes, follow file_with.steps, then call record_escalation.")
+	public CallToolResult previewEscalation(@McpToolParam(description = PROJECT) String project,
+			@McpToolParam(description = "Short title, one line") String title,
+			@McpToolParam(description = "The user's words, verbatim") String request,
+			@McpToolParam(description = "Trigger ids crossed, from support.triggers") List<String> triggers,
+			@McpToolParam(description = "Per trigger: where it shows (a file and line, or a chunk id) and a note. Every trigger but low-confidence needs one", required = false) List<Escalate.Evidence> evidence,
+			@McpToolParam(description = "The change the agent would have made, one line per item — not applied", required = false) List<String> proposal,
+			@McpToolParam(description = "Open questions for the architect, one per item", required = false) List<String> questions,
+			@McpToolParam(description = "Components concerned, by canonical name", required = false) List<String> components,
+			@McpToolParam(description = "Integration ids (I-nn)", required = false) List<String> integrations,
+			@McpToolParam(description = "ADR ids", required = false) List<String> adrs,
+			@McpToolParam(description = "TDR ids", required = false) List<String> tdrs,
+			@McpToolParam(description = "Who asked: the developer or the team", required = false) String requested_by,
+			@McpToolParam(description = "tier-1 (SA office hours, the default) or tier-2 (design authority, CHANGE work)", required = false) String route) {
+		return answer(() -> escalations.preview(project, new Escalate.Request(title, request, triggers, evidence, proposal,
+				questions, components, integrations, adrs, tdrs, requested_by, route)));
+	}
+
+	@McpTool(name = "record_escalation", description = "After the user said yes and the issue from preview_escalation was filed on the git host: records which issue it became, so the escalation is counted. Call it once per filed issue, with its URL.")
+	public CallToolResult recordEscalation(@McpToolParam(description = PROJECT) String project,
+			@McpToolParam(description = "The preview_id preview_escalation returned") String preview_id,
+			@McpToolParam(description = "The URL of the filed issue") String url) {
+		return answer(() -> escalations.record(project, preview_id, url));
 	}
 
 }

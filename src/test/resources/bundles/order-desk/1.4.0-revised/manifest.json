@@ -1,8 +1,8 @@
 {
  "schema": "sa-index/1",
  "generator": "sa-delivery:architecture-index-export",
- "generator_version": "8.150.3",
- "generated_at": "2026-10-16T01:36:24.338Z",
+ "generator_version": "10.4.1",
+ "generated_at": "2026-10-17T18:33:33.281Z",
  "project": {
   "key": "order-desk",
   "name": "Order Desk"
@@ -16,12 +16,51 @@
  },
  "channel": "released",
  "git": {
-  "sha": "4e515f737ca95b50fd9a061580d50e5e811a8800",
+  "sha": "eeddfd50b8af3049c3d061af00486f126a4a5303",
   "tag": "architecture-v1.4.0",
-  "tag_sha": "d29c48205d8ba0cd156ec598fd7d1e9da2b2d70c",
+  "tag_sha": "072600619ed98de3f56e3545ba087f91c803f2bf",
   "at_tag": false,
   "matches_tag": true,
   "dirty": false
+ },
+ "support": {
+  "mode": "run",
+  "tier0": true,
+  "released": "architecture-v1.4.0",
+  "tier0_writes": [
+   "tdr-workaround",
+   "tdr-status",
+   "adr-proposed",
+   "doc-fix"
+  ],
+  "triggers": {
+   "new-integration": "a new external integration",
+   "data-classification": "a data classification change",
+   "cross-domain": "cross-domain impact",
+   "security-iam": "a security or IAM change",
+   "regulatory": "regulatory or audit scope",
+   "new-technology": "a new technology or vendor",
+   "low-confidence": "low AI confidence"
+  },
+  "routes": {
+   "tier-1": "Tier 1 — SA office hours",
+   "tier-2": "Tier 2 — design authority (CHANGE work)"
+  },
+  "escalations_open": [
+   {
+    "id": "ESC-001",
+    "status": "Open",
+    "route": "tier-1",
+    "triggers": [
+     "security-iam"
+    ],
+    "components": [
+     "Hub API"
+    ],
+    "title": "Hub API calls the partner ledger with a shared client secret",
+    "issue": null
+   }
+  ]
  },
  "embedding": {
   "unit": "chunk",
@@ -68,8 +107,8 @@
  "files": [
   {
    "path": "buildpacks/hub-api/BUILD.md",
-   "bytes": 6639,
-   "sha256": "ded1c959c79f127398e99a30a334b626a9ac78646a443cdb989425d52416bf64"
+   "bytes": 7977,
+   "sha256": "3ca8b58b6c43144fc4e9a4517c64d8de5167cb3c7f1cfa0cd79b98ab2f00ef35"
   },
   {
    "path": "buildpacks/hub-api/adrs/ADR-012-service-mesh.md",
@@ -114,7 +153,7 @@
   {
    "path": "buildpacks/hub-api/pack.json",
    "bytes": 6193,
-   "sha256": "8812f63d36b7d003355f514a1a207cd76cb5237d68ae780563978c116efa9b7b"
+   "sha256": "970c7f219b1f85deb5ce001c40cc4a6106f4fafa3c6cac097d97a5e9384aac0e"
   },
   {
    "path": "buildpacks/hub-api/runtime-view.md",
@@ -134,7 +173,7 @@
   {
    "path": "changes.json",
    "bytes": 1078,
-   "sha256": "eae929a73ea9d36e376277d7ee2609ca501f663ce72c5ae1d06fe56eff625b9a"
+   "sha256": "bcee714c2ba9110bf8cd9dea6db9522513080d9ebf488aa85b49491989179126"
   },
   {
    "path": "chunks.jsonl",

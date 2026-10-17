@@ -27,6 +27,9 @@ spring:
           the architecture does not state: its open questions go to the architect.
           When you build, read the security part before the contracts: only the callers it lists reach the component,
           and an interface whose authentication it does not state stays closed, never open with a TODO.
+          For a RUN team (get_architecture's support), check every change you would propose against support.triggers:
+          the writes under tier0_writes go ahead when nothing is in doubt; a crossed trigger changes nothing in the
+          architecture and becomes an escalation (preview_escalation), filed only after the user has seen it and said yes.
         streamable-http:
           mcp-endpoint: /mcp
     ollama:
@@ -70,6 +73,14 @@ archindex:
     batch-size: 32
     # the window Ollama reads, sent on every request; below it a long chunk is cut silently (export chunks reach ~7K tokens)
     context: ${ARCHINDEX_EMBEDDING_CONTEXT:8192}
+  # where each project's escalations are filed; the agent files them with the developer's own access. One entry per project:
+  #   - project: order-desk
+  #     host: github            # github | gitlab | gitea | azure
+  #     repository: acme/order-desk-architecture   # owner/repo; GitLab: the project path; Azure DevOps: organization/project
+  #     server: github.example.com                 # unset: github.com, gitlab.com, dev.azure.com; Gitea: required
+  #     work-item-type: Issue                      # Azure DevOps only
+  escalation:
+    projects: []
   search:
     default-limit: 8
     max-limit: 25

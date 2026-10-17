@@ -20,5 +20,6 @@ SA_SKILLS_DIR=<plugin checkout> bun scripts/make-fixtures.ts src/test/resources/
 - **A build never goes through embeddings.** Pack parts are served byte for byte. A missing pack is an error naming the reason and the versions that have one; the server never falls back to another version.
 - **One writer, any number of readers.** A bundle directory never changes once placed: a publish writes a new one, then `HEAD.json`, then `.generation`; a replaced one is deleted after the retention. Readers (`archindex.role=reader`) never write to the data directory or the index.
 - **Released versions are immutable** in what search serves: a re-publish carries the same chunks, the same ledger and every pack held; it may add packs and replace them, never drop one.
+- **The escalation issue is the plugin's.** `Escalate` is `escalate.js`'s `validate`, `render` and `issueBody`, with its text rules (ECMAScript `trim()` and `\s`). `EscalateTest` holds it to the plugin's own output in `escalation/issues.json`. The server never files: it renders, names the host, and logs.
 - **Fixtures are synthetic.** They are the plugin's Order Desk test project. Never commit a bundle exported from a real architecture.
 - Jackson 3 (`tools.jackson`) is Boot 4's. Bundle JSON is read into plain maps through `bundle/J.java`, so a field a newer plugin adds never breaks the server.

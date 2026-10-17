@@ -2,6 +2,9 @@ package io.github.shadowx4fox.archindex;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -13,7 +16,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties("archindex")
 public record ArchIndexProperties(Path dataDir, String ingestToken, String mcpToken, String publicUrl, long maxBundleBytes,
 		Role role, Duration refreshInterval, Duration retainReplaced, Store store, Qdrant qdrant, File file,
-		Embedding embedding, Search search) {
+		Embedding embedding, Search search, Escalation escalation) {
 
 	/** Several instances share one data directory and one Qdrant collection: one writes, the others read. */
 	public enum Role {
@@ -65,6 +68,59 @@ public record ArchIndexProperties(Path dataDir, String ingestToken, String mcpTo
 			double sparseWeight) {
 	}
 
+	/**
+	 * Where each project's escalations are filed. The agent in the IDE files the issue with the developer's own access
+	 * (gh, glab, az boards, Gitea's API); the server names the host and the repository, never the caller, and holds no
+	 * token. A project without a target is not escalated through this server.
+	 */
+	public record Escalation(List<Target> projects) {
+
+		public Escalation {
+			projects = projects == null ? List.of() : List.copyOf(projects);
+		}
+
+		public Optional<Target> target(String project) {
+			return projects.stream().filter((t) -> t.project() != null && t.project().equals(project)).findFirst();
+		}
+
+	}
+
+	public enum GitHost {
+
+		GITHUB, GITLAB, GITEA, AZURE
+
+	}
+
+	/**
+	 * One project's issue tracker. {@code repository} is owner/repo (GitHub, Gitea), the project path (GitLab) or
+	 * organization/project (Azure DevOps). {@code server} is the host name, github.com, gitlab.com and dev.azure.com
+	 * by default; a Gitea one has none. {@code workItemType} is the Azure DevOps work item type, Issue by default.
+	 */
+	public record Target(String project, GitHost host, String repository, String server, String workItemType) {
+
+		public Target {
+			if (server == null || server.isBlank()) {
+				server = host == null ? null : switch (host) {
+					case GITHUB -> "github.com";
+					case GITLAB -> "gitlab.com";
+					case AZURE -> "dev.azure.com";
+					case GITEA -> null;
+				};
+			}
+			if (server != null) {
+				server = server.replaceFirst("^https?://", "").replaceAll("/+$", "");
+			}
+			if (workItemType == null || workItemType.isBlank()) {
+				workItemType = "Issue";
+			}
+		}
+
+		public String hostName() {
+			return host == null ? "?" : host.name().toLowerCase(Locale.ROOT);
+		}
+
+	}
+
 	/** Qwen3-Embedding's instruction format: the query carries the task, documents carry none. */
 	public static final String QWEN3_QUERY = "Instruct: Given a question about a software architecture, retrieve the passages that answer it\nQuery: ";
 
@@ -98,6 +154,9 @@ public record ArchIndexProperties(Path dataDir, String ingestToken, String mcpTo
 		}
 		if (search == null) {
 			search = new Search(8, 25, 50, 2000, 60000, 0.3);
+		}
+		if (escalation == null) {
+			escalation = new Escalation(null);
 		}
 	}
 
