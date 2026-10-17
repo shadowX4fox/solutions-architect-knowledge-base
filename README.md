@@ -2,6 +2,8 @@
 
 **Your architecture, served to every developer's IDE: ask it while you work, build a component from its spec, escalate what needs an architect.**
 
+[![ci](https://github.com/shadowX4fox/solutions-architect-knowledge-base/actions/workflows/ci.yml/badge.svg)](https://github.com/shadowX4fox/solutions-architect-knowledge-base/actions/workflows/ci.yml)
+[![Image](https://img.shields.io/badge/image-ghcr.io%2Fshadowx4fox%2Falia--mcp--server-2496ed.svg)](https://github.com/shadowX4fox/solutions-architect-knowledge-base/pkgs/container/alia-mcp-server)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/projects/jdk/21/)
 [![Spring Boot 4.1](https://img.shields.io/badge/Spring%20Boot-4.1-6db33f.svg)](https://spring.io/projects/spring-boot)
@@ -76,6 +78,16 @@ Hub API in order-desk?"*
 
 For your own architecture, document it with the plugin and let CI publish each release: the plugin's
 `sa-delivery:architecture-index-export` skill and its `ci/publish-index.sh` do the export and the upload.
+
+**The published image.** CI publishes `ghcr.io/shadowx4fox/alia-mcp-server` for amd64 and arm64: `edge` from `main`,
+the version and `latest` from a `v*` tag, and a `sha-…` tag for every build. It needs Ollama, and Qdrant unless
+`ARCHINDEX_STORE=file`:
+
+```bash
+docker run -d -p 8080:8080 -v alia-data:/data --add-host=host.docker.internal:host-gateway \
+  -e ARCHINDEX_STORE=file -e OLLAMA_BASE_URL=http://host.docker.internal:11434 \
+  -e ARCHINDEX_INGEST_TOKEN=change-me-ci -e ARCHINDEX_MCP_TOKEN=change-me-ide ghcr.io/shadowx4fox/alia-mcp-server:edge
+```
 
 **Without Docker:** `./mvnw package -DskipTests`, `ollama pull qwen3-embedding:0.6b`, then
 `ARCHINDEX_STORE=file ARCHINDEX_INGEST_TOKEN=… java -jar target/architecture-index-server-*.jar` — the `file` engine
@@ -329,6 +341,10 @@ Spring Boot 4.1 · Spring AI 2.0 (MCP server, Ollama embedding model) · Qdrant 
 QDRANT_TEST_HOST=localhost QDRANT_TEST_PORT=6334 ./mvnw test -Dtest=QdrantTest   # the indexer against a real Qdrant
 ./mvnw package -DskipTests       # target/architecture-index-server-*.jar
 ```
+
+CI (`.github/workflows/ci.yml`) runs every test on each push and pull request, builds the image and smoke-tests it: the
+container starts, takes the Order Desk bundle and answers `list_projects` over MCP. Only then does it publish, from `main`
+and from `v*` tags; a pull request builds without publishing.
 
 ### Fixtures
 

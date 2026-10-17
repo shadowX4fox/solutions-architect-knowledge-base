@@ -1,0 +1,14 @@
+# the image is built from the sources: only mvnw, .mvn, pom.xml and src/main are read
+target/
+data/
+eval/
+deploy/
+scripts/
+src/test/
+.git/
+.github/
+.idea/
+.vscode/
+*.iml
+.env
+.env.*

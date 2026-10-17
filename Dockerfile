@@ -1,4 +1,5 @@
-FROM eclipse-temurin:21-jdk AS build
+# the jar is the same bytecode on every platform: build it once, on the builder's own platform
+FROM --platform=$BUILDPLATFORM eclipse-temurin:21-jdk AS build
 WORKDIR /src
 COPY mvnw pom.xml ./
 COPY .mvn .mvn
