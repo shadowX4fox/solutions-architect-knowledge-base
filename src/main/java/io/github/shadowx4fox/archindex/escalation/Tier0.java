@@ -33,7 +33,10 @@ public final class Tier0 {
 
 	public static final String WONT_FIX = "Won't Fix";
 
-	/** {@code tdr-check.js} STATUSES and DRIVERS. */
+	/**
+	 * {@code tdr-check.js} STATUSES and DRIVERS as of the plugin's v10.7.0, for a release exported before v10.7.1, which
+	 * lists neither; a newer release names its own ({@code support.tdr_statuses}, {@code support.tdr_drivers}).
+	 */
 	public static final List<String> STATUSES = List.of("Open", "Planned", "In Progress", "Resolved", WONT_FIX);
 
 	public static final List<String> DRIVERS = List.of("Strategy", "Architecture", "Talent", "Process");
@@ -72,8 +75,11 @@ public final class Tier0 {
 	public record Kind(String label, List<String> required, boolean evidence) {
 	}
 
-	/** {@code support.tier0_kinds} and {@code support.tdr_moves}, as the bundle lists them. */
-	public record Policy(Map<String, Kind> kinds, Map<String, List<String>> moves) {
+	/**
+	 * {@code support.tier0_kinds}, {@code support.tdr_moves}, {@code support.tdr_statuses} and
+	 * {@code support.tdr_drivers}, as the bundle lists them.
+	 */
+	public record Policy(Map<String, Kind> kinds, Map<String, List<String>> moves, List<String> statuses, List<String> drivers) {
 
 		public static Policy of(Map<String, Object> support) {
 			Map<String, Kind> kinds = new LinkedHashMap<>();
@@ -84,7 +90,11 @@ public final class Tier0 {
 			});
 			Map<String, List<String>> moves = new LinkedHashMap<>();
 			J.map(support, "tdr_moves").forEach((k, v) -> moves.put(k, v instanceof List<?> l ? l.stream().map(String::valueOf).toList() : List.of()));
-			return new Policy(kinds, moves);
+			return new Policy(kinds, moves, listed(support, "tdr_statuses", STATUSES), listed(support, "tdr_drivers", DRIVERS));
+		}
+
+		private static List<String> listed(Map<String, Object> support, String key, List<String> before) {
+			return support.get(key) instanceof List<?> l && !l.isEmpty() ? l.stream().map(String::valueOf).toList() : before;
 		}
 
 	}
@@ -118,8 +128,8 @@ public final class Tier0 {
 			if (truthy(tdr) && !TDR_ID.matcher(string(tdr)).matches()) {
 				errors.add("fields.tdr \"" + string(tdr) + "\" is not a TDR id");
 			}
-			if (truthy(to) && !(to instanceof String s && STATUSES.contains(s))) {
-				errors.add("fields.to \"" + string(to) + "\" is not a status — one of " + String.join(" · ", STATUSES));
+			if (truthy(to) && !(to instanceof String s && p.statuses().contains(s))) {
+				errors.add("fields.to \"" + string(to) + "\" is not a status — one of " + String.join(" · ", p.statuses()));
 			}
 			if ("Planned".equals(to) && !DATE.matcher(string(truthy(f.get("target_date")) ? f.get("target_date") : "")).matches()) {
 				errors.add("a move to Planned needs fields.target_date (YYYY-MM-DD)");
@@ -129,8 +139,8 @@ public final class Tier0 {
 			}
 		}
 		Object driver = f.get("driver");
-		if ("tdr-workaround".equals(r.kind()) && truthy(driver) && !(driver instanceof String s && DRIVERS.contains(s))) {
-			errors.add("fields.driver \"" + string(driver) + "\" is not one of " + String.join(" · ", DRIVERS));
+		if ("tdr-workaround".equals(r.kind()) && truthy(driver) && !(driver instanceof String s && p.drivers().contains(s))) {
+			errors.add("fields.driver \"" + string(driver) + "\" is not one of " + String.join(" · ", p.drivers()));
 		}
 		if ("doc-fix".equals(r.kind())) {
 			Object file = f.get("file");
@@ -197,13 +207,13 @@ public final class Tier0 {
 
 	/** {@code tdr-check.js move}: null when the arrow is allowed, otherwise why not. */
 	static String move(Policy p, String from, String to) {
-		String f = canon(from);
-		String t = canon(to);
+		String f = canon(p, from);
+		String t = canon(p, to);
 		if (f == null) {
 			return "`" + from + "` is not a status";
 		}
 		if (t == null) {
-			return "`" + to + "` is not a status — one of " + String.join(" · ", STATUSES);
+			return "`" + to + "` is not a status — one of " + String.join(" · ", p.statuses());
 		}
 		if (f.equals(t)) {
 			return "already `" + t + "`";
@@ -220,8 +230,8 @@ public final class Tier0 {
 				+ (moves.isEmpty() ? "none (terminal)" : String.join(", ", moves.stream().map((x) -> "`" + x + "`").toList()));
 	}
 
-	private static String canon(String s) {
-		return STATUSES.stream().filter((x) -> x.equalsIgnoreCase(s)).findFirst().orElse(null);
+	private static String canon(Policy p, String s) {
+		return p.statuses().stream().filter((x) -> x.equalsIgnoreCase(s)).findFirst().orElse(null);
 	}
 
 	/** {@code issueTitle}, {@code labelsOf} and {@code issueBody}. */

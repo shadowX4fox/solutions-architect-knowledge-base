@@ -240,7 +240,9 @@ URL), joined on the `preview_id` — the count of escalations per team, with no 
 ### Tier 0 requests
 
 From plugin v10.7.0 a RUN-team release lists its Tier 0 kinds (`support.tier0_kinds`, each with its label, its required
-fields and whether it needs evidence) and the TDR status moves (`support.tdr_moves`). A workaround recorded as a TDR
+fields and whether it needs evidence) and the TDR status moves (`support.tdr_moves`); from v10.7.1 it also names the TDR
+statuses and drivers (`support.tdr_statuses`, `support.tdr_drivers`) — a release exported with v10.7.0 is read with that
+version's lists. A workaround recorded as a TDR
 (`tdr-workaround`), a TDR status move (`tdr-status`), a project ADR in `Proposed` (`adr-proposed`) or a doc fix that
 changes no fact (`doc-fix`) is requested, never made from the service repository:
 
