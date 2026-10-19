@@ -201,6 +201,17 @@ class ServerTest {
 	}
 
 	@Test
+	@Order(2)
+	void theEscalationRequestIsTheTaskNotTheConsent() throws Exception {
+		initialize();
+		Map<String, Object> preview = J.maps(J.map(rpc("tools/list", Map.of()), "result"), "tools").stream()
+			.filter((t) -> "preview_escalation".equals(J.str(t, "name"))).findFirst().orElseThrow();
+		Map<String, Object> request = J.map(J.map(J.map(preview, "inputSchema"), "properties"), "request");
+		assertThat(J.str(request, "description")).contains("What the developer asked to build or change, in their words",
+				"the task that led to the escalation", "Never their answer to a question of yours", "a yes to escalate is not the request");
+	}
+
+	@Test
 	@Order(3)
 	void exactAnswersComeFromTheLedger() throws Exception {
 		String listed = J.str(tool("list_projects", Map.of()), "text");
