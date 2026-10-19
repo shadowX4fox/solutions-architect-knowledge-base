@@ -10,7 +10,7 @@
 	</parent>
 	<groupId>io.github.shadowx4fox</groupId>
 	<artifactId>architecture-index-server</artifactId>
-	<version>0.2.0</version>
+	<version>0.2.1</version>
 	<name>architecture-index-server</name>
 	<description>Architecture MCP server: loads sa-index/1 bundles, answers search, ledger, build-pack and what-changed tools</description>
 	<url>https://github.com/shadowX4fox/solutions-architect-knowledge-base</url>
