@@ -1,8 +1,8 @@
 {
  "schema": "sa-index/1",
  "generator": "sa-delivery:architecture-index-export",
- "generator_version": "10.4.3",
- "generated_at": "2026-10-17T19:48:33.051Z",
+ "generator_version": "10.7.0",
+ "generated_at": "2026-10-19T18:03:06.088Z",
  "project": {
   "key": "order-desk",
   "name": "Order Desk"
@@ -16,9 +16,9 @@
  },
  "channel": "released",
  "git": {
-  "sha": "479eabba15f2082dae51b7b0f2c2dd803ca6a90b",
+  "sha": "4fe1dac6bc87dd5146849c59941db9dcd66579c0",
   "tag": "architecture-v1.4.0",
-  "tag_sha": "479eabba15f2082dae51b7b0f2c2dd803ca6a90b",
+  "tag_sha": "4fe1dac6bc87dd5146849c59941db9dcd66579c0",
   "at_tag": true,
   "matches_tag": true,
   "dirty": false
@@ -33,36 +33,6 @@
    "adr-proposed",
    "doc-fix"
   ],
-  "tier0_kinds": {
-   "tdr-workaround": {
-    "label": "a workaround recorded as a new TDR",
-    "required": ["description", "impact", "solutions", "owner_technical"],
-    "evidence": true
-   },
-   "tdr-status": {
-    "label": "a TDR status move",
-    "required": ["tdr", "to", "note"],
-    "evidence": true
-   },
-   "adr-proposed": {
-    "label": "a project ADR in Proposed",
-    "required": ["context", "decision", "consequences"],
-    "evidence": false
-   },
-   "doc-fix": {
-    "label": "a doc fix that changes no fact",
-    "required": ["file", "line", "before", "after"],
-    "evidence": false
-   }
-  },
-  "tdr_moves": {
-   "Open": ["Planned", "In Progress", "Won't Fix"],
-   "Planned": ["In Progress", "Open", "Won't Fix"],
-   "In Progress": ["Resolved", "Planned", "Won't Fix"],
-   "Resolved": ["Open"],
-   "Won't Fix": []
-  },
-  "tier0_open": [],
   "triggers": {
    "new-integration": "a new external integration",
    "data-classification": "a data classification change",
@@ -76,6 +46,62 @@
    "tier-1": "Tier 1 — SA office hours",
    "tier-2": "Tier 2 — design authority (CHANGE work)"
   },
+  "tier0_kinds": {
+   "tdr-workaround": {
+    "label": "a workaround recorded as a new TDR",
+    "required": [
+     "description",
+     "impact",
+     "solutions",
+     "owner_technical"
+    ],
+    "evidence": true
+   },
+   "tdr-status": {
+    "label": "a TDR status move tdr-check.js --move accepts, with its dated History note",
+    "required": [
+     "tdr",
+     "to",
+     "note"
+    ],
+    "evidence": true
+   },
+   "adr-proposed": {
+    "label": "a project ADR (101+) written with status Proposed",
+    "required": [
+     "context",
+     "decision",
+     "consequences"
+    ],
+    "evidence": false
+   },
+   "doc-fix": {
+    "label": "a wording, typo or link fix in docs/ that changes no fact — no value, name, id, integration, technology, decision or status",
+    "required": [
+     "file",
+     "line",
+     "before",
+     "after"
+    ],
+    "evidence": false
+   }
+  },
+  "tdr_moves": {
+   "Planned": [
+    "In Progress",
+    "Open"
+   ],
+   "Open": [
+    "In Progress",
+    "Won't Fix"
+   ],
+   "In Progress": [
+    "Resolved"
+   ],
+   "Resolved": [],
+   "Won't Fix": []
+  },
+  "tier0_label": "architecture-tier0",
   "escalations_open": [
    {
     "id": "ESC-001",
@@ -137,8 +163,8 @@
  "files": [
   {
    "path": "buildpacks/hub-api/BUILD.md",
-   "bytes": 7942,
-   "sha256": "5791cab9a0fde8f178ffd55e83d7c316abdc6a21e486837f90552b60b65faf10"
+   "bytes": 10245,
+   "sha256": "da1560f129b6a26e6862eb16fc39ff1815d0e57263f74550c4cdc6c81948a6ee"
   },
   {
    "path": "buildpacks/hub-api/adrs/ADR-012-service-mesh.md",
@@ -182,8 +208,8 @@
   },
   {
    "path": "buildpacks/hub-api/pack.json",
-   "bytes": 6193,
-   "sha256": "57bffabd9599002b98b65df9c2a91c40f5f730890d7bac51ef305d12e54c75aa"
+   "bytes": 6194,
+   "sha256": "14e692c57c01c2b49c6c73b8049fad98bece541aacd0e50fe6f3bebfd3988547"
   },
   {
    "path": "buildpacks/hub-api/runtime-view.md",
@@ -203,7 +229,7 @@
   {
    "path": "changes.json",
    "bytes": 4187,
-   "sha256": "25aa408c0cb64b3a085ab89687904fd69e2924556bc51059a32c89d3eb1ffa14"
+   "sha256": "6399f73ba1853f3c52e4d6544d0f051752b5f9f17d94a62ea3e4b3d22da277fc"
   },
   {
    "path": "chunks.jsonl",

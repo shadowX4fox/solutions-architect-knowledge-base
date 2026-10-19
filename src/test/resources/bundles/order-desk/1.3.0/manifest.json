@@ -1,8 +1,8 @@
 {
  "schema": "sa-index/1",
  "generator": "sa-delivery:architecture-index-export",
- "generator_version": "10.4.3",
- "generated_at": "2026-10-17T19:48:33.039Z",
+ "generator_version": "10.7.0",
+ "generated_at": "2026-10-19T18:03:06.075Z",
  "project": {
   "key": "order-desk",
   "name": "Order Desk"
@@ -16,9 +16,9 @@
  },
  "channel": "released",
  "git": {
-  "sha": "2d82479635447eb4acba8b772aafd2d1ac253125",
+  "sha": "f9e7362f70c20ad35cb15e59881a88d5014d6c67",
   "tag": "architecture-v1.3.0",
-  "tag_sha": "d17083d88f7ac0dea71785cee7654b97a13737ac",
+  "tag_sha": "ee73de73fba2636e1263dd7bd9f78c79c4bdc3e7",
   "at_tag": false,
   "matches_tag": true,
   "dirty": false
@@ -46,6 +46,62 @@
    "tier-1": "Tier 1 — SA office hours",
    "tier-2": "Tier 2 — design authority (CHANGE work)"
   },
+  "tier0_kinds": {
+   "tdr-workaround": {
+    "label": "a workaround recorded as a new TDR",
+    "required": [
+     "description",
+     "impact",
+     "solutions",
+     "owner_technical"
+    ],
+    "evidence": true
+   },
+   "tdr-status": {
+    "label": "a TDR status move tdr-check.js --move accepts, with its dated History note",
+    "required": [
+     "tdr",
+     "to",
+     "note"
+    ],
+    "evidence": true
+   },
+   "adr-proposed": {
+    "label": "a project ADR (101+) written with status Proposed",
+    "required": [
+     "context",
+     "decision",
+     "consequences"
+    ],
+    "evidence": false
+   },
+   "doc-fix": {
+    "label": "a wording, typo or link fix in docs/ that changes no fact — no value, name, id, integration, technology, decision or status",
+    "required": [
+     "file",
+     "line",
+     "before",
+     "after"
+    ],
+    "evidence": false
+   }
+  },
+  "tdr_moves": {
+   "Planned": [
+    "In Progress",
+    "Open"
+   ],
+   "Open": [
+    "In Progress",
+    "Won't Fix"
+   ],
+   "In Progress": [
+    "Resolved"
+   ],
+   "Resolved": [],
+   "Won't Fix": []
+  },
+  "tier0_label": "architecture-tier0",
   "escalations_open": []
  },
  "embedding": {
@@ -93,8 +149,8 @@
  "files": [
   {
    "path": "buildpacks/hub-api/BUILD.md",
-   "bytes": 8046,
-   "sha256": "a3c0050ae941dd20c88dd01ab146d04eec886fff27294012c0d0bcb7dbe2b524"
+   "bytes": 10349,
+   "sha256": "0a5d84616e77d06c32f9a8fc0de961befb546f31413fa4faf72638d34c166eee"
   },
   {
    "path": "buildpacks/hub-api/adrs/ADR-012-service-mesh.md",
@@ -138,8 +194,8 @@
   },
   {
    "path": "buildpacks/hub-api/pack.json",
-   "bytes": 6296,
-   "sha256": "b2753d9ca68d87670d52f8a4e230a08a900bb9cea8dbc1b115df13165b8f5ad1"
+   "bytes": 6297,
+   "sha256": "a93a66982ddb4bcf2cb0a620f879d83555f2125e4e26b7b77d3bb772b3182523"
   },
   {
    "path": "buildpacks/hub-api/runtime-view.md",
