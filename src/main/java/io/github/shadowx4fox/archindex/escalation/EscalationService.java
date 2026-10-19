@@ -147,7 +147,9 @@ public class EscalationService {
 		return settings.target(project)
 			.orElseThrow(() -> new ToolException("this server files no escalations for " + project
 					+ ": its git host is not configured (archindex.escalation). Tell the user to raise it with the SA office "
-					+ "hours directly, with the request, the triggers and their evidence."));
+					+ "hours directly, with the request, the triggers and their evidence. "
+					+ "If the escalation is a question that blocks the build, hand the user the same questions, each with its "
+					+ "build-pack part and line, for the architects."));
 	}
 
 	/** A URL on the target's host and repository (Azure DevOps: its organization, also as org.visualstudio.com). */
