@@ -33,6 +33,9 @@ public final class Tier0 {
 
 	public static final String WONT_FIX = "Won't Fix";
 
+	/** {@code supervision}: a build no person attends files without the key; a person applies it. */
+	public static final String UNATTENDED = "unattended";
+
 	/**
 	 * {@code tdr-check.js} STATUSES and DRIVERS as of the plugin's v10.7.0, for a release exported before v10.7.1, which
 	 * lists neither; a newer release names its own ({@code support.tdr_statuses}, {@code support.tdr_drivers}).
@@ -55,9 +58,12 @@ public final class Tier0 {
 	public record Evidence(String where, String note) {
 	}
 
-	/** What {@code tier0.js render} takes ({@code request.json}), as the agent sent it. */
+	/**
+	 * What {@code tier0.js render} takes ({@code request.json}), as the agent sent it; {@code supervision} is
+	 * {@code "unattended"} for a build no person attends, otherwise attended.
+	 */
 	public record Request(String kind, String title, String request, List<String> components, String requestedBy,
-			List<Evidence> evidence, Map<String, Object> fields) {
+			List<Evidence> evidence, Map<String, Object> fields, String supervision) {
 
 		public Request {
 			components = components == null ? List.of() : components;
@@ -65,8 +71,18 @@ public final class Tier0 {
 			fields = fields == null ? Map.of() : fields;
 		}
 
+		public Request(String kind, String title, String request, List<String> components, String requestedBy,
+				List<Evidence> evidence, Map<String, Object> fields) {
+			this(kind, title, request, components, requestedBy, evidence, fields, null);
+		}
+
 		public Request withComponents(List<String> c) {
-			return new Request(kind, title, request, c, requestedBy, evidence, fields);
+			return new Request(kind, title, request, c, requestedBy, evidence, fields, supervision);
+		}
+
+		/** {@code unattended}: {@code req.supervision === 'unattended'}. */
+		public boolean unattended() {
+			return UNATTENDED.equals(supervision);
 		}
 
 	}
@@ -237,7 +253,7 @@ public final class Tier0 {
 	/** {@code issueTitle}, {@code labelsOf} and {@code issueBody}. */
 	public static Escalate.Issue issue(Request r, Policy p, String architecture) {
 		return new Escalate.Issue("[" + UNNUMBERED + "] " + Escalate.trim(string(r.title())),
-				List.of(LABEL, "tier0:" + r.kind()), body(r, p, architecture));
+				r.unattended() ? List.of("tier0:" + r.kind()) : List.of(LABEL, "tier0:" + r.kind()), body(r, p, architecture));
 	}
 
 	static String body(Request r, Policy p, String architecture) {
@@ -262,8 +278,12 @@ public final class Tier0 {
 			.toList();
 		w.addAll(ev.isEmpty() ? List.of("- None.") : ev);
 		w.addAll(List.of("", "## Fields", "", fence(fields) + "json", fields, fence(fields), ""));
-		w.add("_Tier 0: the architecture repository writes it once the issue carries the label `" + LABEL
-				+ "` (architecture-tier0.yml); a request that is no Tier 0 write is refused there, with the reason._");
+		w.add(r.unattended()
+				? "_Tier 0, filed by an unattended build agent: a person reviews it and applies the label `" + LABEL
+						+ "` — that is the approval; the architecture repository then writes it (architecture-tier0.yml), and a "
+						+ "request that is no Tier 0 write is refused there, with the reason._"
+				: "_Tier 0: the architecture repository writes it once the issue carries the label `" + LABEL
+						+ "` (architecture-tier0.yml); a request that is no Tier 0 write is refused there, with the reason._");
 		w.add("<!-- sa-tier0 -->");
 		w.add("");
 		return String.join("\n", w);

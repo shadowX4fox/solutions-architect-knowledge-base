@@ -106,6 +106,29 @@ class EscalationTest {
 	}
 
 	@Test
+	void anUnattendedBuildFilesTheSameIssueWithItsOwnIdentity() {
+		EscalationService s = service(bundles("1.4.0"), GITHUB);
+		Map<String, Object> attended = s.preview("order-desk", request(null, "Hub API"));
+		Map<String, Object> u = s.preview("order-desk", request(null, "Hub API"), "unattended");
+		// the issue, its labels and its commands are the same: an escalation writes nothing, so it needs no approval
+		assertThat(u.get("issue")).isEqualTo(attended.get("issue"));
+		assertThat(u.get("preview_id")).isEqualTo(attended.get("preview_id"));
+		assertThat(argv(J.map(u, "file_with"), "create")).isEqualTo(argv(J.map(attended, "file_with"), "create"));
+		// who files and where it is told: the build's own identity, its pull request — no user to ask
+		assertThat(J.strings(J.map(u, "file_with"), "steps")).anySatisfy((x) -> assertThat(x).contains("this build's own identity"))
+			.allSatisfy((x) -> assertThat(x).doesNotContain("the user").doesNotContain("the developer"))
+			.last().asString().contains("list the issue in your pull request");
+		assertThat(J.str(u, "next")).contains("Nobody attends this build").doesNotContain("Show the user");
+		assertThat(J.strings(J.map(s.preview("order-desk", request(null, "Hub API"), " attended "), "file_with"), "steps"))
+			.isEqualTo(J.strings(J.map(attended, "file_with"), "steps"));
+		Map<String, Object> gitea = J.map(service(bundles("1.4.0"), new Target("order-desk", GitHost.GITEA, "acme/arch", "git.acme.test", null))
+			.preview("order-desk", request(null, "Hub API"), "unattended"), "file_with");
+		assertThat(J.map(J.map(J.map(gitea, "create"), "request"), "headers").get("Authorization").toString()).contains("this build's own identity");
+		assertThatThrownBy(() -> s.preview("order-desk", request(null, "Hub API"), "nobody")).isInstanceOf(ToolException.class)
+			.hasMessageContaining("supervision is \"attended\" (the default) or \"unattended\"");
+	}
+
+	@Test
 	void eachHostGetsItsOwnCommands() {
 		Bundles b = bundles("1.4.0");
 		Map<String, Object> gl = J.map(service(b, new Target("order-desk", GitHost.GITLAB, "acme/arch/order-desk", "gitlab.acme.test", null))

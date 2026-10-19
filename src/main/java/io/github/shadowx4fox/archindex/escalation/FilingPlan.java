@@ -12,7 +12,8 @@ import io.github.shadowx4fox.archindex.mcp.ToolException;
  * How the agent files an escalation issue with the developer's own access — the plugin's {@code issuePlan} for the
  * project's target: first the open escalation issues to check (this preview filed already, or another covering the
  * same request), then the command that opens it. The body goes through a file, byte for byte, where the tool takes one
- * ({@code <body-file>}); Azure DevOps takes the description only as an argument, as HTML.
+ * ({@code <body-file>}); Azure DevOps takes the description only as an argument, as HTML. A build no person attends
+ * ({@code supervision: "unattended"}) files with its own identity and lists the issue in its pull request.
  */
 final class FilingPlan {
 
@@ -35,11 +36,24 @@ final class FilingPlan {
 
 	}
 
-	static Map<String, Object> of(Target t, Escalate.Issue issue, String body, String fingerprint) {
-		return of(t, issue, body, fingerprint, Flavor.ESCALATION);
+	/** {@code supervision}: {@code "attended"} (the default, also when unset) or {@code "unattended"}. */
+	static boolean unattended(String supervision) {
+		String s = supervision == null ? "" : supervision.strip();
+		if (s.isEmpty() || "attended".equals(s)) {
+			return false;
+		}
+		if (Tier0.UNATTENDED.equals(s)) {
+			return true;
+		}
+		throw new ToolException("supervision is \"attended\" (the default) or \"unattended\" (a build no person attends), not '"
+				+ supervision + "'");
 	}
 
-	static Map<String, Object> of(Target t, Escalate.Issue issue, String body, String fingerprint, Flavor f) {
+	static Map<String, Object> of(Target t, Escalate.Issue issue, String body, String fingerprint, boolean unattended) {
+		return of(t, issue, body, fingerprint, Flavor.ESCALATION, unattended);
+	}
+
+	static Map<String, Object> of(Target t, Escalate.Issue issue, String body, String fingerprint, Flavor f, boolean unattended) {
 		if (t.host() == null || t.repository() == null || t.repository().isBlank() || t.server() == null) {
 			throw new ToolException("the " + f.noun() + " target of " + t.project()
 					+ " is incomplete on this server: it needs host, repository and, for Gitea, server");
@@ -69,7 +83,7 @@ final class FilingPlan {
 			}
 			case GITEA -> {
 				String api = "https://" + t.server() + "/api/v1/repos/" + t.repository();
-				Map<String, Object> auth = Map.of("Authorization", "token <a Gitea token of the developer's, with issue write access>");
+				Map<String, Object> auth = Map.of("Authorization", "token <a Gitea token of " + (unattended ? "this build's own identity" : "the developer's") + ", with issue write access>");
 				m.put("check_first", request("GET", api + "/issues?state=open&type=issues&limit=50", auth, null));
 				m.put("labels_first", request("GET", api + "/labels?limit=50", auth, null));
 				Map<String, Object> post = new LinkedHashMap<>();
@@ -97,11 +111,20 @@ final class FilingPlan {
 				m.put("issue_url", "_links.html.href in the answer, else " + org + "/" + project + "/_workitems/edit/<id>");
 			}
 		}
-		m.put("steps", List.of(
-				"Run check_first. " + (f.fingerprinted() ? "An open issue whose body holds " + fingerprint : "An open issue with this title and this body") + " is this " + f.noun() + ", filed already: give the user its URL and file nothing. An open " + f.titlePrefix() + "…] issue that covers the same request is a duplicate: tell the user and file nothing.",
-				"Write issue.body to a file in the system temp directory, byte for byte, and put its path where create says " + BODY_FILE + ".",
-				"Run create, with each argument passed as it is (quote it for the shell, never retype it). If the developer cannot write issues on " + t.repository() + ", or the tool is not installed or logged in, say so and give them the title and the body to file by hand.",
-				"Call " + f.recordTool() + " with the project, this preview_id and the issue's URL."));
+		String same = "Run check_first. " + (f.fingerprinted() ? "An open issue whose body holds " + fingerprint : "An open issue with this title and this body") + " is this " + f.noun() + ", filed already: ";
+		String dup = "An open " + f.titlePrefix() + "…] issue that covers the same request is a duplicate: ";
+		String write = "Write issue.body to a file in the system temp directory, byte for byte, and put its path where create says " + BODY_FILE + ".";
+		String argv = "Run create, with each argument passed as it is (quote it for the shell, never retype it)";
+		m.put("steps", unattended
+				? List.of(same + "list its URL in your pull request and file nothing. " + dup + "say so in your pull request and file nothing.",
+						write,
+						argv + ", with this build's own identity" + (f == Flavor.TIER0 ? "; never add the label " + Tier0.LABEL + ": a person applies it, and that is the approval" : "")
+								+ ". If that identity cannot write issues on " + t.repository() + ", or the tool is not installed or logged in, put the title and the body in your pull request for a person to file.",
+						"Call " + f.recordTool() + " with the project, this preview_id and the issue's URL, and list the issue in your pull request.")
+				: List.of(same + "give the user its URL and file nothing. " + dup + "tell the user and file nothing.",
+						write,
+						argv + ". If the developer cannot write issues on " + t.repository() + ", or the tool is not installed or logged in, say so and give them the title and the body to file by hand.",
+						"Call " + f.recordTool() + " with the project, this preview_id and the issue's URL."));
 		return m;
 	}
 

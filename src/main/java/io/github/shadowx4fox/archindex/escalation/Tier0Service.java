@@ -49,6 +49,11 @@ public class Tier0Service {
 					+ "exported before the plugin's v10.7.0 — re-export and publish it");
 		}
 		Target target = target(b.projectKey());
+		boolean unattended = FilingPlan.unattended(request.supervision());
+		if (unattended) {
+			request = new Tier0.Request(request.kind(), request.title(), request.request(), request.components(),
+					request.requestedBy(), request.evidence(), request.fields(), Tier0.UNATTENDED);
+		}
 		List<String> warnings = new ArrayList<>();
 		List<String> errors = new ArrayList<>(Tier0.validate(request, policy));
 		errors.addAll(Tier0.oneLine(request));
@@ -91,12 +96,18 @@ public class Tier0Service {
 		out.put("preview_id", fingerprint);
 		out.put("issue", Map.of("title", issue.title(), "labels", issue.labels(), "body", issue.body()));
 		out.put("warnings", warnings);
-		out.put("file_with", FilingPlan.of(target, issue, issue.body(), fingerprint, FilingPlan.Flavor.TIER0));
-		out.put("next", "Nothing has been written, and nothing is written in this repository: the architecture repository "
-				+ "writes the record once the issue is filed. Show the user this issue as it stands — title, labels and body — "
-				+ "with the warnings, and ask whether to file it. Only after the user says yes, follow file_with.steps.");
-		audit.info("tier0 preview project={} version={} kind={} requested_by=\"{}\" preview_id={}", b.projectKey(), b.version(),
-				req.kind(), req.requestedBy() == null ? "" : req.requestedBy(), fingerprint);
+		out.put("file_with", FilingPlan.of(target, issue, issue.body(), fingerprint, FilingPlan.Flavor.TIER0, unattended));
+		out.put("next", unattended
+				? "Nothing has been written, and nothing is written in this repository. Nobody attends this build: follow "
+						+ "file_with.steps with this build's own identity, then list the issue in your pull request. The issue "
+						+ "carries no " + Tier0.LABEL + " label: a person reviews the request and applies it, and that is the "
+						+ "approval — never apply it yourself. The architecture repository then writes the record."
+				: "Nothing has been written, and nothing is written in this repository: the architecture repository "
+						+ "writes the record once the issue is filed. Show the user this issue as it stands — title, labels and body — "
+						+ "with the warnings, and ask whether to file it. Only after the user says yes, follow file_with.steps.");
+		audit.info("tier0 preview project={} version={} kind={} requested_by=\"{}\" supervision={} preview_id={}", b.projectKey(),
+				b.version(), req.kind(), req.requestedBy() == null ? "" : req.requestedBy(), unattended ? "unattended" : "attended",
+				fingerprint);
 		return out;
 	}
 

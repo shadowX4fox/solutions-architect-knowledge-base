@@ -259,6 +259,20 @@ The architecture repository writes the record (`architecture-tier0.yml`), checki
 Tier 0 write is refused there, with the reason. The body is the plugin's byte for byte, so it carries no fingerprint:
 the agent finds a request filed already by its title and body.
 
+### Unattended builds
+
+A build no person attends — a CI job, a platform's build agent — declares `"supervision": "unattended"` in the service
+repository's `.architecture.json` (plugin v10.10.0), and its agent passes `supervision: "unattended"` to both previews
+(`"attended"`, the default, otherwise; any other value is refused). Nobody says yes, so:
+
+- **`preview_tier0`** renders the issue as `tier0.js` does for an unattended request: the label `tier0:<kind>` only,
+  never `architecture-tier0`, and a footer saying a person reviews it and applies the label — that is the approval.
+  `file_with` adds no `architecture-tier0`, and the agent never applies it. The architecture repository refuses the label
+  from a bot or an account in `SA_TIER0_AGENTS` regardless.
+- **`preview_escalation`** renders the same issue: an escalation writes nothing, so it is filed without a yes.
+- **Either way,** `file_with` is followed with the build's own identity, and the issue is listed in the build's pull
+  request, where a person reviews the work.
+
 ---
 
 ## Deploy

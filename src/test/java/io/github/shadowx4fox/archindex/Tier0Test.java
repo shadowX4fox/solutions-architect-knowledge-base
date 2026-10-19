@@ -47,7 +47,8 @@ class Tier0Test {
 		List<Tier0.Evidence> evidence = r.get("evidence") == null ? null
 				: J.list(r, "evidence").stream().map((e) -> e == null ? null : new Tier0.Evidence(J.str(e, "where"), J.str(e, "note"))).toList();
 		return new Tier0.Request(J.str(r, "kind"), J.str(r, "title"), J.str(r, "request"),
-				r.get("components") == null ? null : J.strings(r, "components"), J.str(r, "requested_by"), evidence, J.map(r, "fields"));
+				r.get("components") == null ? null : J.strings(r, "components"), J.str(r, "requested_by"), evidence, J.map(r, "fields"),
+				J.str(r, "supervision"));
 	}
 
 	@Test
@@ -55,7 +56,8 @@ class Tier0Test {
 		Tier0.Policy p = Tier0.Policy.of(support());
 		Map<String, Object> g = golden();
 		List<Map<String, Object>> cases = J.maps(g, "cases");
-		assertThat(cases).extracting((c) -> c.get("name")).contains("tdr-workaround", "tdr-status", "adr-proposed", "doc-fix", "every-edge");
+		assertThat(cases).extracting((c) -> c.get("name"))
+			.contains("tdr-workaround", "tdr-status", "adr-proposed", "doc-fix", "every-edge", "unattended", "attended");
 		for (Map<String, Object> c : cases) {
 			Tier0.Request req = request(J.map(c, "request"));
 			assertThat(Tier0.validate(req, p)).as(J.str(c, "name")).isEmpty();
@@ -188,6 +190,31 @@ class Tier0Test {
 		assertThatThrownBy(() -> s.preview("order-desk", new Tier0.Request("big-bang", "t", "r", null, null, null, null)))
 			.isInstanceOf(ToolException.class)
 			.hasMessageContaining("kind \"big-bang\" is not a Tier 0 write — one of tdr-workaround, tdr-status, adr-proposed, doc-fix");
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void anUnattendedBuildFilesWithoutTheKey() throws Exception {
+		Tier0Service s = service((x) -> {
+		});
+		Tier0.Request r = move("TDR-001", "In Progress");
+		Tier0.Request u = new Tier0.Request(r.kind(), r.title(), r.request(), r.components(), r.requestedBy(), r.evidence(), r.fields(),
+				" unattended ");
+		Map<String, Object> attended = s.preview("order-desk", r);
+		Map<String, Object> p = s.preview("order-desk", u);
+		Map<String, Object> issue = (Map<String, Object>) p.get("issue");
+		// tier0.js for supervision unattended: only tier0:<kind>, its own footer; the rest of the body as attended
+		assertThat(J.strings(issue, "labels")).containsExactly("tier0:tdr-status");
+		assertThat(J.str(issue, "body")).contains("_Tier 0, filed by an unattended build agent: a person reviews it and applies the label `architecture-tier0` — that is the approval;");
+		String footer = "(?m)^_Tier 0[^\\n]*_$";
+		assertThat(J.str(issue, "body").replaceAll(footer, "")).isEqualTo(J.str(J.map(attended, "issue"), "body").replaceAll(footer, ""));
+		List<String> create = (List<String>) J.map(J.map(p, "file_with"), "create").get("argv");
+		assertThat(create).containsSequence("--label", "tier0:tdr-status").doesNotContain("architecture-tier0");
+		assertThat((List<String>) J.map(J.map(attended, "file_with"), "create").get("argv")).containsSequence("--label", "architecture-tier0");
+		assertThat(J.strings(J.map(p, "file_with"), "steps")).anySatisfy((x) -> assertThat(x).contains("never add the label architecture-tier0"));
+		assertThat(J.str(p, "next")).contains("never apply it yourself", "list the issue in your pull request").doesNotContain("Show the user");
+		assertThatThrownBy(() -> s.preview("order-desk", new Tier0.Request(r.kind(), r.title(), r.request(), r.components(),
+				r.requestedBy(), r.evidence(), r.fields(), "Unattended"))).hasMessageContaining("supervision is \"attended\"");
 	}
 
 	@Test

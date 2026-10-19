@@ -61,9 +61,15 @@ public class EscalationService {
 	}
 
 	public Map<String, Object> preview(String project, Escalate.Request request) {
+		return preview(project, request, null);
+	}
+
+	/** {@code supervision}: {@code "unattended"} for a build no person attends — it files with its own identity. */
+	public Map<String, Object> preview(String project, Escalate.Request request, String supervision) {
 		Bundle b = bundles.bundle(project, null);
 		Map<String, Object> support = policyOf(b);
 		Target target = target(b.projectKey());
+		boolean unattended = FilingPlan.unattended(supervision);
 		Escalate.Policy policy = new Escalate.Policy(texts(support, "triggers"), texts(support, "routes"));
 		List<String> warnings = new ArrayList<>();
 		Escalate.Request req = request.withComponents(canonical(b, request.components(), warnings));
@@ -91,12 +97,18 @@ public class EscalationService {
 		out.put("issue", Map.of("title", issue.title(), "labels", issue.labels(), "body", body));
 		out.put("warnings", warnings);
 		out.put("open_in_release", J.maps(support, "escalations_open"));
-		out.put("file_with", FilingPlan.of(target, issue, body, fingerprint));
-		out.put("next", "Nothing has been written. Show the user this issue as it stands — title, labels and body — with "
+		out.put("file_with", FilingPlan.of(target, issue, body, fingerprint, unattended));
+		out.put("next", unattended
+				? "Nothing has been written. Nobody attends this build, and an escalation writes nothing, so it is filed without "
+						+ "a yes: unless open_in_release holds an escalation that covers the same request (a duplicate: file nothing, "
+						+ "and say so in your pull request), follow file_with.steps with this build's own identity, then list the "
+						+ "issue in your pull request."
+				: "Nothing has been written. Show the user this issue as it stands — title, labels and body — with "
 				+ "warnings and open_in_release (an escalation there that covers the same request is a duplicate: file "
 				+ "nothing), and ask whether to file it. Only after the user says yes, follow file_with.steps.");
-		audit.info("escalation preview project={} version={} route={} triggers={} requested_by=\"{}\" preview_id={}",
-				b.projectKey(), b.version(), req.route(), String.join(",", req.triggers()), req.requestedBy(), fingerprint);
+		audit.info("escalation preview project={} version={} route={} triggers={} requested_by=\"{}\" supervision={} preview_id={}",
+				b.projectKey(), b.version(), req.route(), String.join(",", req.triggers()), req.requestedBy(),
+				unattended ? "unattended" : "attended", fingerprint);
 		return out;
 	}
 
