@@ -1,8 +1,8 @@
 {
  "schema": "sa-index/1",
  "generator": "sa-delivery:architecture-index-export",
- "generator_version": "10.7.0",
- "generated_at": "2026-10-19T18:03:06.108Z",
+ "generator_version": "10.8.1",
+ "generated_at": "2026-10-19T21:30:49.338Z",
  "project": {
   "key": "order-desk",
   "name": "Order Desk"
@@ -16,9 +16,9 @@
  },
  "channel": "draft",
  "git": {
-  "sha": "e57dc3a7aa594cf678f64c474037ed8a47776886",
+  "sha": "1c67950fbdd088c06e20277147531d0f53caf9e1",
   "tag": "architecture-v1.4.0",
-  "tag_sha": "4fe1dac6bc87dd5146849c59941db9dcd66579c0",
+  "tag_sha": "9fe757f8d6ea1390e921b83e561a9c4264f6d756",
   "at_tag": false,
   "matches_tag": true,
   "dirty": true
@@ -101,6 +101,19 @@
    "Resolved": [],
    "Won't Fix": []
   },
+  "tdr_statuses": [
+   "Open",
+   "Planned",
+   "In Progress",
+   "Resolved",
+   "Won't Fix"
+  ],
+  "tdr_drivers": [
+   "Strategy",
+   "Architecture",
+   "Talent",
+   "Process"
+  ],
   "tier0_label": "architecture-tier0",
   "escalations_open": [
    {
@@ -228,13 +241,13 @@
   },
   {
    "path": "chunks.jsonl",
-   "bytes": 14792,
-   "sha256": "55c80ac33c2ffbfdc69e0d38f8f85e2e5407419094ce5062bfe9f091ef12784d"
+   "bytes": 14774,
+   "sha256": "73c8c538ec50e41938cd927139d15fc3c7fda1749b6eeded3c29c9b5f19acd0b"
   },
   {
    "path": "ledger.json",
-   "bytes": 6104,
-   "sha256": "dfe6b951cb8f245a60be8a62ea38611173bfaebc677da27232df574cc24e47c8"
+   "bytes": 6155,
+   "sha256": "e0a3d01e5f5ef97714798ed4875d5bb59871e1eaf54705a6a7c1a76c142a7aec"
   }
  ]
 }
