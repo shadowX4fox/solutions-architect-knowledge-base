@@ -138,6 +138,8 @@ Every capability is a tool, because every IDE client supports tools, while suppo
 | `what_changed` | bundles | what changed for a component since the version and `pack_revision` it was built against; `action_required` where code must move |
 | `preview_escalation` | release, ledger | a change that crosses a trigger, or a question only the architect can answer that blocks the build, as the issue it would open (`[ESC-?] …`), with the commands that file it; writes nothing |
 | `record_escalation` | — | the filed issue's URL, logged against its preview |
+| `preview_tier0` | release, ledger | a Tier 0 write (`tdr-workaround`, `tdr-status`, `adr-proposed`, `doc-fix`) requested, as the issue it would open (`[T0-?] …`, labels `architecture-tier0`, `tier0:<kind>`), with the commands that file it; the architecture repository writes the record. Writes nothing |
+| `record_tier0` | — | the filed request's URL, logged against its preview |
 
 Versions: omitted or `latest` is the newest released version; `draft` is the unreleased draft. A component with no build
 pack in the asked version is an error naming the reason and the versions that have one. The server never falls back to
@@ -210,7 +212,7 @@ sha256sum architecture/openapi.yaml
 ### Escalations
 
 A RUN team (`support.mode` is `run` in the release's manifest, plugin v10.3.0 and later) asks the released architecture
-from the IDE. An agent may make the writes under `support.tier0_writes` when nothing is in doubt. A change that crosses one
+from the IDE. The writes under `support.tier0_writes` are requested with `preview_tier0`, never made from the service repository: the architecture repository writes them (`architecture-tier0.yml`). A change that crosses one
 of `support.triggers` is not applied: it becomes an escalation for a human architect, filed as an issue on the
 architecture repository's git host. So does a question that blocks the build and only the architect can answer: a
 contract with nothing to implement, an interface whose authentication is not documented, a `Proposed` decision the code

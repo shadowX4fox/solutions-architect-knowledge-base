@@ -197,7 +197,18 @@ class ServerTest {
 		assertThat(names).containsExactlyInAnyOrder("list_projects", "get_architecture", "get_component", "list_integrations",
 				"list_flows", "get_flow", "list_decisions", "search_architecture", "get_chunk", "get_document", "get_build_pack",
 				"get_build_instructions", "get_build_part", "get_asset", "what_changed", "preview_escalation",
-				"record_escalation");
+				"record_escalation", "preview_tier0", "record_tier0");
+	}
+
+	@Test
+	@Order(2)
+	void tier0WritesAreRequestedNeverMadeFromTheServiceRepository() throws Exception {
+		initialize();
+		Map<String, Object> arch = J.maps(J.map(rpc("tools/list", Map.of()), "result"), "tools").stream()
+			.filter((t) -> "get_architecture".equals(J.str(t, "name"))).findFirst().orElseThrow();
+		assertThat(J.str(arch, "description")).contains("(tier0_writes), which are requested with preview_tier0 and never made "
+				+ "from the service repository, because the architecture repository writes them")
+			.doesNotContain("may make alone");
 	}
 
 	@Test
@@ -439,6 +450,91 @@ class ServerTest {
 		assertThat(r).containsEntry("id", "ESC-?");
 		assertThat(J.str(tool("record_escalation", Map.of("project", "order-desk", "preview_id", J.str(p, "preview_id"),
 				"url", "https://github.com/someone/else/issues/1"), true), "text")).contains("not an issue of acme/order-desk-architecture");
+	}
+
+	private Map<String, Object> tier0Args(String kind, Map<String, Object> fields) {
+		Map<String, Object> args = new java.util.LinkedHashMap<>();
+		args.put("project", "order-desk");
+		args.put("kind", kind);
+		args.put("title", "Hub API caches the stock lookup");
+		args.put("request", "build the stock lookup within its p95");
+		args.put("components", List.of("Hub API"));
+		args.put("requested_by", "Desk team");
+		args.put("evidence", List.of(Map.of("where", "hub-api@abc1234 internal/stock/cache.go:42", "note", "a 5-minute in-memory cache")));
+		args.put("fields", fields);
+		return args;
+	}
+
+	@Test
+	@Order(9)
+	void aTier0RequestIsThePluginsIssueByteForByte() throws Exception {
+		Map<String, Object> fields = new java.util.LinkedHashMap<>();
+		fields.put("description", "Hub API caches the stock lookup for 5 minutes.");
+		fields.put("impact", "A sold-out item shows as available for up to 5 minutes.");
+		fields.put("solutions", List.of("Push stock events from the warehouse"));
+		fields.put("owner_technical", "Desk team");
+		Map<String, Object> p = tool("preview_tier0", tier0Args("tdr-workaround", fields));
+		Map<String, Object> issue = J.map(p, "issue");
+		assertThat(J.str(issue, "title")).isEqualTo("[T0-?] Hub API caches the stock lookup");
+		assertThat(J.strings(issue, "labels")).containsExactly("architecture-tier0", "tier0:tdr-workaround");
+		assertThat(J.str(issue, "body")).isEqualTo("""
+				| | |
+				|---|---|
+				| Architecture | architecture-v1.4.0 |
+				| Kind | `tdr-workaround` — a workaround recorded as a new TDR |
+				| Requested by | Desk team |
+				| Components | Hub API |
+
+				## Request
+
+				```text
+				build the stock lookup within its p95
+				```
+
+				## Evidence
+
+				- hub-api@abc1234 internal/stock/cache.go:42 — a 5-minute in-memory cache
+
+				## Fields
+
+				```json
+				{
+				  "description": "Hub API caches the stock lookup for 5 minutes.",
+				  "impact": "A sold-out item shows as available for up to 5 minutes.",
+				  "solutions": [
+				    "Push stock events from the warehouse"
+				  ],
+				  "owner_technical": "Desk team"
+				}
+				```
+
+				_Tier 0: the architecture repository writes it once the issue carries the label `architecture-tier0` (architecture-tier0.yml); a request that is no Tier 0 write is refused there, with the reason._
+				<!-- sa-tier0 -->
+				""");
+		assertThat(J.str(J.map(p, "file_with"), "repository")).isEqualTo("acme/order-desk-architecture");
+		Map<String, Object> r = tool("record_tier0", Map.of("project", "order-desk", "preview_id", J.str(p, "preview_id"),
+				"url", "https://github.com/acme/order-desk-architecture/issues/42"));
+		assertThat(r).containsEntry("id", "T0-?");
+	}
+
+	@Test
+	@Order(9)
+	void aTier0RequestThePolicyRefusesIsNotPreviewed() throws Exception {
+		Map<String, Object> move = new java.util.LinkedHashMap<>();
+		move.put("tdr", "TDR-001");
+		move.put("to", "Resolved");
+		move.put("note", "fixed in the service");
+		assertThat(J.str(tool("preview_tier0", tier0Args("tdr-status", move), true), "text"))
+			.contains("TDR-001 is Open: Open → Resolved is not a move");
+		move.put("to", "Won't Fix");
+		assertThat(J.str(tool("preview_tier0", tier0Args("tdr-status", move), true), "text"))
+			.contains("the architect's decision");
+		move.put("tdr", "TDR-404");
+		assertThat(J.str(tool("preview_tier0", tier0Args("tdr-status", move), true), "text")).contains("TDR-404 is not a TDR");
+		assertThat(J.str(tool("preview_tier0", tier0Args("big-bang", Map.of()), true), "text")).contains("unknown kind \"big-bang\"");
+		Map<String, Object> args = tier0Args("doc-fix", Map.of("file", "docs/03-architecture-layers.md", "line", 4, "before", "a", "after", "b"));
+		args.put("components", List.of("Nowhere"));
+		assertThat(J.str(tool("preview_tier0", args, true), "text")).contains("component \"Nowhere\" is not a canonical name");
 	}
 
 }

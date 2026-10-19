@@ -33,6 +33,36 @@
    "adr-proposed",
    "doc-fix"
   ],
+  "tier0_kinds": {
+   "tdr-workaround": {
+    "label": "a workaround recorded as a new TDR",
+    "required": ["description", "impact", "solutions", "owner_technical"],
+    "evidence": true
+   },
+   "tdr-status": {
+    "label": "a TDR status move",
+    "required": ["tdr", "to", "note"],
+    "evidence": true
+   },
+   "adr-proposed": {
+    "label": "a project ADR in Proposed",
+    "required": ["context", "decision", "consequences"],
+    "evidence": false
+   },
+   "doc-fix": {
+    "label": "a doc fix that changes no fact",
+    "required": ["file", "line", "before", "after"],
+    "evidence": false
+   }
+  },
+  "tdr_moves": {
+   "Open": ["Planned", "In Progress", "Won't Fix"],
+   "Planned": ["In Progress", "Open", "Won't Fix"],
+   "In Progress": ["Resolved", "Planned", "Won't Fix"],
+   "Resolved": ["Open"],
+   "Won't Fix": []
+  },
+  "tier0_open": [],
   "triggers": {
    "new-integration": "a new external integration",
    "data-classification": "a data classification change",
