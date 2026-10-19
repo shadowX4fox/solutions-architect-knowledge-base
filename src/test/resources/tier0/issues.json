@@ -1,0 +1,527 @@
+{
+  "architecture": "architecture-v1.4.0",
+  "cases": [
+    {
+      "name": "tdr-workaround",
+      "request": {
+        "kind": "tdr-workaround",
+        "title": "Hub API caches the stock lookup",
+        "request": "build the stock lookup within its p95",
+        "components": [
+          "Hub API"
+        ],
+        "requested_by": "Desk team",
+        "evidence": [
+          {
+            "where": "hub-api@abc1234 internal/stock/cache.go:42",
+            "note": "a 5-minute in-memory cache"
+          }
+        ],
+        "fields": {
+          "description": "Hub API caches the stock lookup for 5 minutes.",
+          "impact": "A sold-out item shows as available for up to 5 minutes.",
+          "solutions": [
+            "Push stock events from the warehouse"
+          ],
+          "owner_technical": "Desk team"
+        }
+      },
+      "issue": {
+        "title": "[T0-?] Hub API caches the stock lookup",
+        "labels": [
+          "architecture-tier0",
+          "tier0:tdr-workaround"
+        ],
+        "body": "| | |\n|---|---|\n| Architecture | architecture-v1.4.0 |\n| Kind | `tdr-workaround` — a workaround recorded as a new TDR |\n| Requested by | Desk team |\n| Components | Hub API |\n\n## Request\n\n```text\nbuild the stock lookup within its p95\n```\n\n## Evidence\n\n- hub-api@abc1234 internal/stock/cache.go:42 — a 5-minute in-memory cache\n\n## Fields\n\n```json\n{\n  \"description\": \"Hub API caches the stock lookup for 5 minutes.\",\n  \"impact\": \"A sold-out item shows as available for up to 5 minutes.\",\n  \"solutions\": [\n    \"Push stock events from the warehouse\"\n  ],\n  \"owner_technical\": \"Desk team\"\n}\n```\n\n_Tier 0: the architecture repository writes it once the issue carries the label `architecture-tier0` (architecture-tier0.yml); a request that is no Tier 0 write is refused there, with the reason._\n<!-- sa-tier0 -->\n"
+      },
+      "read_back": {
+        "kind": "tdr-workaround",
+        "title": "Hub API caches the stock lookup",
+        "request": "build the stock lookup within its p95",
+        "components": [
+          "Hub API"
+        ],
+        "requested_by": "Desk team",
+        "architecture": "architecture-v1.4.0",
+        "evidence": [
+          {
+            "where": "hub-api@abc1234 internal/stock/cache.go:42",
+            "note": "a 5-minute in-memory cache"
+          }
+        ],
+        "fields": {
+          "description": "Hub API caches the stock lookup for 5 minutes.",
+          "impact": "A sold-out item shows as available for up to 5 minutes.",
+          "solutions": [
+            "Push stock events from the warehouse"
+          ],
+          "owner_technical": "Desk team"
+        }
+      }
+    },
+    {
+      "name": "tdr-status",
+      "request": {
+        "kind": "tdr-status",
+        "title": "TDR-001 is in progress",
+        "request": "replace the manual ledger fix with a job",
+        "components": [
+          "Ledger Store"
+        ],
+        "evidence": [
+          {
+            "where": "ledger-jobs@9f00d1e src/fix/Job.java:1"
+          }
+        ],
+        "fields": {
+          "tdr": "TDR-001",
+          "to": "In Progress",
+          "note": "the job replaces the script"
+        }
+      },
+      "issue": {
+        "title": "[T0-?] TDR-001 is in progress",
+        "labels": [
+          "architecture-tier0",
+          "tier0:tdr-status"
+        ],
+        "body": "| | |\n|---|---|\n| Architecture | architecture-v1.4.0 |\n| Kind | `tdr-status` — a TDR status move tdr-check.js --move accepts, with its dated History note |\n| Requested by | — |\n| Components | Ledger Store |\n\n## Request\n\n```text\nreplace the manual ledger fix with a job\n```\n\n## Evidence\n\n- ledger-jobs@9f00d1e src/fix/Job.java:1\n\n## Fields\n\n```json\n{\n  \"tdr\": \"TDR-001\",\n  \"to\": \"In Progress\",\n  \"note\": \"the job replaces the script\"\n}\n```\n\n_Tier 0: the architecture repository writes it once the issue carries the label `architecture-tier0` (architecture-tier0.yml); a request that is no Tier 0 write is refused there, with the reason._\n<!-- sa-tier0 -->\n"
+      },
+      "read_back": {
+        "kind": "tdr-status",
+        "title": "TDR-001 is in progress",
+        "request": "replace the manual ledger fix with a job",
+        "components": [
+          "Ledger Store"
+        ],
+        "requested_by": "",
+        "architecture": "architecture-v1.4.0",
+        "evidence": [
+          {
+            "where": "ledger-jobs@9f00d1e src/fix/Job.java:1"
+          }
+        ],
+        "fields": {
+          "tdr": "TDR-001",
+          "to": "In Progress",
+          "note": "the job replaces the script"
+        }
+      }
+    },
+    {
+      "name": "adr-proposed",
+      "request": {
+        "kind": "adr-proposed",
+        "title": "  Retry the ledger booking with backoff  ",
+        "request": "book orders when the ledger is slow",
+        "components": [
+          "Hub API",
+          " Ledger Store "
+        ],
+        "fields": {
+          "context": "The ledger times out under load.",
+          "decision": "Retry three times with backoff.",
+          "consequences": [
+            "Bookings are later, not lost",
+            "A retry budget per order"
+          ],
+          "alternatives": []
+        }
+      },
+      "issue": {
+        "title": "[T0-?] Retry the ledger booking with backoff",
+        "labels": [
+          "architecture-tier0",
+          "tier0:adr-proposed"
+        ],
+        "body": "| | |\n|---|---|\n| Architecture | architecture-v1.4.0 |\n| Kind | `adr-proposed` — a project ADR (101+) written with status Proposed |\n| Requested by | — |\n| Components | Hub API, Ledger Store |\n\n## Request\n\n```text\nbook orders when the ledger is slow\n```\n\n## Evidence\n\n- None.\n\n## Fields\n\n```json\n{\n  \"context\": \"The ledger times out under load.\",\n  \"decision\": \"Retry three times with backoff.\",\n  \"consequences\": [\n    \"Bookings are later, not lost\",\n    \"A retry budget per order\"\n  ],\n  \"alternatives\": []\n}\n```\n\n_Tier 0: the architecture repository writes it once the issue carries the label `architecture-tier0` (architecture-tier0.yml); a request that is no Tier 0 write is refused there, with the reason._\n<!-- sa-tier0 -->\n"
+      },
+      "read_back": {
+        "kind": "adr-proposed",
+        "title": "Retry the ledger booking with backoff",
+        "request": "book orders when the ledger is slow",
+        "components": [
+          "Hub API",
+          "Ledger Store"
+        ],
+        "requested_by": "",
+        "architecture": "architecture-v1.4.0",
+        "evidence": [],
+        "fields": {
+          "context": "The ledger times out under load.",
+          "decision": "Retry three times with backoff.",
+          "consequences": [
+            "Bookings are later, not lost",
+            "A retry budget per order"
+          ],
+          "alternatives": []
+        }
+      }
+    },
+    {
+      "name": "doc-fix",
+      "request": {
+        "kind": "doc-fix",
+        "title": "Typo in the system overview",
+        "request": "the overview says phone orders twice",
+        "requested_by": "",
+        "components": [],
+        "fields": {
+          "file": "docs/01-system-overview.md",
+          "line": 12,
+          "before": "Shops phone orders in.",
+          "after": "Shops phone their orders in."
+        }
+      },
+      "issue": {
+        "title": "[T0-?] Typo in the system overview",
+        "labels": [
+          "architecture-tier0",
+          "tier0:doc-fix"
+        ],
+        "body": "| | |\n|---|---|\n| Architecture | architecture-v1.4.0 |\n| Kind | `doc-fix` — a wording, typo or link fix in docs/ that changes no fact — no value, name, id, integration, technology, decision or status |\n| Requested by | — |\n| Components | — |\n\n## Request\n\n```text\nthe overview says phone orders twice\n```\n\n## Evidence\n\n- None.\n\n## Fields\n\n```json\n{\n  \"file\": \"docs/01-system-overview.md\",\n  \"line\": 12,\n  \"before\": \"Shops phone orders in.\",\n  \"after\": \"Shops phone their orders in.\"\n}\n```\n\n_Tier 0: the architecture repository writes it once the issue carries the label `architecture-tier0` (architecture-tier0.yml); a request that is no Tier 0 write is refused there, with the reason._\n<!-- sa-tier0 -->\n"
+      },
+      "read_back": {
+        "kind": "doc-fix",
+        "title": "Typo in the system overview",
+        "request": "the overview says phone orders twice",
+        "components": [],
+        "requested_by": "",
+        "architecture": "architecture-v1.4.0",
+        "evidence": [],
+        "fields": {
+          "file": "docs/01-system-overview.md",
+          "line": 12,
+          "before": "Shops phone orders in.",
+          "after": "Shops phone their orders in."
+        }
+      }
+    },
+    {
+      "name": "every-edge",
+      "request": {
+        "kind": "tdr-workaround",
+        "title": "Órdenes en lote — un proveedor nuevo 🧾",
+        "components": [
+          "Hub API"
+        ],
+        "requested_by": "  Payments | RUN  ",
+        "request": "﻿  We batch the partner's orders.\r\n## Evidence\n- not evidence\n```json\n{}\n```\nand ````four````.\n<!-- sa-tier0 -->\n　 last  \n",
+        "evidence": [
+          {
+            "where": "  svc@1 a.go:1 ",
+            "note": "x | y — z"
+          },
+          {
+            "note": "a note with no where"
+          },
+          {
+            "where": "   ",
+            "note": "blank where"
+          },
+          {
+            "where": "svc@1 b.go:2"
+          },
+          null
+        ],
+        "fields": {
+          "description": "A ````fenced```` text \"quoted\" \\ back\\slash\ttab\u0001\u001f  é 🧾",
+          "impact": "x",
+          "solutions": [
+            "one",
+            " two ",
+            "",
+            null
+          ],
+          "owner_technical": 7,
+          "driver": "Process",
+          "nested": {
+            "a": [
+              1,
+              2.5,
+              -3,
+              1e+21,
+              1e-7,
+              true,
+              false,
+              null
+            ],
+            "": {}
+          },
+          "adrs": [
+            "ADR-101"
+          ]
+        }
+      },
+      "issue": {
+        "title": "[T0-?] Órdenes en lote — un proveedor nuevo 🧾",
+        "labels": [
+          "architecture-tier0",
+          "tier0:tdr-workaround"
+        ],
+        "body": "| | |\n|---|---|\n| Architecture | architecture-v1.4.0 |\n| Kind | `tdr-workaround` — a workaround recorded as a new TDR |\n| Requested by |   Payments \\| RUN   |\n| Components | Hub API |\n\n## Request\n\n`````text\nWe batch the partner's orders.\n## Evidence\n- not evidence\n```json\n{}\n```\nand ````four````.\n<!-- sa-tier0 -->\n　 last\n`````\n\n## Evidence\n\n-   svc@1 a.go:1  — x | y — z\n- svc@1 b.go:2\n\n## Fields\n\n`````json\n{\n  \"description\": \"A ````fenced```` text \\\"quoted\\\" \\\\ back\\\\slash\\ttab\\u0001\\u001f  é 🧾\",\n  \"impact\": \"x\",\n  \"solutions\": [\n    \"one\",\n    \" two \",\n    \"\",\n    null\n  ],\n  \"owner_technical\": 7,\n  \"driver\": \"Process\",\n  \"nested\": {\n    \"a\": [\n      1,\n      2.5,\n      -3,\n      1e+21,\n      1e-7,\n      true,\n      false,\n      null\n    ],\n    \"\": {}\n  },\n  \"adrs\": [\n    \"ADR-101\"\n  ]\n}\n`````\n\n_Tier 0: the architecture repository writes it once the issue carries the label `architecture-tier0` (architecture-tier0.yml); a request that is no Tier 0 write is refused there, with the reason._\n<!-- sa-tier0 -->\n"
+      },
+      "read_back": {
+        "kind": "tdr-workaround",
+        "title": "Órdenes en lote — un proveedor nuevo 🧾",
+        "request": "We batch the partner's orders.\n## Evidence\n- not evidence\n```json\n{}\n```\nand ````four````.\n<!-- sa-tier0 -->\n　 last",
+        "components": [
+          "Hub API"
+        ],
+        "requested_by": "Payments | RUN",
+        "architecture": "architecture-v1.4.0",
+        "evidence": [
+          {
+            "where": "not evidence"
+          },
+          {
+            "where": "  svc@1 a.go:1 ",
+            "note": "x | y — z"
+          },
+          {
+            "where": "svc@1 b.go:2"
+          }
+        ],
+        "fields": {
+          "description": "A ````fenced```` text \"quoted\" \\ back\\slash\ttab\u0001\u001f  é 🧾",
+          "impact": "x",
+          "solutions": [
+            "one",
+            " two ",
+            "",
+            null
+          ],
+          "owner_technical": 7,
+          "driver": "Process",
+          "nested": {
+            "a": [
+              1,
+              2.5,
+              -3,
+              1e+21,
+              1e-7,
+              true,
+              false,
+              null
+            ],
+            "": {}
+          },
+          "adrs": [
+            "ADR-101"
+          ]
+        }
+      }
+    }
+  ],
+  "refused": [
+    {
+      "name": "unknown-kind",
+      "request": {
+        "kind": " doc-fix",
+        "title": "x",
+        "request": "y",
+        "fields": {}
+      },
+      "errors": [
+        "kind \" doc-fix\" is not a Tier 0 write — one of tdr-workaround, tdr-status, adr-proposed, doc-fix"
+      ]
+    },
+    {
+      "name": "nothing-filled",
+      "request": {
+        "kind": "tdr-workaround",
+        "title": "  ",
+        "request": " ",
+        "evidence": [
+          {
+            "where": " ",
+            "note": "n"
+          }
+        ],
+        "fields": {
+          "solutions": [
+            " ",
+            null
+          ],
+          "description": "　",
+          "impact": 0,
+          "owner_technical": false
+        }
+      },
+      "errors": [
+        "title is required",
+        "request (what the developer asked for, in their words) is required",
+        "fields.description is required for tdr-workaround",
+        "tdr-workaround needs evidence: where it shows in the service (repository, commit, file:line)"
+      ]
+    },
+    {
+      "name": "status-rules",
+      "request": {
+        "kind": "tdr-status",
+        "title": "t",
+        "request": "r",
+        "evidence": [
+          {
+            "where": "w"
+          }
+        ],
+        "fields": {
+          "tdr": "TDR-1",
+          "to": "Done",
+          "note": "n"
+        }
+      },
+      "errors": [
+        "fields.tdr \"TDR-1\" is not a TDR id",
+        "fields.to \"Done\" is not a status — one of Open · Planned · In Progress · Resolved · Won't Fix"
+      ]
+    },
+    {
+      "name": "planned-date",
+      "request": {
+        "kind": "tdr-status",
+        "title": "t",
+        "request": "r",
+        "evidence": [
+          {
+            "where": "w"
+          }
+        ],
+        "fields": {
+          "tdr": "TDR-001",
+          "to": "Planned",
+          "note": "n",
+          "target_date": "2026-1-5"
+        }
+      },
+      "errors": [
+        "a move to Planned needs fields.target_date (YYYY-MM-DD)"
+      ]
+    },
+    {
+      "name": "planned-date-newline",
+      "request": {
+        "kind": "tdr-status",
+        "title": "t",
+        "request": "r",
+        "evidence": [
+          {
+            "where": "w"
+          }
+        ],
+        "fields": {
+          "tdr": "TDR-0001",
+          "to": "Planned",
+          "note": "n",
+          "target_date": "2026-11-05\n"
+        }
+      },
+      "errors": [
+        "a move to Planned needs fields.target_date (YYYY-MM-DD)"
+      ]
+    },
+    {
+      "name": "wont-fix",
+      "request": {
+        "kind": "tdr-status",
+        "title": "t",
+        "request": "r",
+        "evidence": [
+          {
+            "where": "w"
+          }
+        ],
+        "fields": {
+          "tdr": "TDR-001",
+          "to": "Won't Fix",
+          "note": "n"
+        }
+      },
+      "errors": [
+        "a move to Won't Fix is a decision, not a Tier 0 write — the architect makes it"
+      ]
+    },
+    {
+      "name": "driver",
+      "request": {
+        "kind": "tdr-workaround",
+        "title": "t",
+        "request": "r",
+        "evidence": [
+          {
+            "where": "hub-api@abc1234 internal/stock/cache.go:42",
+            "note": "a 5-minute in-memory cache"
+          }
+        ],
+        "fields": {
+          "description": "d",
+          "impact": "i",
+          "solutions": [
+            "s"
+          ],
+          "owner_technical": "o",
+          "driver": "Budget"
+        }
+      },
+      "errors": [
+        "fields.driver \"Budget\" is not one of Strategy · Architecture · Talent · Process"
+      ]
+    },
+    {
+      "name": "doc-fix-rules",
+      "request": {
+        "kind": "doc-fix",
+        "title": "t",
+        "request": "r",
+        "fields": {
+          "file": "docs/../ARCHITECTURE.md",
+          "line": "1.5",
+          "before": "same",
+          "after": "same"
+        }
+      },
+      "errors": [
+        "fields.file \"docs/../ARCHITECTURE.md\" is not under docs/",
+        "fields.line is a line number",
+        "fields.before and fields.after are the same text"
+      ]
+    },
+    {
+      "name": "doc-fix-lines",
+      "request": {
+        "kind": "doc-fix",
+        "title": "t",
+        "request": "r",
+        "fields": {
+          "file": "adr/ADR-101.md",
+          "line": 0,
+          "before": "a\nb",
+          "after": "c"
+        }
+      },
+      "errors": [
+        "fields.file \"adr/ADR-101.md\" is not under docs/",
+        "fields.line is a line number",
+        "a doc-fix replaces text inside one line"
+      ]
+    },
+    {
+      "name": "doc-fix-line-text",
+      "request": {
+        "kind": "doc-fix",
+        "title": "t",
+        "request": "r",
+        "fields": {
+          "file": "docs/a.md",
+          "line": " 0x10 ",
+          "before": 1,
+          "after": 1
+        }
+      },
+      "errors": [
+        "fields.before and fields.after are the same text"
+      ]
+    }
+  ]
+}

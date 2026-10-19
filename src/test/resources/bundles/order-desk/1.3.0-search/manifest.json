@@ -1,8 +1,8 @@
 {
  "schema": "sa-index/1",
  "generator": "sa-delivery:architecture-index-export",
- "generator_version": "10.4.3",
- "generated_at": "2026-10-17T19:48:33.028Z",
+ "generator_version": "10.7.0",
+ "generated_at": "2026-10-19T18:03:06.063Z",
  "project": {
   "key": "order-desk",
   "name": "Order Desk"
@@ -16,9 +16,9 @@
  },
  "channel": "released",
  "git": {
-  "sha": "d17083d88f7ac0dea71785cee7654b97a13737ac",
+  "sha": "ee73de73fba2636e1263dd7bd9f78c79c4bdc3e7",
   "tag": "architecture-v1.3.0",
-  "tag_sha": "d17083d88f7ac0dea71785cee7654b97a13737ac",
+  "tag_sha": "ee73de73fba2636e1263dd7bd9f78c79c4bdc3e7",
   "at_tag": true,
   "matches_tag": true,
   "dirty": false
@@ -46,6 +46,62 @@
    "tier-1": "Tier 1 — SA office hours",
    "tier-2": "Tier 2 — design authority (CHANGE work)"
   },
+  "tier0_kinds": {
+   "tdr-workaround": {
+    "label": "a workaround recorded as a new TDR",
+    "required": [
+     "description",
+     "impact",
+     "solutions",
+     "owner_technical"
+    ],
+    "evidence": true
+   },
+   "tdr-status": {
+    "label": "a TDR status move tdr-check.js --move accepts, with its dated History note",
+    "required": [
+     "tdr",
+     "to",
+     "note"
+    ],
+    "evidence": true
+   },
+   "adr-proposed": {
+    "label": "a project ADR (101+) written with status Proposed",
+    "required": [
+     "context",
+     "decision",
+     "consequences"
+    ],
+    "evidence": false
+   },
+   "doc-fix": {
+    "label": "a wording, typo or link fix in docs/ that changes no fact — no value, name, id, integration, technology, decision or status",
+    "required": [
+     "file",
+     "line",
+     "before",
+     "after"
+    ],
+    "evidence": false
+   }
+  },
+  "tdr_moves": {
+   "Planned": [
+    "In Progress",
+    "Open"
+   ],
+   "Open": [
+    "In Progress",
+    "Won't Fix"
+   ],
+   "In Progress": [
+    "Resolved"
+   ],
+   "Resolved": [],
+   "Won't Fix": []
+  },
+  "tier0_label": "architecture-tier0",
   "escalations_open": []
  },
  "embedding": {

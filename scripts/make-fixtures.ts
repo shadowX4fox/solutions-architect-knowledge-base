@@ -119,3 +119,48 @@ for (const [name, req] of Object.entries(CASES)) {
 const GOLDEN = join(OUT, "..", "..", "escalation", "issues.json");
 mkdirSync(dirname(GOLDEN), { recursive: true }); writeFileSync(GOLDEN, JSON.stringify(golden, null, 2) + "\n");
 console.log("escalation", golden.map((g) => g.name).join(", "));
+
+// the Tier 0 request issue as the plugin renders it (tier0.js issueTitle, labelsOf, issueBody): the contract Tier0Test
+// holds the server's port to, byte for byte; requestOf() must read each back. `refused`: what validate() says of each.
+const T = require(join(SA, "scripts/shared/tier0.js"));
+const EV = [{ where: "hub-api@abc1234 internal/stock/cache.go:42", note: "a 5-minute in-memory cache" }];
+const T0_CASES: Record<string, any> = {
+  "tdr-workaround": { kind: "tdr-workaround", title: "Hub API caches the stock lookup", request: "build the stock lookup within its p95", components: ["Hub API"],
+    requested_by: "Desk team", evidence: EV, fields: { description: "Hub API caches the stock lookup for 5 minutes.", impact: "A sold-out item shows as available for up to 5 minutes.",
+      solutions: ["Push stock events from the warehouse"], owner_technical: "Desk team" } },
+  "tdr-status": { kind: "tdr-status", title: "TDR-001 is in progress", request: "replace the manual ledger fix with a job", components: ["Ledger Store"],
+    evidence: [{ where: "ledger-jobs@9f00d1e src/fix/Job.java:1" }], fields: { tdr: "TDR-001", to: "In Progress", note: "the job replaces the script" } },
+  "adr-proposed": { kind: "adr-proposed", title: "  Retry the ledger booking with backoff  ", request: "book orders when the ledger is slow", components: ["Hub API", " Ledger Store "],
+    fields: { context: "The ledger times out under load.", decision: "Retry three times with backoff.", consequences: ["Bookings are later, not lost", "A retry budget per order"], alternatives: [] } },
+  "doc-fix": { kind: "doc-fix", title: "Typo in the system overview", request: "the overview says phone orders twice", requested_by: "", components: [],
+    fields: { file: "docs/01-system-overview.md", line: 12, before: "Shops phone orders in.", after: "Shops phone their orders in." } },
+  "every-edge": { kind: "tdr-workaround", title: "Órdenes en lote — un proveedor nuevo 🧾", components: ["Hub API"], requested_by: "  Payments | RUN  ",
+    request: "﻿  We batch the partner's orders.\r\n## Evidence\n- not evidence\n```json\n{}\n```\nand ````four````.\n<!-- sa-tier0 -->\n　 last\u0085  \n",
+    evidence: [{ where: "  svc@1 a.go:1 ", note: "x | y — z" }, { note: "a note with no where" }, { where: "   ", note: "blank where" }, { where: "svc@1 b.go:2" }, null],
+    fields: { description: "A ````fenced```` text \"quoted\" \\ back\\slash\ttab\u0001\u001f\u007f  é 🧾", impact: "x", solutions: ["one", " two ", "", null],
+      owner_technical: 7, driver: "Process", nested: { a: [1, 2.5, -3, 1e21, 1e-7, true, false, null], "": {} }, adrs: ["ADR-101"] } },
+};
+const T0_REFUSED: Record<string, any> = {
+  "unknown-kind": { kind: " doc-fix", title: "x", request: "y", fields: {} },
+  "nothing-filled": { kind: "tdr-workaround", title: "  ", request: " ", evidence: [{ where: " ", note: "n" }], fields: { solutions: [" ", null], description: "　", impact: 0, owner_technical: false } },
+  "status-rules": { kind: "tdr-status", title: "t", request: "r", evidence: [{ where: "w" }], fields: { tdr: "TDR-1", to: "Done", note: "n" } },
+  "planned-date": { kind: "tdr-status", title: "t", request: "r", evidence: [{ where: "w" }], fields: { tdr: "TDR-001", to: "Planned", note: "n", target_date: "2026-1-5" } },
+  "planned-date-newline": { kind: "tdr-status", title: "t", request: "r", evidence: [{ where: "w" }], fields: { tdr: "TDR-0001", to: "Planned", note: "n", target_date: "2026-11-05\n" } },
+  "wont-fix": { kind: "tdr-status", title: "t", request: "r", evidence: [{ where: "w" }], fields: { tdr: "TDR-001", to: "Won't Fix", note: "n" } },
+  "driver": { kind: "tdr-workaround", title: "t", request: "r", evidence: EV, fields: { description: "d", impact: "i", solutions: ["s"], owner_technical: "o", driver: "Budget" } },
+  "doc-fix-rules": { kind: "doc-fix", title: "t", request: "r", fields: { file: "docs/../ARCHITECTURE.md", line: "1.5", before: "same", after: "same" } },
+  "doc-fix-lines": { kind: "doc-fix", title: "t", request: "r", fields: { file: "adr/ADR-101.md", line: 0, before: "a\nb", after: "c" } },
+  "doc-fix-line-text": { kind: "doc-fix", title: "t", request: "r", fields: { file: "docs/a.md", line: " 0x10 ", before: 1, after: 1 } },
+};
+const t0: any = { architecture: RS, cases: [], refused: [] };
+for (const [name, req] of Object.entries(T0_CASES)) {
+  const errors = T.validate(req); if (errors.length) throw new Error(`${name}: tier0.js refuses it: ${errors.join("; ")}`);
+  const issue = { title: T.issueTitle(req), labels: T.labelsOf(req), body: T.issueBody({ ...req, architecture: RS }) };
+  const back = T.requestOf(issue);
+  if (JSON.stringify(back.fields) !== JSON.stringify(req.fields) || back.kind !== req.kind) throw new Error(`${name}: requestOf does not read the request back`);
+  t0.cases.push({ name, request: req, issue, read_back: back });
+}
+for (const [name, req] of Object.entries(T0_REFUSED)) t0.refused.push({ name, request: req, errors: T.validate(req) });
+const T0_GOLDEN = join(OUT, "..", "..", "tier0", "issues.json");
+mkdirSync(dirname(T0_GOLDEN), { recursive: true }); writeFileSync(T0_GOLDEN, JSON.stringify(t0, null, 2) + "\n");
+console.log("tier0", t0.cases.map((g: any) => g.name).join(", "), "· refused", t0.refused.map((g: any) => g.name).join(", "));
