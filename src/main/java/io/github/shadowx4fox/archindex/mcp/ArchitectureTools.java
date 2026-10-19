@@ -232,7 +232,7 @@ public class ArchitectureTools {
 
 	// ---- a RUN team's Tier 0 request
 
-	@McpTool(name = "preview_tier0", description = "A Tier 0 write — a workaround recorded as a TDR (tdr-workaround), a TDR status move (tdr-status), a project ADR in Proposed (adr-proposed), a doc fix that changes no fact (doc-fix); get_architecture's support.tier0_kinds lists them with their required fields — is requested, never made from the service repository: the architecture repository writes the record itself (architecture-tier0.yml) after re-checking the policy. This returns the request as the issue it would be opened — title [T0-?] …, labels architecture-tier0 and tier0:<kind>, body — checked against the latest release (Tier 0 in force, the kind and its fields, canonical component names, the TDR and its move, the ADRs; a move to Won't Fix is always refused), the preview_id, the open Tier 0 requests, and file_with: the commands that file it with the developer's own access. Nothing is written. Show the user the issue and ask; only after a yes, follow file_with.steps, then call record_tier0.")
+	@McpTool(name = "preview_tier0", description = "A Tier 0 write — a workaround recorded as a TDR (tdr-workaround), a TDR status move (tdr-status), a project ADR in Proposed (adr-proposed), a doc fix that changes no fact (doc-fix); get_architecture's support.tier0_kinds lists them with their required fields — is requested, never made from the service repository: the architecture repository writes the record itself (architecture-tier0.yml) after re-checking the policy. This returns the request as the issue it would be opened — title [T0-?] …, labels architecture-tier0 and tier0:<kind>, body — checked against the latest release (Tier 0 in force, the kind and its fields, canonical component names, the TDR and its move, the ADRs; a move to Won't Fix is always refused), the preview_id and file_with: the commands that file it with the developer's own access. Nothing is written. Show the user the issue and ask; only after a yes, follow file_with.steps, then call record_tier0.")
 	public CallToolResult previewTier0(@McpToolParam(description = PROJECT) String project,
 			@McpToolParam(description = "One of support.tier0_kinds: tdr-workaround, tdr-status, adr-proposed, doc-fix") String kind,
 			@McpToolParam(description = "Short title, one line") String title,
@@ -244,7 +244,7 @@ public class ArchitectureTools {
 		return answer(() -> tier0.preview(project, new Tier0.Request(kind, title, request, components, requested_by, evidence, fields)));
 	}
 
-	@McpTool(name = "record_tier0", description = "After the user said yes and the issue from preview_tier0 was filed on the git host: records which issue it became, so the Tier 0 request is counted and the queue of open requests shows it. Call it once per filed issue, with its URL.")
+	@McpTool(name = "record_tier0", description = "After the user said yes and the issue from preview_tier0 was filed on the git host: records which issue it became, so the Tier 0 request is counted. Call it once per filed issue, with its URL.")
 	public CallToolResult recordTier0(@McpToolParam(description = PROJECT) String project,
 			@McpToolParam(description = "The preview_id preview_tier0 returned") String preview_id,
 			@McpToolParam(description = "The URL of the filed issue") String url) {

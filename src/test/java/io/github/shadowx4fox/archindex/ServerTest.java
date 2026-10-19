@@ -525,16 +525,17 @@ class ServerTest {
 		move.put("to", "Resolved");
 		move.put("note", "fixed in the service");
 		assertThat(J.str(tool("preview_tier0", tier0Args("tdr-status", move), true), "text"))
-			.contains("TDR-001 is Open: Open → Resolved is not a move");
+			.contains("TDR-001: Open → Resolved is refused — never straight to `Resolved`");
 		move.put("to", "Won't Fix");
 		assertThat(J.str(tool("preview_tier0", tier0Args("tdr-status", move), true), "text"))
-			.contains("the architect's decision");
+			.contains("a move to Won't Fix is a decision, not a Tier 0 write — the architect makes it");
 		move.put("tdr", "TDR-404");
-		assertThat(J.str(tool("preview_tier0", tier0Args("tdr-status", move), true), "text")).contains("TDR-404 is not a TDR");
-		assertThat(J.str(tool("preview_tier0", tier0Args("big-bang", Map.of()), true), "text")).contains("unknown kind \"big-bang\"");
+		move.put("to", "In Progress");
+		assertThat(J.str(tool("preview_tier0", tier0Args("tdr-status", move), true), "text")).contains("TDR-404 has no record under tdr/");
+		assertThat(J.str(tool("preview_tier0", tier0Args("big-bang", Map.of()), true), "text")).contains("kind \"big-bang\" is not a Tier 0 write");
 		Map<String, Object> args = tier0Args("doc-fix", Map.of("file", "docs/03-architecture-layers.md", "line", 4, "before", "a", "after", "b"));
 		args.put("components", List.of("Nowhere"));
-		assertThat(J.str(tool("preview_tier0", args, true), "text")).contains("component \"Nowhere\" is not a canonical name");
+		assertThat(J.str(tool("preview_tier0", args, true), "text")).contains("component \"Nowhere\" is not a canonical name of this architecture");
 	}
 
 }

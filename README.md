@@ -212,8 +212,9 @@ sha256sum architecture/openapi.yaml
 ### Escalations
 
 A RUN team (`support.mode` is `run` in the release's manifest, plugin v10.3.0 and later) asks the released architecture
-from the IDE. The writes under `support.tier0_writes` are requested with `preview_tier0`, never made from the service repository: the architecture repository writes them (`architecture-tier0.yml`). A change that crosses one
-of `support.triggers` is not applied: it becomes an escalation for a human architect, filed as an issue on the
+from the IDE. The four writes under `support.tier0_writes` need no architect, but they belong in the architecture
+repository, not the service one: the agent requests them with `preview_tier0` (see [Tier 0 requests](#tier-0-requests)).
+A change that crosses one of `support.triggers` is not applied: it becomes an escalation for a human architect, filed as an issue on the
 architecture repository's git host. So does a question that blocks the build and only the architect can answer: a
 contract with nothing to implement, an interface whose authentication is not documented, a `Proposed` decision the code
 depends on. The agent sends the questions in `questions`, the trigger each one touches (an authentication or
@@ -235,6 +236,26 @@ the caller never chooses. The issue is titled `[ESC-?]`: the plugin's `escalate.
 architecture repository and numbers it. The `preview_id` is the issue's fingerprint, carried in the body as a comment.
 The log `archindex.escalation` has one line per preview (project, route, triggers, who asked) and one per filing (the
 URL), joined on the `preview_id` — the count of escalations per team, with no store behind it.
+
+### Tier 0 requests
+
+From plugin v10.7.0 a RUN-team release lists its Tier 0 kinds (`support.tier0_kinds`, each with its label, its required
+fields and whether it needs evidence) and the TDR status moves (`support.tdr_moves`). A workaround recorded as a TDR
+(`tdr-workaround`), a TDR status move (`tdr-status`), a project ADR in `Proposed` (`adr-proposed`) or a doc fix that
+changes no fact (`doc-fix`) is requested, never made from the service repository:
+
+1. **`preview_tier0`** checks the request against the latest release as the plugin's `tier0.js prepare` would:
+   `validate()` with its own words (the kind, its fields, the evidence, a TDR id, a status, a `YYYY-MM-DD` date, a file
+   under `docs/`, a line number), then every component by canonical name, a workaround's ADRs and a status move's TDR
+   and arrow on the release's ledger. A move to `Won't Fix` is always refused: it is the architect's decision. It returns
+   the issue exactly as `tier0.js render` writes it (`[T0-?] …`, labels `architecture-tier0` and `tier0:<kind>`, the
+   fields as a JSON block) and `file_with`, the same commands as an escalation's.
+2. **The agent shows the user the issue** and files it only after a yes.
+3. **`record_tier0`** logs the URL against the `preview_id` (log `archindex.tier0`).
+
+The architecture repository writes the record (`architecture-tier0.yml`), checking the request again; one that is no
+Tier 0 write is refused there, with the reason. The body is the plugin's byte for byte, so it carries no fingerprint:
+the agent finds a request filed already by its title and body.
 
 ---
 
@@ -367,19 +388,21 @@ from its own test project:
 | `draft` | an unreleased draft |
 
 `src/test/resources/escalation/issues.json` holds the escalation issues the plugin renders for four requests, the
-awkward text included.
+awkward text included. `src/test/resources/tier0/issues.json` holds the Tier 0 issues `tier0.js` renders, one per kind
+and one with every edge (backticks, pipes, padding, numbers, control characters), and what its `validate()` refuses.
 
 | Test | Holds |
 |---|---|
 | `BundleTest` | the Java `what_changed` diff to the plugin's own `changes.json`; the store to the publishing contract |
 | `EscalateTest` | the Java escalation issue to the plugin's, byte for byte |
 | `EscalationTest` | the RUN-team policy gates and each host's filing commands |
+| `Tier0Test` | the Java Tier 0 issue and refusals to the plugin's, byte for byte; JavaScript's numbers and key order; the checks on the ledger |
 | `ServerTest` | every tool through the real MCP endpoint, publishing over HTTP with tokens, every part downloaded |
 | `BuildPackTest` | a part's pages to its stored bytes |
 | `ScaleTest` | a writer and a reader on one data directory and one index |
 | `QdrantTest` | the indexer and a reader's view against a real Qdrant |
 
-Regenerate the fixtures after a bundle schema change, or a change to the plugin's escalation rendering:
+Regenerate the fixtures after a bundle schema change, or a change to the plugin's escalation or Tier 0 rendering:
 
 ```bash
 SA_SKILLS_DIR=<solutions-architect-skills checkout> bun scripts/make-fixtures.ts src/test/resources/bundles/order-desk

@@ -23,12 +23,15 @@ final class FilingPlan {
 	private FilingPlan() {
 	}
 
-	/** What the plan says about the issue it files: an escalation's, or a Tier 0 request's. */
-	record Flavor(String noun, String titlePrefix, String recordTool) {
+	/**
+	 * What the plan says about the issue it files: an escalation's, whose body ends with its fingerprint, or a Tier 0
+	 * request's, whose body is the plugin's alone — found again by its title and body.
+	 */
+	record Flavor(String noun, String titlePrefix, String recordTool, boolean fingerprinted) {
 
-		static final Flavor ESCALATION = new Flavor("escalation", "[ESC-", "record_escalation");
+		static final Flavor ESCALATION = new Flavor("escalation", "[ESC-", "record_escalation", true);
 
-		static final Flavor TIER0 = new Flavor("Tier 0 request", "[T0-", "record_tier0");
+		static final Flavor TIER0 = new Flavor("Tier 0 request", "[T0-", "record_tier0", false);
 
 	}
 
@@ -95,7 +98,7 @@ final class FilingPlan {
 			}
 		}
 		m.put("steps", List.of(
-				"Run check_first. An open issue whose body holds " + fingerprint + " is this " + f.noun() + ", filed already: give the user its URL and file nothing. An open " + f.titlePrefix() + "…] issue that covers the same request is a duplicate: tell the user and file nothing.",
+				"Run check_first. " + (f.fingerprinted() ? "An open issue whose body holds " + fingerprint : "An open issue with this title and this body") + " is this " + f.noun() + ", filed already: give the user its URL and file nothing. An open " + f.titlePrefix() + "…] issue that covers the same request is a duplicate: tell the user and file nothing.",
 				"Write issue.body to a file in the system temp directory, byte for byte, and put its path where create says " + BODY_FILE + ".",
 				"Run create, with each argument passed as it is (quote it for the shell, never retype it). If the developer cannot write issues on " + t.repository() + ", or the tool is not installed or logged in, say so and give them the title and the body to file by hand.",
 				"Call " + f.recordTool() + " with the project, this preview_id and the issue's URL."));

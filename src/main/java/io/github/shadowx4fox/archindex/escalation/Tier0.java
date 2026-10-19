@@ -1,20 +1,28 @@
 package io.github.shadowx4fox.archindex.escalation;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.regex.Matcher;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import io.github.shadowx4fox.archindex.bundle.J;
 
 /**
- * The plugin's Tier 0 request issue ({@code scripts/shared/tier0.js}): {@code issueTitle}, {@code labelsOf} and
- * {@code issueBody}, so an issue the server previews reads like one the plugin renders and {@code architecture-tier0.yml}
- * reads it back ({@code requestOf}). The kinds, their labels, their required fields and the status moves are the
- * bundle's ({@code manifest.support}), never redefined here. The text rules are those of {@link Escalate}.
+ * The plugin's Tier 0 request issue ({@code scripts/shared/tier0.js}): {@code validate}, {@code issueTitle},
+ * {@code labelsOf} and {@code issueBody}, field for field, so an issue the server previews is the one
+ * {@code tier0.js render} writes and {@code architecture-tier0.yml} reads back ({@code requestOf}). {@code Tier0Test}
+ * holds it to the plugin's own output. The kinds, their labels, their required fields and the status moves are the
+ * bundle's ({@code manifest.support}); the TDR statuses and drivers are {@code tdr-check.js}'s, which the bundle does
+ * not carry.
+ * <p>
+ * The request is taken as the agent sent it — nothing is trimmed that {@code tier0.js} does not trim — and the fields
+ * are JavaScript values: {@code filled}, {@code ===}, {@code Number()} and {@code JSON.stringify(fields, null, 2)}
+ * behave here as they do there.
  */
 public final class Tier0 {
 
@@ -23,16 +31,20 @@ public final class Tier0 {
 	/** The id a request carries until the architecture repository writes its record. */
 	public static final String UNNUMBERED = "T0-?";
 
-	/** The marker {@code requestOf} ends the last section at. */
-	static final String MARKER = "<!-- sa-tier0 -->";
-
 	public static final String WONT_FIX = "Won't Fix";
+
+	/** {@code tdr-check.js} STATUSES and DRIVERS. */
+	public static final List<String> STATUSES = List.of("Open", "Planned", "In Progress", "Resolved", WONT_FIX);
 
 	public static final List<String> DRIVERS = List.of("Strategy", "Architecture", "Talent", "Process");
 
-	private static final Pattern TDR_ID = Pattern.compile("^TDR-\\d+$");
+	private static final Pattern TDR_ID = Pattern.compile("TDR-\\d{3,}");
 
-	private static final Pattern ADR_ID = Pattern.compile("^ADR-\\d+$");
+	private static final Pattern DATE = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
+
+	private static final Pattern DECIMAL = Pattern.compile("[+-]?(?:Infinity|(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][+-]?\\d+)?)");
+
+	private static final Pattern INDEX = Pattern.compile("0|[1-9]\\d{0,9}");
 
 	private Tier0() {
 	}
@@ -40,21 +52,13 @@ public final class Tier0 {
 	public record Evidence(String where, String note) {
 	}
 
-	/** What {@code tier0.js render} takes: the request and the fields of its kind, in the order they were given. */
+	/** What {@code tier0.js render} takes ({@code request.json}), as the agent sent it. */
 	public record Request(String kind, String title, String request, List<String> components, String requestedBy,
 			List<Evidence> evidence, Map<String, Object> fields) {
 
 		public Request {
-			kind = kind == null ? "" : Escalate.trim(kind);
-			title = title == null ? null : Escalate.trim(lf(title));
-			request = lf(request);
-			components = Escalate.list(components);
-			requestedBy = requestedBy == null ? "" : Escalate.trim(lf(requestedBy));
-			evidence = evidence == null ? List.of()
-					: evidence.stream()
-						.filter(Objects::nonNull)
-						.map((e) -> new Evidence(lf(e.where()), lf(e.note())))
-						.toList();
+			components = components == null ? List.of() : components;
+			evidence = evidence == null ? List.of() : evidence;
 			fields = fields == null ? Map.of() : fields;
 		}
 
@@ -62,35 +66,21 @@ public final class Tier0 {
 			return new Request(kind, title, request, c, requestedBy, evidence, fields);
 		}
 
-		public String text(String key) {
-			Object v = fields.get(key);
-			return v instanceof String s ? Escalate.trim(lf(s)) : v == null || v instanceof List<?> || v instanceof Map<?, ?> ? "" : String.valueOf(v);
-		}
-
-		public List<String> texts(String key) {
-			return fields.get(key) instanceof List<?> l
-					? Escalate.list(l.stream().filter((x) -> x instanceof String).map((x) -> (String) x).toList()) : List.of();
-		}
-
 	}
 
-	/** The kinds of {@code support.tier0_kinds}: label, required fields and whether evidence is required. */
+	/** One of {@code support.tier0_kinds}. */
 	public record Kind(String label, List<String> required, boolean evidence) {
 	}
 
 	/** {@code support.tier0_kinds} and {@code support.tdr_moves}, as the bundle lists them. */
 	public record Policy(Map<String, Kind> kinds, Map<String, List<String>> moves) {
 
-		@SuppressWarnings("unchecked")
 		public static Policy of(Map<String, Object> support) {
 			Map<String, Kind> kinds = new LinkedHashMap<>();
-			J.map(support, "tier0_kinds").forEach((k, v) -> {
-				Map<String, Object> m = v instanceof Map<?, ?> ? (Map<String, Object>) v : Map.of();
-				Object ev = m.get("evidence");
-				boolean evidence = Boolean.TRUE.equals(ev) || ev instanceof String s && !s.isBlank() && !"false".equals(s)
-						&& !"none".equals(s) || ev instanceof List<?> l && !l.isEmpty();
-				String label = J.str(m, "label");
-				kinds.put(k, new Kind(label == null ? k : label, J.strings(m, "required"), evidence));
+			Map<String, Object> listed = J.map(support, "tier0_kinds");
+			listed.keySet().forEach((k) -> {
+				Map<String, Object> m = J.map(listed, k);
+				kinds.put(k, new Kind(J.str(m, "label"), J.strings(m, "required"), Boolean.TRUE.equals(m.get("evidence"))));
 			});
 			Map<String, List<String>> moves = new LinkedHashMap<>();
 			J.map(support, "tdr_moves").forEach((k, v) -> moves.put(k, v instanceof List<?> l ? l.stream().map(String::valueOf).toList() : List.of()));
@@ -99,147 +89,334 @@ public final class Tier0 {
 
 	}
 
-	/** What is in the bundle's ledger that a request names. */
-	public record Ledger(Map<String, String> tdrStatus, java.util.Set<String> adrs) {
+	/** What the release's ledger holds of the records a request names: each TDR's status, and the ADR ids. */
+	public record Ledger(Map<String, String> tdrs, Set<String> adrs) {
 	}
 
-	/** The checks of the request against the release; an empty list when it can be filed. */
-	public static List<String> validate(Request r, Policy p, Ledger l) {
+	/** {@code validate()}: an empty list when the request is a Tier 0 write as written. */
+	public static List<String> validate(Request r, Policy p) {
 		List<String> errors = new ArrayList<>();
-		if (r.title() == null || r.title().isEmpty()) {
+		Kind k = r.kind() == null ? null : p.kinds().get(r.kind());
+		if (k == null) {
+			return List.of("kind \"" + (r.kind() == null ? "" : r.kind()) + "\" is not a Tier 0 write — one of "
+					+ String.join(", ", p.kinds().keySet()));
+		}
+		if (!filled(r.title())) {
 			errors.add("title is required");
 		}
-		else if (r.title().contains("\n")) {
-			errors.add("title must be one line");
-		}
-		if (r.request() == null || Escalate.trim(r.request()).isEmpty()) {
+		if (!filled(r.request())) {
 			errors.add("request (what the developer asked for, in their words) is required");
 		}
-		Kind kind = p.kinds().get(r.kind());
-		if (kind == null) {
-			errors.add("unknown kind \"" + r.kind() + "\" — one of " + String.join(", ", p.kinds().keySet()));
-			return errors;
+		Map<String, Object> f = r.fields();
+		k.required().stream().filter((x) -> !filled(f.get(x))).forEach((x) -> errors.add("fields." + x + " is required for " + r.kind()));
+		if (k.evidence() && r.evidence().stream().noneMatch((e) -> e != null && filled(e.where()))) {
+			errors.add(r.kind() + " needs evidence: where it shows in the service (repository, commit, file:line)");
 		}
-		for (String f : kind.required()) {
-			boolean listed = f.equals("solutions") || f.equals("consequences");
-			if (listed ? r.texts(f).isEmpty() : r.text(f).isEmpty()) {
-				errors.add("field \"" + f + "\" is required for " + r.kind() + (listed ? " (a list)" : ""));
+		if ("tdr-status".equals(r.kind())) {
+			Object tdr = f.get("tdr");
+			Object to = f.get("to");
+			if (truthy(tdr) && !TDR_ID.matcher(string(tdr)).matches()) {
+				errors.add("fields.tdr \"" + string(tdr) + "\" is not a TDR id");
+			}
+			if (truthy(to) && !(to instanceof String s && STATUSES.contains(s))) {
+				errors.add("fields.to \"" + string(to) + "\" is not a status — one of " + String.join(" · ", STATUSES));
+			}
+			if ("Planned".equals(to) && !DATE.matcher(string(truthy(f.get("target_date")) ? f.get("target_date") : "")).matches()) {
+				errors.add("a move to Planned needs fields.target_date (YYYY-MM-DD)");
+			}
+			if (WONT_FIX.equals(to)) {
+				errors.add("a move to Won't Fix is a decision, not a Tier 0 write — the architect makes it");
 			}
 		}
-		if (kind.evidence() && r.evidence().stream().noneMatch((e) -> !blank(e.where()))) {
-			errors.add(r.kind() + " needs evidence: the service repository, commit and file:line, in where");
+		Object driver = f.get("driver");
+		if ("tdr-workaround".equals(r.kind()) && truthy(driver) && !(driver instanceof String s && DRIVERS.contains(s))) {
+			errors.add("fields.driver \"" + string(driver) + "\" is not one of " + String.join(" · ", DRIVERS));
 		}
-		switch (r.kind()) {
-			case "tdr-workaround" -> {
-				String driver = r.text("driver");
-				if (!driver.isEmpty() && !DRIVERS.contains(driver)) {
-					errors.add("driver must be " + String.join(" · ", DRIVERS));
-				}
-				for (String a : r.texts("adrs")) {
-					if (!l.adrs().contains(a)) {
-						errors.add(a + " is not an ADR of the architecture");
-					}
+		if ("doc-fix".equals(r.kind())) {
+			Object file = f.get("file");
+			if (truthy(file) && (!string(file).startsWith("docs/") || List.of(string(file).split("/", -1)).contains(".."))) {
+				errors.add("fields.file \"" + string(file) + "\" is not under docs/");
+			}
+			if (f.get("line") != null) {
+				double line = number(f.get("line"));
+				if (!(Double.isFinite(line) && line == Math.floor(line) && line >= 1)) {
+					errors.add("fields.line is a line number");
 				}
 			}
-			case "tdr-status" -> {
-				String tdr = r.text("tdr");
-				String to = r.text("to").replace('’', '\'');
-				if (!tdr.isEmpty() && !TDR_ID.matcher(tdr).matches()) {
-					errors.add("tdr must be a TDR id (TDR-NNN), not \"" + tdr + "\"");
-				}
-				else if (!tdr.isEmpty() && !l.tdrStatus().containsKey(tdr)) {
-					errors.add(tdr + " is not a TDR of the architecture");
-				}
-				else if (!tdr.isEmpty() && !to.isEmpty()) {
-					String current = l.tdrStatus().get(tdr);
-					if (WONT_FIX.equals(to)) {
-						errors.add("a move to Won't Fix is the architect's decision: it is never requested here");
-					}
-					else if (!p.moves().getOrDefault(current, List.of()).contains(to)) {
-						List<String> allowed = p.moves().getOrDefault(current, List.of()).stream().filter((x) -> !WONT_FIX.equals(x)).toList();
-						errors.add(tdr + " is " + current + ": " + current + " → " + to + " is not a move"
-								+ (allowed.isEmpty() ? " (none is allowed from " + current + ")" : " — one of " + String.join(", ", allowed)));
-					}
-				}
-				if ("Planned".equals(to) && r.text("target_date").isEmpty()) {
-					errors.add("field \"target_date\" is required when the move is to Planned");
-				}
+			if (filled(f.get("before")) && strictlyEqual(f.get("before"), f.get("after"))) {
+				errors.add("fields.before and fields.after are the same text");
 			}
-			case "doc-fix" -> {
-				String file = r.text("file");
-				if (!file.isEmpty() && (!file.startsWith("docs/") || file.contains(".."))) {
-					errors.add("file must be under docs/, not \"" + file + "\"");
-				}
-				String before = r.text("before");
-				String after = r.text("after");
-				if (before.contains("\n") || after.contains("\n")) {
-					errors.add("before and after are one line each");
-				}
-				if (!before.isEmpty() && before.equals(after)) {
-					errors.add("before and after must differ");
-				}
-			}
-			case "adr-proposed" -> {
-			}
-			default -> {
+			String both = (truthy(f.get("before")) ? string(f.get("before")) : "") + (truthy(f.get("after")) ? string(f.get("after")) : "");
+			if (both.contains("\n")) {
+				errors.add("a doc-fix replaces text inside one line");
 			}
 		}
 		return errors;
 	}
 
+	/**
+	 * The server's own rules, on top of {@code validate()}: the title is the issue's title, and each piece of evidence is
+	 * one list item that {@code requestOf} reads back — a line break in either would change what the issue says.
+	 */
+	public static List<String> oneLine(Request r) {
+		List<String> errors = new ArrayList<>();
+		if (r.title() != null && Escalate.trim(r.title()).matches("(?s).*[\\r\\n].*")) {
+			errors.add("title must be one line");
+		}
+		if (r.evidence().stream().filter(Objects::nonNull).anyMatch((e) -> breaks(e.where()) || breaks(e.note()))) {
+			errors.add("evidence: where and note are one line each");
+		}
+		return errors;
+	}
+
+	/**
+	 * What {@code prepare} checks against the architecture once the request is valid, on the release's ledger: a
+	 * workaround's ADRs exist; a status move's TDR exists and its status takes the arrow ({@code tdr-check.js move}).
+	 */
+	public static List<String> against(Request r, Policy p, Ledger l) {
+		List<String> errors = new ArrayList<>();
+		Map<String, Object> f = r.fields();
+		if ("tdr-workaround".equals(r.kind())) {
+			list(f.get("adrs")).stream().filter((a) -> !l.adrs().contains(a)).forEach((a) -> errors.add("fields.adrs: " + a + " does not exist"));
+		}
+		if ("tdr-status".equals(r.kind())) {
+			String tdr = string(f.get("tdr"));
+			String status = l.tdrs().get(tdr);
+			if (status == null) {
+				errors.add(tdr + " has no record under tdr/");
+			}
+			else {
+				String reason = move(p, status, string(f.get("to")));
+				if (reason != null) {
+					errors.add(tdr + ": " + status + " → " + string(f.get("to")) + " is refused — " + reason);
+				}
+			}
+		}
+		return errors;
+	}
+
+	/** {@code tdr-check.js move}: null when the arrow is allowed, otherwise why not. */
+	static String move(Policy p, String from, String to) {
+		String f = canon(from);
+		String t = canon(to);
+		if (f == null) {
+			return "`" + from + "` is not a status";
+		}
+		if (t == null) {
+			return "`" + to + "` is not a status — one of " + String.join(" · ", STATUSES);
+		}
+		if (f.equals(t)) {
+			return "already `" + t + "`";
+		}
+		List<String> moves = p.moves().getOrDefault(f, List.of());
+		if (moves.contains(t)) {
+			return null;
+		}
+		String via = moves.stream().filter((x) -> p.moves().getOrDefault(x, List.of()).contains(t)).findFirst().orElse(null);
+		if (via != null) {
+			return "never straight to `" + t + "` — the arrow is " + f + " ──► " + via + " ──► " + t;
+		}
+		return "no arrow from `" + f + "` to `" + t + "` — from `" + f + "` the moves are "
+				+ (moves.isEmpty() ? "none (terminal)" : String.join(", ", moves.stream().map((x) -> "`" + x + "`").toList()));
+	}
+
+	private static String canon(String s) {
+		return STATUSES.stream().filter((x) -> x.equalsIgnoreCase(s)).findFirst().orElse(null);
+	}
+
+	/** {@code issueTitle}, {@code labelsOf} and {@code issueBody}. */
 	public static Escalate.Issue issue(Request r, Policy p, String architecture) {
-		List<String> labels = List.of(LABEL, "tier0:" + r.kind());
-		return new Escalate.Issue("[" + UNNUMBERED + "] " + r.title(), labels, body(r, p, architecture));
+		return new Escalate.Issue("[" + UNNUMBERED + "] " + Escalate.trim(string(r.title())),
+				List.of(LABEL, "tier0:" + r.kind()), body(r, p, architecture));
 	}
 
 	static String body(Request r, Policy p, String architecture) {
+		String fields = stringify(r.fields());
+		String rq = Escalate.trim((r.request() == null ? "" : r.request()).replaceAll("\r\n?", "\n"));
 		Kind kind = p.kinds().get(r.kind());
-		String label = kind == null ? "" : kind.label();
+		String label = kind == null || kind.label() == null ? "" : kind.label();
 		Map<String, String> facts = new LinkedHashMap<>();
 		facts.put("Architecture", or(architecture));
-		facts.put("Kind", "`" + r.kind() + "`" + (label.isEmpty() ? "" : " — " + label));
+		facts.put("Kind", "`" + r.kind() + "` — " + label);
 		facts.put("Requested by", or(r.requestedBy()));
-		facts.put("Components", or(String.join(", ", r.components())));
+		facts.put("Components", or(String.join(", ", list(r.components()))));
 		List<String> w = new ArrayList<>();
 		w.add("| | |");
 		w.add("|---|---|");
 		facts.forEach((k, v) -> w.add("| " + k + " | " + Escalate.cell(v) + " |"));
-		w.add("");
-		String req0 = Escalate.trim(r.request());
-		w.addAll(List.of("## Request", "", fence(req0) + "text", req0, fence(req0), ""));
-		w.addAll(List.of("## Evidence", ""));
-		List<String> ev = new ArrayList<>();
-		for (Evidence e : r.evidence()) {
-			List<String> parts = new ArrayList<>();
-			if (!blank(e.where())) {
-				parts.add(Escalate.trim(e.where()));
-			}
-			if (!blank(e.note())) {
-				parts.add(Escalate.trim(e.note()));
-			}
-			if (!parts.isEmpty()) {
-				ev.add("- " + Escalate.oneLine(String.join(" — ", parts)));
-			}
-		}
+		w.addAll(List.of("", "## Request", "", fence(rq) + "text", rq, fence(rq), "", "## Evidence", ""));
+		List<String> ev = r.evidence()
+			.stream()
+			.filter((e) -> e != null && filled(e.where()))
+			.map((e) -> "- " + e.where() + (filled(e.note()) ? " — " + e.note() : ""))
+			.toList();
 		w.addAll(ev.isEmpty() ? List.of("- None.") : ev);
-		String json = stringify(r.fields(), "");
-		w.addAll(List.of("", "## Fields", "", fence(json) + "json", json, fence(json), ""));
+		w.addAll(List.of("", "## Fields", "", fence(fields) + "json", fields, fence(fields), ""));
 		w.add("_Tier 0: the architecture repository writes it once the issue carries the label `" + LABEL
 				+ "` (architecture-tier0.yml); a request that is no Tier 0 write is refused there, with the reason._");
-		w.add(MARKER);
+		w.add("<!-- sa-tier0 -->");
 		w.add("");
 		return String.join("\n", w);
 	}
 
-	/** {@code JSON.stringify(value, null, 2)}: two-space indentation, a member or an item to a line, the key order kept. */
-	static String stringify(Object v, String indent) {
+	// ---- JavaScript's values, as tier0.js sees the request
+
+	/** {@code filled}: a list with an item that is not blank, or a value that is not blank. */
+	static boolean filled(Object v) {
+		if (v instanceof List<?> l) {
+			return !list(l).isEmpty();
+		}
+		return v != null && !Escalate.trim(string(v)).isEmpty();
+	}
+
+	/** {@code list}: each item as text, trimmed, the empty ones dropped; a value that is no list is a list of one. */
+	static List<String> list(Object v) {
+		List<?> l = v instanceof List<?> x ? x : v == null || "".equals(v) ? List.of() : List.of(v);
+		return l.stream().map((x) -> Escalate.trim(string(x))).filter((x) -> !x.isEmpty()).toList();
+	}
+
+	static boolean truthy(Object v) {
+		if (v == null) {
+			return false;
+		}
+		if (v instanceof Boolean b) {
+			return b;
+		}
+		if (v instanceof Number n) {
+			double d = n.doubleValue();
+			return d != 0 && !Double.isNaN(d);
+		}
+		if (v instanceof String s) {
+			return !s.isEmpty();
+		}
+		return true;
+	}
+
+	/** {@code String(v)}. */
+	static String string(Object v) {
+		if (v == null) {
+			return "null";
+		}
+		if (v instanceof Number n) {
+			return numeral(n.doubleValue());
+		}
+		if (v instanceof List<?> l) {
+			return String.join(",", l.stream().map((x) -> x == null ? "" : string(x)).toList());
+		}
+		if (v instanceof Map<?, ?>) {
+			return "[object Object]";
+		}
+		return String.valueOf(v);
+	}
+
+	/** {@code Number(v)}. */
+	public static double number(Object v) {
+		if (v == null) {
+			return 0;
+		}
+		if (v instanceof Number n) {
+			return n.doubleValue();
+		}
+		if (v instanceof Boolean b) {
+			return b ? 1 : 0;
+		}
+		String s = Escalate.trim(string(v));
+		if (s.isEmpty()) {
+			return 0;
+		}
+		if (DECIMAL.matcher(s).matches()) {
+			return Double.parseDouble(s);
+		}
+		for (String[] radix : new String[][] { { "0x", "16" }, { "0o", "8" }, { "0b", "2" } }) {
+			if (s.length() > 2 && s.substring(0, 2).equalsIgnoreCase(radix[0])) {
+				try {
+					return new BigInteger(s.substring(2), Integer.parseInt(radix[1])).doubleValue();
+				}
+				catch (NumberFormatException e) {
+					return Double.NaN;
+				}
+			}
+		}
+		return Double.NaN;
+	}
+
+	/** {@code ===}: numbers by value, text by text; two lists or two objects are never the same. */
+	static boolean strictlyEqual(Object a, Object b) {
+		if (a instanceof Number x && b instanceof Number y) {
+			return x.doubleValue() == y.doubleValue();
+		}
+		if (a == null || b == null) {
+			return a == b;
+		}
+		if (a instanceof List<?> || a instanceof Map<?, ?>) {
+			return a == b;
+		}
+		return a.getClass() == b.getClass() && a.equals(b);
+	}
+
+	/** {@code Number.prototype.toString()}: the shortest digits that read back as the same double. */
+	static String numeral(double d) {
+		if (Double.isNaN(d)) {
+			return "NaN";
+		}
+		if (Double.isInfinite(d)) {
+			return d > 0 ? "Infinity" : "-Infinity";
+		}
+		if (d == 0) {
+			return "0";
+		}
+		BigDecimal exact = new BigDecimal(Math.abs(d));
+		BigDecimal bd = exact;
+		for (int p = 1; p <= 17; p++) {
+			bd = exact.round(new java.math.MathContext(p, java.math.RoundingMode.HALF_EVEN));
+			if (bd.doubleValue() == Math.abs(d)) {
+				break;
+			}
+		}
+		bd = bd.stripTrailingZeros();
+		String digits = bd.unscaledValue().toString();
+		int k = digits.length();
+		int n = k - bd.scale();
+		String s;
+		if (k <= n && n <= 21) {
+			s = digits + "0".repeat(n - k);
+		}
+		else if (0 < n && n <= 21) {
+			s = digits.substring(0, n) + "." + digits.substring(n);
+		}
+		else if (-6 < n && n <= 0) {
+			s = "0." + "0".repeat(-n) + digits;
+		}
+		else {
+			int e = n - 1;
+			s = digits.charAt(0) + (k == 1 ? "" : "." + digits.substring(1)) + "e" + (e < 0 ? "-" : "+") + Math.abs(e);
+		}
+		return d < 0 ? "-" + s : s;
+	}
+
+	/** {@code JSON.stringify(v, null, 2)}: two-space indentation, an object's keys in JavaScript's order. */
+	public static String stringify(Object v) {
+		return stringify(v, "");
+	}
+
+	private static String stringify(Object v, String indent) {
 		String in = indent + "  ";
+		if (v == null) {
+			return "null";
+		}
+		if (v instanceof Boolean b) {
+			return b.toString();
+		}
+		if (v instanceof Number n) {
+			double d = n.doubleValue();
+			return Double.isFinite(d) ? numeral(d) : "null";
+		}
 		if (v instanceof Map<?, ?> m) {
 			if (m.isEmpty()) {
 				return "{}";
 			}
 			List<String> rows = new ArrayList<>();
-			m.forEach((k, x) -> rows.add(in + J.write(String.valueOf(k)) + ": " + stringify(x, in)));
+			keys(m).forEach((key) -> rows.add(in + quote(key) + ": " + stringify(m.get(key), in)));
 			return "{\n" + String.join(",\n", rows) + "\n" + indent + "}";
 		}
 		if (v instanceof List<?> l) {
@@ -248,27 +425,67 @@ public final class Tier0 {
 			}
 			return "[\n" + String.join(",\n", l.stream().map((x) -> in + stringify(x, in)).toList()) + "\n" + indent + "]";
 		}
-		return J.write(v);
+		return quote(String.valueOf(v));
 	}
 
-	/** A fence longer than any run of backticks in the text, and at least three. */
+	/** An object's own keys in JavaScript's order: the array indexes ascending, then the others as they were added. */
+	private static List<Object> keys(Map<?, ?> m) {
+		List<Object> indexes = new ArrayList<>();
+		List<Object> others = new ArrayList<>();
+		for (Object k : m.keySet()) {
+			String s = String.valueOf(k);
+			(INDEX.matcher(s).matches() && Long.parseLong(s) < 4294967295L ? indexes : others).add(k);
+		}
+		indexes.sort((a, b) -> Long.compare(Long.parseLong(String.valueOf(a)), Long.parseLong(String.valueOf(b))));
+		indexes.addAll(others);
+		return indexes;
+	}
+
+	/** {@code JSON.stringify} of a string: a lone surrogate and a control character escaped, lower-case hex. */
+	static String quote(Object key) {
+		String s = String.valueOf(key);
+		StringBuilder b = new StringBuilder("\"");
+		for (int i = 0; i < s.length(); i++) {
+			char c = s.charAt(i);
+			switch (c) {
+				case '"' -> b.append("\\\"");
+				case '\\' -> b.append("\\\\");
+				case '\b' -> b.append("\\b");
+				case '\f' -> b.append("\\f");
+				case '\n' -> b.append("\\n");
+				case '\r' -> b.append("\\r");
+				case '\t' -> b.append("\\t");
+				default -> {
+					if (Character.isHighSurrogate(c) && i + 1 < s.length() && Character.isLowSurrogate(s.charAt(i + 1))) {
+						b.append(c).append(s.charAt(++i));
+					}
+					else if (c < 0x20 || Character.isSurrogate(c)) {
+						b.append(String.format("\\u%04x", (int) c));
+					}
+					else {
+						b.append(c);
+					}
+				}
+			}
+		}
+		return b.append('"').toString();
+	}
+
+	/** {@code fenceFor}: longer than any run of backticks in the text, and at least three. */
 	private static String fence(String text) {
 		int longest = 2;
-		Matcher m = Pattern.compile("`+").matcher(text);
+		java.util.regex.Matcher m = Pattern.compile("`+").matcher(text);
 		while (m.find()) {
 			longest = Math.max(longest, m.group().length());
 		}
 		return "`".repeat(longest + 1);
 	}
 
-	private static boolean blank(String s) {
-		return s == null || Escalate.trim(s).isEmpty();
+	private static boolean breaks(String s) {
+		return s != null && (s.indexOf('\n') >= 0 || s.indexOf('\r') >= 0);
 	}
 
-	private static String lf(String s) {
-		return s == null ? null : s.replaceAll("\r\n?", "\n");
-	}
-
+	/** {@code x || '—'}. */
 	private static String or(String s) {
 		return s == null || s.isEmpty() ? "—" : s;
 	}
