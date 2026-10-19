@@ -191,6 +191,38 @@ class Tier0Test {
 	}
 
 	@Test
+	void theStatusesAndDriversAreTheReleases() throws Exception {
+		Map<String, Object> s = support();
+		assertThat(Tier0.Policy.of(s).statuses()).isEqualTo(J.strings(s, "tdr_statuses")).isEqualTo(Tier0.STATUSES);
+		assertThat(Tier0.Policy.of(s).drivers()).isEqualTo(J.strings(s, "tdr_drivers")).isEqualTo(Tier0.DRIVERS);
+
+		// a release names its own vocabulary: a status or a driver it lists is one, another is not
+		Map<String, Object> named = new LinkedHashMap<>(s);
+		named.put("tdr_statuses", List.of("Open", "Parked", "Resolved"));
+		named.put("tdr_drivers", List.of("Budget"));
+		Tier0.Policy p = Tier0.Policy.of(named);
+		assertThat(Tier0.validate(move("TDR-001", "Parked"), p)).isEmpty();
+		assertThat(Tier0.validate(move("TDR-001", "In Progress"), p))
+			.containsExactly("fields.to \"In Progress\" is not a status — one of Open · Parked · Resolved");
+		Map<String, Object> f = new LinkedHashMap<>();
+		f.put("description", "d");
+		f.put("impact", "i");
+		f.put("solutions", List.of("s"));
+		f.put("owner_technical", "o");
+		f.put("driver", "Strategy");
+		Tier0.Request workaround = new Tier0.Request("tdr-workaround", "A workaround", "r", List.of("Hub API"), null,
+				List.of(new Tier0.Evidence("svc@1 a.go:1", null)), f);
+		assertThat(Tier0.validate(workaround, p)).containsExactly("fields.driver \"Strategy\" is not one of Budget");
+
+		// exported with v10.7.0: neither list, so the lists of that version
+		Map<String, Object> before = new LinkedHashMap<>(s);
+		before.remove("tdr_statuses");
+		before.remove("tdr_drivers");
+		assertThat(Tier0.Policy.of(before).statuses()).isEqualTo(Tier0.STATUSES);
+		assertThat(Tier0.Policy.of(before).drivers()).isEqualTo(Tier0.DRIVERS);
+	}
+
+	@Test
 	void withoutTier0InForceOrItsKindsNothingIsPreviewed() throws Exception {
 		Tier0.Request r = move("TDR-001", "In Progress");
 		assertThatThrownBy(() -> service((x) -> x.put("tier0", false)).preview("order-desk", r)).isInstanceOf(ToolException.class);
