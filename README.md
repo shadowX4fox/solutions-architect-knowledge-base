@@ -136,7 +136,7 @@ Every capability is a tool, because every IDE client supports tools, while suppo
 | `get_build_instructions` | pack | `BUILD.md`: the `.architecture.json` binding, the rules, the plan and the done list |
 | `get_build_part` · `get_asset` | pack | one part byte for byte (spec, `asset:openapi.yaml`, `interface:a→b`, `adr:ADR-101` …), paged over 60,000 characters |
 | `what_changed` | bundles | what changed for a component since the version and `pack_revision` it was built against; `action_required` where code must move |
-| `preview_escalation` | release, ledger | a change that crosses a trigger, as the issue it would open (`[ESC-?] …`), with the commands that file it; writes nothing |
+| `preview_escalation` | release, ledger | a change that crosses a trigger, or a question only the architect can answer that blocks the build, as the issue it would open (`[ESC-?] …`), with the commands that file it; writes nothing |
 | `record_escalation` | — | the filed issue's URL, logged against its preview |
 
 Versions: omitted or `latest` is the newest released version; `draft` is the unreleased draft. A component with no build
@@ -212,7 +212,12 @@ sha256sum architecture/openapi.yaml
 A RUN team (`support.mode` is `run` in the release's manifest, plugin v10.3.0 and later) asks the released architecture
 from the IDE. An agent may make the writes under `support.tier0_writes` when nothing is in doubt. A change that crosses one
 of `support.triggers` is not applied: it becomes an escalation for a human architect, filed as an issue on the
-architecture repository's git host. The flow mirrors the plugin's `escalate.js`:
+architecture repository's git host. So does a question that blocks the build and only the architect can answer: a
+contract with nothing to implement, an interface whose authentication is not documented, a `Proposed` decision the code
+depends on. The agent sends the questions in `questions`, the trigger each one touches (an authentication or
+authorization gap is `security-iam`; a gap no other trigger names is `low-confidence`) with its evidence (the build-pack
+part and the line), and route `tier-1`. On a project with no `archindex.escalation`, it hands the user the same
+questions, each with its part and line, for the architects. The flow mirrors the plugin's `escalate.js`:
 
 1. **`preview_escalation`** checks the request against the latest release only, never a draft, and only for a RUN-team
    project with a release. It validates the request as `escalate.js validate` does: an unknown trigger, a trigger with no
