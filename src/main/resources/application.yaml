@@ -30,7 +30,9 @@ spring:
           For a RUN team (get_architecture's support), check every change you would propose against support.triggers:
           the writes under tier0_writes are requested with preview_tier0, never made from the service repository, because
           the architecture repository writes them; a crossed trigger changes nothing in the architecture and becomes an
-          escalation (preview_escalation). Either is filed only after the user has seen it and said yes.
+          escalation (preview_escalation). Either is filed only after the user has seen it and said yes. A build no
+          person attends (.architecture.json's supervision: unattended) passes supervision: "unattended" to both: it
+          files with its own identity and lists the issue in its pull request, and never applies architecture-tier0.
         streamable-http:
           mcp-endpoint: /mcp
     ollama:

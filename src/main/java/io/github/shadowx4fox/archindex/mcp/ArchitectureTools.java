@@ -34,6 +34,8 @@ public class ArchitectureTools {
 
 	private static final String PROJECT = "Project key, as list_projects or .architecture.json names it";
 
+	private static final String SUPERVISION = "attended (the default: a person works with you) or unattended (a build no person attends — a CI job, a platform's build agent — as .architecture.json's supervision declares)";
+
 	private static final String COMPONENT = "Component: its slug, canonical name or internal name, exactly";
 
 	private final LedgerService ledger;
@@ -205,7 +207,7 @@ public class ArchitectureTools {
 
 	// ---- a RUN team's escalation
 
-	@McpTool(name = "preview_escalation", description = "Two cases become an escalation for a human architect. (a) A change that crosses an escalation trigger (get_architecture's support.triggers) is never applied. (b) A question that only the architect can answer and that blocks the build: a contract with nothing to implement, an interface whose authentication is not documented, a Proposed decision the code depends on. For (b), send the questions in questions, the trigger each one touches (an authentication or authorization gap is security-iam; a gap no other trigger names is low-confidence) with its evidence (the build-pack part and the line), and route tier-1. Either way it is an escalation filed as an issue on the architecture's git host. This returns that issue exactly as it would be opened — title [ESC-?] …, labels, body — checked against the latest release's support policy, the preview_id, the escalations already open, and file_with: the commands that file it with the developer's own access. Nothing is written. Show the user the issue and ask; only after a yes, follow file_with.steps, then call record_escalation.")
+	@McpTool(name = "preview_escalation", description = "Two cases become an escalation for a human architect. (a) A change that crosses an escalation trigger (get_architecture's support.triggers) is never applied. (b) A question that only the architect can answer and that blocks the build: a contract with nothing to implement, an interface whose authentication is not documented, a Proposed decision the code depends on. For (b), send the questions in questions, the trigger each one touches (an authentication or authorization gap is security-iam; a gap no other trigger names is low-confidence) with its evidence (the build-pack part and the line), and route tier-1. Either way it is an escalation filed as an issue on the architecture's git host. This returns that issue exactly as it would be opened — title [ESC-?] …, labels, body — checked against the latest release's support policy, the preview_id, the escalations already open, and file_with: the commands that file it with the developer's own access. Nothing is written. Show the user the issue and ask; only after a yes, follow file_with.steps, then call record_escalation. A build no person attends (supervision: \"unattended\" in .architecture.json) passes supervision unattended: it files with its own identity, without a yes — an escalation writes nothing — and lists the issue in its pull request.")
 	public CallToolResult previewEscalation(@McpToolParam(description = PROJECT) String project,
 			@McpToolParam(description = "Short title, one line") String title,
 			@McpToolParam(description = "What the developer asked to build or change, in their words — the task that led to the escalation. Never their answer to a question of yours (a yes to escalate is not the request).") String request,
@@ -218,9 +220,10 @@ public class ArchitectureTools {
 			@McpToolParam(description = "ADR ids", required = false) List<String> adrs,
 			@McpToolParam(description = "TDR ids", required = false) List<String> tdrs,
 			@McpToolParam(description = "Who asked: the developer or the team", required = false) String requested_by,
-			@McpToolParam(description = "tier-1 (SA office hours, the default) or tier-2 (design authority, CHANGE work)", required = false) String route) {
+			@McpToolParam(description = "tier-1 (SA office hours, the default) or tier-2 (design authority, CHANGE work)", required = false) String route,
+			@McpToolParam(description = SUPERVISION, required = false) String supervision) {
 		return answer(() -> escalations.preview(project, new Escalate.Request(title, request, triggers, evidence, proposal,
-				questions, components, integrations, adrs, tdrs, requested_by, route)));
+				questions, components, integrations, adrs, tdrs, requested_by, route), supervision));
 	}
 
 	@McpTool(name = "record_escalation", description = "After the user said yes and the issue from preview_escalation was filed on the git host: records which issue it became, so the escalation is counted. Call it once per filed issue, with its URL.")
@@ -232,7 +235,7 @@ public class ArchitectureTools {
 
 	// ---- a RUN team's Tier 0 request
 
-	@McpTool(name = "preview_tier0", description = "A Tier 0 write — a workaround recorded as a TDR (tdr-workaround), a TDR status move (tdr-status), a project ADR in Proposed (adr-proposed), a doc fix that changes no fact (doc-fix); get_architecture's support.tier0_kinds lists them with their required fields — is requested, never made from the service repository: the architecture repository writes the record itself (architecture-tier0.yml) after re-checking the policy. This returns the request as the issue it would be opened — title [T0-?] …, labels architecture-tier0 and tier0:<kind>, body — checked against the latest release (Tier 0 in force, the kind and its fields, canonical component names, the TDR and its move, the ADRs; a move to Won't Fix is always refused), the preview_id and file_with: the commands that file it with the developer's own access. Nothing is written. Show the user the issue and ask; only after a yes, follow file_with.steps, then call record_tier0.")
+	@McpTool(name = "preview_tier0", description = "A Tier 0 write — a workaround recorded as a TDR (tdr-workaround), a TDR status move (tdr-status), a project ADR in Proposed (adr-proposed), a doc fix that changes no fact (doc-fix); get_architecture's support.tier0_kinds lists them with their required fields — is requested, never made from the service repository: the architecture repository writes the record itself (architecture-tier0.yml) after re-checking the policy. This returns the request as the issue it would be opened — title [T0-?] …, labels architecture-tier0 and tier0:<kind>, body — checked against the latest release (Tier 0 in force, the kind and its fields, canonical component names, the TDR and its move, the ADRs; a move to Won't Fix is always refused), the preview_id and file_with: the commands that file it with the developer's own access. Nothing is written. Show the user the issue and ask; only after a yes, follow file_with.steps, then call record_tier0. A build no person attends (supervision: \"unattended\" in .architecture.json) passes supervision unattended: the issue carries only tier0:<kind>, never architecture-tier0 — a person applies that label, and that is the approval; never apply it yourself — and is filed with the build's own identity and listed in its pull request.")
 	public CallToolResult previewTier0(@McpToolParam(description = PROJECT) String project,
 			@McpToolParam(description = "One of support.tier0_kinds: tdr-workaround, tdr-status, adr-proposed, doc-fix") String kind,
 			@McpToolParam(description = "Short title, one line") String title,
@@ -240,8 +243,9 @@ public class ArchitectureTools {
 			@McpToolParam(description = "Components concerned, by canonical name", required = false) List<String> components,
 			@McpToolParam(description = "Who asked: the developer or the team", required = false) String requested_by,
 			@McpToolParam(description = "Each { where, note }: where is the service repository, the commit and the file:line. Required for tdr-workaround and tdr-status", required = false) List<Tier0.Evidence> evidence,
-			@McpToolParam(description = "The fields of the kind, in the order to be shown. tdr-workaround: description, impact, solutions (list), owner_technical; optional driver (Strategy · Architecture · Talent · Process), owner_business, adrs. tdr-status: tdr (TDR-NNN), to, note; target_date when to is Planned. adr-proposed: context, decision, consequences (list); optional alternatives. doc-fix: file (under docs/), line, before, after (one line each, different)") Map<String, Object> fields) {
-		return answer(() -> tier0.preview(project, new Tier0.Request(kind, title, request, components, requested_by, evidence, fields)));
+			@McpToolParam(description = "The fields of the kind, in the order to be shown. tdr-workaround: description, impact, solutions (list), owner_technical; optional driver (Strategy · Architecture · Talent · Process), owner_business, adrs. tdr-status: tdr (TDR-NNN), to, note; target_date when to is Planned. adr-proposed: context, decision, consequences (list); optional alternatives. doc-fix: file (under docs/), line, before, after (one line each, different)") Map<String, Object> fields,
+			@McpToolParam(description = SUPERVISION, required = false) String supervision) {
+		return answer(() -> tier0.preview(project, new Tier0.Request(kind, title, request, components, requested_by, evidence, fields, supervision)));
 	}
 
 	@McpTool(name = "record_tier0", description = "After the user said yes and the issue from preview_tier0 was filed on the git host: records which issue it became, so the Tier 0 request is counted. Call it once per filed issue, with its URL.")
