@@ -321,6 +321,27 @@ public final class BundleDiff {
 		sections.put("changed", sd.changed().stream().map((id) -> where(n, id)).toList());
 		r.put("sections", sections);
 		r.put("open_questions", openQuestions);
+		// its technical debt: the TDRs its descriptor's **Technical Debt:** line names, with their status; a bundle written
+		// before the plugin's 10.8.0 carries no `tdrs` and reads as none
+		List<Map<String, Object>> od = debt(o.ledger(), oc);
+		List<Map<String, Object>> nd = debt(n.ledger(), nc);
+		Map<String, Object> technicalDebt = new LinkedHashMap<>();
+		technicalDebt.put("added", nd.stream().filter((t) -> find(od, "id", J.str(t, "id")) == null).toList());
+		technicalDebt.put("removed", od.stream().filter((t) -> find(nd, "id", J.str(t, "id")) == null).toList());
+		List<Map<String, Object>> moved = new ArrayList<>();
+		for (Map<String, Object> t : nd) {
+			Map<String, Object> x = find(od, "id", J.str(t, "id"));
+			if (x != null && !Objects.equals(x.get("status"), t.get("status"))) {
+				Map<String, Object> m = new LinkedHashMap<>();
+				m.put("id", t.get("id"));
+				m.put("title", t.get("title"));
+				m.put("from", x.get("status"));
+				m.put("to", t.get("status"));
+				moved.add(m);
+			}
+		}
+		technicalDebt.put("status", moved);
+		r.put("technical_debt", technicalDebt);
 		// a pack's revision is the sha256 of its pack.json in the manifest — pack.json lists every part's hash, so any part moving moves it
 		Map<String, Object> revision = new LinkedHashMap<>();
 		revision.put("from", op == null ? null : o.packRevision(slug).orElse(null));
@@ -333,7 +354,7 @@ public final class BundleDiff {
 		boolean oqMoved = openQuestions != null && (!((List<?>) openQuestions.get("new")).isEmpty() || !((List<?>) openQuestions.get("resolved")).isEmpty());
 		boolean changed = !"present".equals(status) || !facts.isEmpty()
 				|| java.util.stream.Stream.of(contracts, interfaces, adrs, integrations, sd).anyMatch((d) -> d != null && d.any())
-				|| !documents.isEmpty() || !flows.isEmpty() || "added".equals(pack) || "removed".equals(pack) || revised || oqMoved;
+				|| !documents.isEmpty() || !flows.isEmpty() || anyDebt(technicalDebt) || "added".equals(pack) || "removed".equals(pack) || revised || oqMoved;
 		r.put("changed", changed);
 		// what the developer must act on: the code-facing parts moved. A component version alone is listed, not an action
 		boolean action = "removed".equals(status)
@@ -342,6 +363,29 @@ public final class BundleDiff {
 				|| !flows.isEmpty() || documents.contains("Component Specification") || documents.contains("Security Obligations");
 		r.put("action_required", action);
 		return r;
+	}
+
+	private static List<Map<String, Object>> debt(Map<String, Object> ledger, Map<String, Object> c) {
+		List<Map<String, Object>> tdrs = J.maps(ledger, "tdrs");
+		List<Map<String, Object>> out = new ArrayList<>();
+		for (String id : c == null || c.get("tdrs") == null ? List.<String>of() : J.strings(c, "tdrs")) {
+			Map<String, Object> t = find(tdrs, "id", id);
+			Map<String, Object> m = new LinkedHashMap<>();
+			m.put("id", id);
+			m.put("title", t == null ? null : orNull(t.get("title")));
+			m.put("status", t == null ? null : orNull(t.get("status")));
+			out.add(m);
+		}
+		return out;
+	}
+
+	/** JavaScript's {@code v || null}. */
+	private static Object orNull(Object v) {
+		return v == null || Boolean.FALSE.equals(v) || "".equals(v) || (v instanceof Number x && (x.doubleValue() == 0 || Double.isNaN(x.doubleValue()))) ? null : v;
+	}
+
+	private static boolean anyDebt(Map<String, Object> d) {
+		return d != null && !d.isEmpty() && (J.list(d, "added").size() + J.list(d, "removed").size() + J.list(d, "status").size()) > 0;
 	}
 
 	private static Map<String, Object> flowChange(Map<String, Object> f, String change, List<Map<String, Object>> fields) {
@@ -402,6 +446,15 @@ public final class BundleDiff {
 			List<String> docs = J.strings(c, "documents");
 			if (!docs.isEmpty()) {
 				l.add("- documents: " + String.join(", ", docs));
+			}
+			Map<String, Object> td = J.map(c, "technical_debt");
+			if (anyDebt(td)) {
+				List<String> items = new ArrayList<>();
+				J.maps(td, "added").forEach((t) -> items.add("added " + J.str(t, "id") + (t.get("title") != null ? " — " + t.get("title") : "")
+						+ (t.get("status") != null ? " (" + t.get("status") + ")" : "")));
+				J.maps(td, "status").forEach((t) -> items.add(J.str(t, "id") + " " + t.get("from") + " → " + t.get("to")));
+				J.maps(td, "removed").forEach((t) -> items.add("no longer names " + J.str(t, "id")));
+				l.add("- technical debt: " + String.join(" · ", items));
 			}
 			for (Map<String, Object> f : J.maps(c, "flows")) {
 				StringBuilder s = new StringBuilder("- flow " + J.str(f, "flow") + ". " + J.str(f, "name") + ": " + J.str(f, "change"));

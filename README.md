@@ -135,7 +135,7 @@ Every capability is a tool, because every IDE client supports tools, while suppo
 | `get_build_pack` | pack | the index: parts (each with its `sha256` and `download_url`), ordered plan, interfaces both ways, flows, open questions |
 | `get_build_instructions` | pack | `BUILD.md`: the `.architecture.json` binding, the rules, the plan and the done list |
 | `get_build_part` · `get_asset` | pack | one part byte for byte (spec, `asset:openapi.yaml`, `interface:a→b`, `adr:ADR-101` …), paged over 60,000 characters |
-| `what_changed` | bundles | what changed for a component since the version and `pack_revision` it was built against; `action_required` where code must move |
+| `what_changed` | bundles | what changed for a component since the version and `pack_revision` it was built against, its technical debt included (the TDRs its descriptor names, never an action); `action_required` where code must move |
 | `preview_escalation` | release, ledger | a change that crosses a trigger, or a question only the architect can answer that blocks the build, as the issue it would open (`[ESC-?] …`), with the commands that file it; writes nothing |
 | `record_escalation` | — | the filed issue's URL, logged against its preview |
 | `preview_tier0` | release, ledger | a Tier 0 write (`tdr-workaround`, `tdr-status`, `adr-proposed`, `doc-fix`) requested, as the issue it would open (`[T0-?] …`, labels `architecture-tier0`, `tier0:<kind>`), with the commands that file it; the architecture repository writes the record. Writes nothing |

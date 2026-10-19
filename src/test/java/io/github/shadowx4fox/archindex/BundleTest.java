@@ -93,6 +93,47 @@ class BundleTest {
 		assertThatThrownBy(() -> BundleDiff.diff(o, n, "nope", false)).hasMessageContaining("container of neither version");
 	}
 
+	/** 1.3.0 with hub-api's descriptor naming {@code names} and the ledger holding {@code tdrs}; null names: no `tdrs` at all. */
+	Bundle withDebt(String dir, List<String> names, List<Map<String, Object>> tdrs) throws Exception {
+		Path b = Fixtures.copy(Fixtures.bundle("1.3.0"), tmp.resolve(dir));
+		Map<String, Object> ledger = J.obj(Files.readAllBytes(b.resolve("ledger.json")));
+		J.maps(ledger, "components").forEach((c) -> c.remove("tdrs"));
+		if (names != null) {
+			J.maps(ledger, "components").stream().filter((c) -> "hub-api".equals(J.str(c, "slug"))).findFirst().orElseThrow().put("tdrs", names);
+		}
+		ledger.put("tdrs", tdrs);
+		Files.writeString(b.resolve("ledger.json"), J.write(ledger));
+		return Bundle.load(b);
+	}
+
+	static Map<String, Object> tdr(String id, String title, String status) {
+		return new java.util.LinkedHashMap<>(Map.of("id", id, "title", title, "status", status));
+	}
+
+	@Test
+	void technicalDebtIsListedNeverAnAction() throws Exception {
+		// the plugin's test (export-index.test.ts, "technical debt: …"): a TDR the descriptor starts naming, a status move, one it stops naming
+		Bundle a = withDebt("a", List.of("TDR-001"), List.of(tdr("TDR-001", "Batch settlement", "Open")));
+		Bundle b = withDebt("b", List.of("TDR-001", "TDR-002"),
+				List.of(tdr("TDR-001", "Batch settlement", "In Progress"), tdr("TDR-002", "Keys never purged", "Open")));
+		Map<String, Object> hub = J.maps(BundleDiff.diff(a, b, null, false), "components").get(0);
+		assertThat(J.str(hub, "component")).isEqualTo("hub-api");
+		assertThat(J.obj(J.write(hub.get("technical_debt")))).isEqualTo(J.obj("""
+				{"added": [{"id": "TDR-002", "title": "Keys never purged", "status": "Open"}], "removed": [],
+				 "status": [{"id": "TDR-001", "title": "Batch settlement", "from": "Open", "to": "In Progress"}]}"""));
+		assertThat(hub).containsEntry("changed", true).containsEntry("action_required", false);
+		assertThat(BundleDiff.render(BundleDiff.diff(a, b, null, false)))
+			.contains("- technical debt: added TDR-002 — Keys never purged (Open) · TDR-001 Open → In Progress");
+		assertThat(BundleDiff.render(BundleDiff.diff(b, a, null, false))).contains("- technical debt: TDR-001 In Progress → Open · no longer names TDR-002");
+		// a bundle written before the ledger carried a component's debt reads as none
+		Bundle old = withDebt("old", null, List.of());
+		assertThat(J.maps(J.map(J.maps(BundleDiff.diff(old, a, null, false), "components").get(0), "technical_debt"), "added"))
+			.extracting((t) -> t.get("id")).containsExactly("TDR-001");
+		// a TDR the ledger does not hold: its id, nothing made up
+		Bundle unknown = withDebt("unknown", List.of("TDR-009"), List.of());
+		assertThat(BundleDiff.render(BundleDiff.diff(old, unknown, null, false))).contains("- technical debt: added TDR-009\n");
+	}
+
 	@Test
 	void theJavaDiffIsThePluginsDiffForTheSameVersionTwice() {
 		Bundle o = Bundle.load(Fixtures.bundle("1.4.0"));
