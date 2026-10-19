@@ -131,6 +131,7 @@
    "component_version": null,
    "last_updated": null,
    "delivery": null,
+   "tdrs": [],
    "bytes": 210,
    "file_backed": true,
    "warnings": []
@@ -159,6 +160,7 @@
    "component_version": null,
    "last_updated": null,
    "delivery": null,
+   "tdrs": [],
    "bytes": 236,
    "file_backed": true,
    "warnings": [
@@ -191,6 +193,7 @@
    "component_version": "1.1.0",
    "last_updated": null,
    "delivery": null,
+   "tdrs": [],
    "bytes": 307,
    "file_backed": true,
    "warnings": [
@@ -222,6 +225,7 @@
    "component_version": null,
    "last_updated": null,
    "delivery": null,
+   "tdrs": [],
    "bytes": 215,
    "file_backed": true,
    "warnings": [
@@ -250,7 +254,7 @@
   {
    "id": "TDR-001",
    "file": "tdr/TDR-001-manual-ledger-fix.md",
-   "title": "TDR-001: Manual ledger fix",
+   "title": "Manual ledger fix",
    "status": "Open",
    "initiative": null,
    "driver": null,
