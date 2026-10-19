@@ -140,6 +140,9 @@ const T0_CASES: Record<string, any> = {
     fields: { description: "A ````fenced```` text \"quoted\" \\ back\\slash\ttab\u0001\u001f\u007f  é 🧾", impact: "x", solutions: ["one", " two ", "", null],
       owner_technical: 7, driver: "Process", nested: { a: [1, 2.5, -3, 1e21, 1e-7, true, false, null], "": {} }, adrs: ["ADR-101"] } },
 };
+// an unattended build agent files without the key (10.10.0): no architecture-tier0 label, its own footer; "attended" is the default
+T0_CASES["unattended"] = { ...T0_CASES["tdr-workaround"], supervision: "unattended" };
+T0_CASES["attended"] = { ...T0_CASES["tdr-status"], supervision: "attended" };
 const T0_REFUSED: Record<string, any> = {
   "unknown-kind": { kind: " doc-fix", title: "x", request: "y", fields: {} },
   "nothing-filled": { kind: "tdr-workaround", title: "  ", request: " ", evidence: [{ where: " ", note: "n" }], fields: { solutions: [" ", null], description: "　", impact: 0, owner_technical: false } },
