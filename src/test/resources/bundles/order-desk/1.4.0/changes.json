@@ -108,6 +108,11 @@
      }
     ]
    },
+   "technical_debt": {
+    "added": [],
+    "removed": [],
+    "status": []
+   },
    "pack_revision": {
     "from": "a93a66982ddb4bcf2cb0a620f879d83555f2125e4e26b7b77d3bb772b3182523",
     "to": "14e692c57c01c2b49c6c73b8049fad98bece541aacd0e50fe6f3bebfd3988547"
@@ -163,6 +168,11 @@
     ]
    },
    "open_questions": null,
+   "technical_debt": {
+    "added": [],
+    "removed": [],
+    "status": []
+   },
    "pack_revision": {
     "from": null,
     "to": null
@@ -214,6 +224,11 @@
     ]
    },
    "open_questions": null,
+   "technical_debt": {
+    "added": [],
+    "removed": [],
+    "status": []
+   },
    "pack_revision": {
     "from": null,
     "to": null

@@ -1,8 +1,8 @@
 {
  "schema": "sa-index/1",
  "generator": "sa-delivery:architecture-index-export",
- "generator_version": "10.8.1",
- "generated_at": "2026-10-19T21:30:49.331Z",
+ "generator_version": "10.9.2",
+ "generated_at": "2026-10-19T22:13:19.107Z",
  "project": {
   "key": "order-desk",
   "name": "Order Desk"
@@ -16,9 +16,9 @@
  },
  "channel": "released",
  "git": {
-  "sha": "1c67950fbdd088c06e20277147531d0f53caf9e1",
+  "sha": "2d145fcc5fb90a0f880d6c76500573c83b0157f7",
   "tag": "architecture-v1.4.0",
-  "tag_sha": "9fe757f8d6ea1390e921b83e561a9c4264f6d756",
+  "tag_sha": "45922fdbc1d9bf512a51bcd09f49a36dfb040677",
   "at_tag": false,
   "matches_tag": true,
   "dirty": false
@@ -241,8 +241,8 @@
   },
   {
    "path": "changes.json",
-   "bytes": 1078,
-   "sha256": "0f007f48e360532ecff164aff5e82992f4c232a5a2c92727f2173286dc99b90c"
+   "bytes": 1160,
+   "sha256": "abf4611e48598cea3bb0aa8397c67f69a769b357a62b7259cd0208d72099e9b8"
   },
   {
    "path": "chunks.jsonl",
