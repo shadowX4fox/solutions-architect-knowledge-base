@@ -14,6 +14,8 @@ import io.github.shadowx4fox.archindex.bundle.J;
 import io.github.shadowx4fox.archindex.changes.ChangesService;
 import io.github.shadowx4fox.archindex.escalation.Escalate;
 import io.github.shadowx4fox.archindex.escalation.EscalationService;
+import io.github.shadowx4fox.archindex.escalation.Tier0;
+import io.github.shadowx4fox.archindex.escalation.Tier0Service;
 import io.github.shadowx4fox.archindex.index.SearchService;
 import io.github.shadowx4fox.archindex.ledger.DocumentService;
 import io.github.shadowx4fox.archindex.ledger.LedgerService;
@@ -46,8 +48,11 @@ public class ArchitectureTools {
 
 	private final EscalationService escalations;
 
+	private final Tier0Service tier0;
+
 	public ArchitectureTools(LedgerService ledger, SearchService search, BuildPackService packs, ChangesService changes,
-			DocumentService documents, EscalationService escalations) {
+			DocumentService documents, EscalationService escalations, Tier0Service tier0) {
+		this.tier0 = tier0;
 		this.ledger = ledger;
 		this.search = search;
 		this.packs = packs;
@@ -77,7 +82,7 @@ public class ArchitectureTools {
 		return answer(ledger::projects);
 	}
 
-	@McpTool(name = "get_architecture", description = "One architecture version at a glance: status, language, systems, every component (slug, canonical name, internal name, C4 level, type, technology), chunk counts, which components have a build pack and why the others do not — and support, the RUN-team policy: whether Tier 0 applies, the writes an agent may make alone (tier0_writes), the closed list of escalation triggers, the routes and the escalations already open. Before proposing a change, check it against triggers; a crossed trigger is escalated (preview_escalation), never applied. A question that blocks the build and only the architect can answer (a contract with nothing to implement, an interface whose authentication is not documented, a Proposed decision the code depends on) is escalated the same way.")
+	@McpTool(name = "get_architecture", description = "One architecture version at a glance: status, language, systems, every component (slug, canonical name, internal name, C4 level, type, technology), chunk counts, which components have a build pack and why the others do not — and support, the RUN-team policy: whether Tier 0 applies, the writes of Tier 0 (tier0_writes), which are requested with preview_tier0 and never made from the service repository, because the architecture repository writes them, the closed list of escalation triggers, the routes and the escalations already open. Before proposing a change, check it against triggers; a crossed trigger is escalated (preview_escalation), never applied. A question that blocks the build and only the architect can answer (a contract with nothing to implement, an interface whose authentication is not documented, a Proposed decision the code depends on) is escalated the same way.")
 	public CallToolResult getArchitecture(@McpToolParam(description = PROJECT) String project,
 			@McpToolParam(description = VERSION, required = false) String version) {
 		return answer(() -> {
@@ -223,6 +228,27 @@ public class ArchitectureTools {
 			@McpToolParam(description = "The preview_id preview_escalation returned") String preview_id,
 			@McpToolParam(description = "The URL of the filed issue") String url) {
 		return answer(() -> escalations.record(project, preview_id, url));
+	}
+
+	// ---- a RUN team's Tier 0 request
+
+	@McpTool(name = "preview_tier0", description = "A Tier 0 write — a workaround recorded as a TDR (tdr-workaround), a TDR status move (tdr-status), a project ADR in Proposed (adr-proposed), a doc fix that changes no fact (doc-fix); get_architecture's support.tier0_kinds lists them with their required fields — is requested, never made from the service repository: the architecture repository writes the record itself (architecture-tier0.yml) after re-checking the policy. This returns the request as the issue it would be opened — title [T0-?] …, labels architecture-tier0 and tier0:<kind>, body — checked against the latest release (Tier 0 in force, the kind and its fields, canonical component names, the TDR and its move, the ADRs; a move to Won't Fix is always refused), the preview_id, the open Tier 0 requests, and file_with: the commands that file it with the developer's own access. Nothing is written. Show the user the issue and ask; only after a yes, follow file_with.steps, then call record_tier0.")
+	public CallToolResult previewTier0(@McpToolParam(description = PROJECT) String project,
+			@McpToolParam(description = "One of support.tier0_kinds: tdr-workaround, tdr-status, adr-proposed, doc-fix") String kind,
+			@McpToolParam(description = "Short title, one line") String title,
+			@McpToolParam(description = "What the developer asked to build or change, in their words — the task that led to the request. Never their answer to a question of yours (a yes to file is not the request).") String request,
+			@McpToolParam(description = "Components concerned, by canonical name", required = false) List<String> components,
+			@McpToolParam(description = "Who asked: the developer or the team", required = false) String requested_by,
+			@McpToolParam(description = "Each { where, note }: where is the service repository, the commit and the file:line. Required for tdr-workaround and tdr-status", required = false) List<Tier0.Evidence> evidence,
+			@McpToolParam(description = "The fields of the kind, in the order to be shown. tdr-workaround: description, impact, solutions (list), owner_technical; optional driver (Strategy · Architecture · Talent · Process), owner_business, adrs. tdr-status: tdr (TDR-NNN), to, note; target_date when to is Planned. adr-proposed: context, decision, consequences (list); optional alternatives. doc-fix: file (under docs/), line, before, after (one line each, different)") Map<String, Object> fields) {
+		return answer(() -> tier0.preview(project, new Tier0.Request(kind, title, request, components, requested_by, evidence, fields)));
+	}
+
+	@McpTool(name = "record_tier0", description = "After the user said yes and the issue from preview_tier0 was filed on the git host: records which issue it became, so the Tier 0 request is counted and the queue of open requests shows it. Call it once per filed issue, with its URL.")
+	public CallToolResult recordTier0(@McpToolParam(description = PROJECT) String project,
+			@McpToolParam(description = "The preview_id preview_tier0 returned") String preview_id,
+			@McpToolParam(description = "The URL of the filed issue") String url) {
+		return answer(() -> tier0.record(project, preview_id, url));
 	}
 
 }

@@ -28,8 +28,9 @@ spring:
           When you build, read the security part before the contracts: only the callers it lists reach the component,
           and an interface whose authentication it does not state stays closed, never open with a TODO.
           For a RUN team (get_architecture's support), check every change you would propose against support.triggers:
-          the writes under tier0_writes go ahead when nothing is in doubt; a crossed trigger changes nothing in the
-          architecture and becomes an escalation (preview_escalation), filed only after the user has seen it and said yes.
+          the writes under tier0_writes are requested with preview_tier0, never made from the service repository, because
+          the architecture repository writes them; a crossed trigger changes nothing in the architecture and becomes an
+          escalation (preview_escalation). Either is filed only after the user has seen it and said yes.
         streamable-http:
           mcp-endpoint: /mcp
     ollama:

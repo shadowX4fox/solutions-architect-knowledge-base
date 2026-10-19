@@ -16,6 +16,7 @@ import io.github.shadowx4fox.archindex.build.BuildPackService;
 import io.github.shadowx4fox.archindex.bundle.BundleStore;
 import io.github.shadowx4fox.archindex.changes.ChangesService;
 import io.github.shadowx4fox.archindex.escalation.EscalationService;
+import io.github.shadowx4fox.archindex.escalation.Tier0Service;
 import io.github.shadowx4fox.archindex.index.Embedder;
 import io.github.shadowx4fox.archindex.index.FileVectorIndex;
 import io.github.shadowx4fox.archindex.index.Indexer;
@@ -123,9 +124,14 @@ public class ArchIndexApplication {
 	}
 
 	@Bean
+	Tier0Service tier0Service(Bundles bundles, ArchIndexProperties p) {
+		return new Tier0Service(bundles, p.escalation());
+	}
+
+	@Bean
 	ArchitectureTools architectureTools(LedgerService ledger, SearchService search, BuildPackService packs,
-			ChangesService changes, DocumentService documents, EscalationService escalations) {
-		return new ArchitectureTools(ledger, search, packs, changes, documents, escalations);
+			ChangesService changes, DocumentService documents, EscalationService escalations, Tier0Service tier0) {
+		return new ArchitectureTools(ledger, search, packs, changes, documents, escalations, tier0);
 	}
 
 	@Bean

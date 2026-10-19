@@ -23,9 +23,22 @@ final class FilingPlan {
 	private FilingPlan() {
 	}
 
+	/** What the plan says about the issue it files: an escalation's, or a Tier 0 request's. */
+	record Flavor(String noun, String titlePrefix, String recordTool) {
+
+		static final Flavor ESCALATION = new Flavor("escalation", "[ESC-", "record_escalation");
+
+		static final Flavor TIER0 = new Flavor("Tier 0 request", "[T0-", "record_tier0");
+
+	}
+
 	static Map<String, Object> of(Target t, Escalate.Issue issue, String body, String fingerprint) {
+		return of(t, issue, body, fingerprint, Flavor.ESCALATION);
+	}
+
+	static Map<String, Object> of(Target t, Escalate.Issue issue, String body, String fingerprint, Flavor f) {
 		if (t.host() == null || t.repository() == null || t.repository().isBlank() || t.server() == null) {
-			throw new ToolException("the escalation target of " + t.project()
+			throw new ToolException("the " + f.noun() + " target of " + t.project()
 					+ " is incomplete on this server: it needs host, repository and, for Gitea, server");
 		}
 		Map<String, Object> m = new LinkedHashMap<>();
@@ -73,7 +86,7 @@ final class FilingPlan {
 				String project = t.repository().substring(i + 1);
 				m.put("check_first", run(List.of("az", "boards", "query", "--org", org, "--project", project, "--wiql",
 						"SELECT [System.Id], [System.Title], [System.Description] FROM WorkItems WHERE [System.TeamProject] = @project"
-								+ " AND [System.Title] CONTAINS '[ESC-' AND [System.State] NOT IN " + OPEN_STATES,
+								+ " AND [System.Title] CONTAINS '" + f.titlePrefix() + "' AND [System.State] NOT IN " + OPEN_STATES,
 						"--output", "json")));
 				m.put("create", run(List.of("az", "boards", "work-item", "create", "--org", org, "--project", project, "--type",
 						t.workItemType(), "--title", issue.title(), "--description", Escalate.html(body), "--fields",
@@ -82,10 +95,10 @@ final class FilingPlan {
 			}
 		}
 		m.put("steps", List.of(
-				"Run check_first. An open issue whose body holds " + fingerprint + " is this escalation, filed already: give the user its URL and file nothing. An open [ESC-…] issue that covers the same request is a duplicate: tell the user and file nothing.",
+				"Run check_first. An open issue whose body holds " + fingerprint + " is this " + f.noun() + ", filed already: give the user its URL and file nothing. An open " + f.titlePrefix() + "…] issue that covers the same request is a duplicate: tell the user and file nothing.",
 				"Write issue.body to a file in the system temp directory, byte for byte, and put its path where create says " + BODY_FILE + ".",
 				"Run create, with each argument passed as it is (quote it for the shell, never retype it). If the developer cannot write issues on " + t.repository() + ", or the tool is not installed or logged in, say so and give them the title and the body to file by hand.",
-				"Call record_escalation with the project, this preview_id and the issue's URL."));
+				"Call " + f.recordTool() + " with the project, this preview_id and the issue's URL."));
 		return m;
 	}
 
