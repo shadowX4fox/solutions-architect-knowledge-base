@@ -1,8 +1,8 @@
 {
  "schema": "sa-index/1",
  "generator": "sa-delivery:architecture-index-export",
- "generator_version": "10.10.11",
- "generated_at": "2026-10-20T07:16:12.907Z",
+ "generator_version": "10.12.0",
+ "generated_at": "2026-10-20T23:04:16.153Z",
  "project": {
   "key": "order-desk",
   "name": "Order Desk"
@@ -16,9 +16,9 @@
  },
  "channel": "released",
  "git": {
-  "sha": "3196bf19cc5ac933444c82b5b30c81f5f2c4fa02",
+  "sha": "85c3aeec6b37cc386f1c1fabf4616b5f7059190e",
   "tag": "architecture-v1.4.0",
-  "tag_sha": "ef2dc81f78a994606950d4b856367bb9c39e80c1",
+  "tag_sha": "6fd3cec0697dc639a0ee6a32f3c6c58a95c63c27",
   "at_tag": false,
   "matches_tag": true,
   "dirty": false
@@ -115,6 +115,7 @@
    "Process"
   ],
   "tier0_label": "architecture-tier0",
+  "tier0_auto": [],
   "escalations_open": [
    {
     "id": "ESC-001",
@@ -176,8 +177,8 @@
  "files": [
   {
    "path": "buildpacks/hub-api/BUILD.md",
-   "bytes": 11559,
-   "sha256": "cc36dcb59ae1acbd2a09848c2a28b6c00896e8fc156904079b44c1840414b6d2"
+   "bytes": 12155,
+   "sha256": "f17944d4beae3272fc8be9fdd25d94eb8fcb3c629802e7bc69e50e371fa0742d"
   },
   {
    "path": "buildpacks/hub-api/adrs/ADR-012-service-mesh.md",
@@ -222,7 +223,7 @@
   {
    "path": "buildpacks/hub-api/pack.json",
    "bytes": 6207,
-   "sha256": "48f7774c13e8bdeef468f416e565bd2ccbb3981bf4e68795b361f26c2674ba2a"
+   "sha256": "a3831f1375e1a38838c827c32db4bff297c318fa8d64fa5632d6efceed93a6f9"
   },
   {
    "path": "buildpacks/hub-api/runtime-view.md",
@@ -242,7 +243,7 @@
   {
    "path": "changes.json",
    "bytes": 1180,
-   "sha256": "1044c71a75a2750dbe972daaa89ae758b72a914c5a7da2b922f51c954bd94b66"
+   "sha256": "3aed9c3263fd8a8df0d8fc6ba92889d3bccd150ca8d5cc5acd5fe271c9856d02"
   },
   {
    "path": "chunks.jsonl",
@@ -251,8 +252,8 @@
   },
   {
    "path": "ledger.json",
-   "bytes": 6155,
-   "sha256": "67f0a755f50ff09017122e8490bfb2825abd506b5139d2e26124a6f78383ef46"
+   "bytes": 6176,
+   "sha256": "88ff326fdf73312891ee11a7540b20c965e786300808c45c758b6649560f2aa1"
   }
  ]
 }

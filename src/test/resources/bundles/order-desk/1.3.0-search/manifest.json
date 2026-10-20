@@ -1,8 +1,8 @@
 {
  "schema": "sa-index/1",
  "generator": "sa-delivery:architecture-index-export",
- "generator_version": "10.10.11",
- "generated_at": "2026-10-20T07:16:12.868Z",
+ "generator_version": "10.12.0",
+ "generated_at": "2026-10-20T23:04:16.114Z",
  "project": {
   "key": "order-desk",
   "name": "Order Desk"
@@ -16,9 +16,9 @@
  },
  "channel": "released",
  "git": {
-  "sha": "20f8594905152c88be71159416ade6d4f5eaebcd",
+  "sha": "8fb5b06cd3bef4ade353ce80a23aacdd1ee02486",
   "tag": "architecture-v1.3.0",
-  "tag_sha": "20f8594905152c88be71159416ade6d4f5eaebcd",
+  "tag_sha": "8fb5b06cd3bef4ade353ce80a23aacdd1ee02486",
   "at_tag": true,
   "matches_tag": true,
   "dirty": false
@@ -115,6 +115,7 @@
    "Process"
   ],
   "tier0_label": "architecture-tier0",
+  "tier0_auto": [],
   "escalations_open": []
  },
  "embedding": {
@@ -166,8 +167,8 @@
   },
   {
    "path": "ledger.json",
-   "bytes": 6134,
-   "sha256": "9697c1716d4b7b41260e2210255499ad706681967619b4d34278e23d8a8e0cd7"
+   "bytes": 6155,
+   "sha256": "2a7308c498f48a92d9ce1a5492221b7342a47a53a229cf72a49cc7f8ed5ecaed"
   }
  ]
 }

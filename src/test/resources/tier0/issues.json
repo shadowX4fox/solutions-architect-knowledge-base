@@ -419,6 +419,173 @@
           "note": "the job replaces the script"
         }
       }
+    },
+    {
+      "name": "unattended-auto",
+      "auto": [
+        " doc-fix ",
+        "tdr-status"
+      ],
+      "request": {
+        "kind": "tdr-status",
+        "title": "TDR-001 is in progress",
+        "request": "replace the manual ledger fix with a job",
+        "components": [
+          "Ledger Store"
+        ],
+        "evidence": [
+          {
+            "where": "acme/ledger-jobs@9f00d1e5 src/fix/Job.java:1"
+          }
+        ],
+        "fields": {
+          "tdr": "TDR-001",
+          "to": "Resolved",
+          "note": "the job replaced the script"
+        },
+        "supervision": "unattended"
+      },
+      "issue": {
+        "title": "[T0-?] TDR-001 is in progress",
+        "labels": [
+          "architecture-tier0",
+          "tier0:tdr-status"
+        ],
+        "body": "| | |\n|---|---|\n| Architecture | architecture-v1.4.0 |\n| Kind | `tdr-status` — a TDR status move tdr-check.js --move accepts, with its dated History note |\n| Requested by | — |\n| Components | Ledger Store |\n\n## Request\n\n```text\nreplace the manual ledger fix with a job\n```\n\n## Evidence\n\n- acme/ledger-jobs@9f00d1e5 src/fix/Job.java:1\n\n## Fields\n\n```json\n{\n  \"tdr\": \"TDR-001\",\n  \"to\": \"Resolved\",\n  \"note\": \"the job replaced the script\"\n}\n```\n\n_Tier 0, filed and keyed by an unattended build agent: this architecture lets a trusted agent start `tdr-status` itself (`tier0.auto`), so the architecture repository writes it now (architecture-tier0.yml) and a person reviews it after, in its pull request and the release; a request that is no Tier 0 write is refused there, with the reason._\n<!-- sa-tier0 -->\n"
+      },
+      "read_back": {
+        "kind": "tdr-status",
+        "title": "TDR-001 is in progress",
+        "request": "replace the manual ledger fix with a job",
+        "components": [
+          "Ledger Store"
+        ],
+        "requested_by": "",
+        "architecture": "architecture-v1.4.0",
+        "evidence": [
+          {
+            "where": "acme/ledger-jobs@9f00d1e5 src/fix/Job.java:1"
+          }
+        ],
+        "fields": {
+          "tdr": "TDR-001",
+          "to": "Resolved",
+          "note": "the job replaced the script"
+        }
+      }
+    },
+    {
+      "name": "unattended-not-auto",
+      "auto": [
+        "tdr-status"
+      ],
+      "request": {
+        "kind": "tdr-workaround",
+        "title": "Hub API caches the stock lookup",
+        "request": "build the stock lookup within its p95",
+        "components": [
+          "Hub API"
+        ],
+        "requested_by": "Desk team",
+        "evidence": [
+          {
+            "where": "hub-api@abc1234 internal/stock/cache.go:42",
+            "note": "a 5-minute in-memory cache"
+          }
+        ],
+        "fields": {
+          "description": "Hub API caches the stock lookup for 5 minutes.",
+          "impact": "A sold-out item shows as available for up to 5 minutes.",
+          "solutions": [
+            "Push stock events from the warehouse"
+          ],
+          "owner_technical": "Desk team"
+        },
+        "supervision": "unattended"
+      },
+      "issue": {
+        "title": "[T0-?] Hub API caches the stock lookup",
+        "labels": [
+          "tier0:tdr-workaround"
+        ],
+        "body": "| | |\n|---|---|\n| Architecture | architecture-v1.4.0 |\n| Kind | `tdr-workaround` — a workaround recorded as a new TDR |\n| Requested by | Desk team |\n| Components | Hub API |\n\n## Request\n\n```text\nbuild the stock lookup within its p95\n```\n\n## Evidence\n\n- hub-api@abc1234 internal/stock/cache.go:42 — a 5-minute in-memory cache\n\n## Fields\n\n```json\n{\n  \"description\": \"Hub API caches the stock lookup for 5 minutes.\",\n  \"impact\": \"A sold-out item shows as available for up to 5 minutes.\",\n  \"solutions\": [\n    \"Push stock events from the warehouse\"\n  ],\n  \"owner_technical\": \"Desk team\"\n}\n```\n\n_Tier 0, filed by an unattended build agent: a person reviews it and applies the label `architecture-tier0` — that is the approval; the architecture repository then writes it (architecture-tier0.yml), and a request that is no Tier 0 write is refused there, with the reason._\n<!-- sa-tier0 -->\n"
+      },
+      "read_back": {
+        "kind": "tdr-workaround",
+        "title": "Hub API caches the stock lookup",
+        "request": "build the stock lookup within its p95",
+        "components": [
+          "Hub API"
+        ],
+        "requested_by": "Desk team",
+        "architecture": "architecture-v1.4.0",
+        "evidence": [
+          {
+            "where": "hub-api@abc1234 internal/stock/cache.go:42",
+            "note": "a 5-minute in-memory cache"
+          }
+        ],
+        "fields": {
+          "description": "Hub API caches the stock lookup for 5 minutes.",
+          "impact": "A sold-out item shows as available for up to 5 minutes.",
+          "solutions": [
+            "Push stock events from the warehouse"
+          ],
+          "owner_technical": "Desk team"
+        }
+      }
+    },
+    {
+      "name": "attended-auto",
+      "auto": [
+        "tdr-status"
+      ],
+      "request": {
+        "kind": "tdr-status",
+        "title": "TDR-001 is in progress",
+        "request": "replace the manual ledger fix with a job",
+        "components": [
+          "Ledger Store"
+        ],
+        "evidence": [
+          {
+            "where": "ledger-jobs@9f00d1e src/fix/Job.java:1"
+          }
+        ],
+        "fields": {
+          "tdr": "TDR-001",
+          "to": "In Progress",
+          "note": "the job replaces the script"
+        }
+      },
+      "issue": {
+        "title": "[T0-?] TDR-001 is in progress",
+        "labels": [
+          "architecture-tier0",
+          "tier0:tdr-status"
+        ],
+        "body": "| | |\n|---|---|\n| Architecture | architecture-v1.4.0 |\n| Kind | `tdr-status` — a TDR status move tdr-check.js --move accepts, with its dated History note |\n| Requested by | — |\n| Components | Ledger Store |\n\n## Request\n\n```text\nreplace the manual ledger fix with a job\n```\n\n## Evidence\n\n- ledger-jobs@9f00d1e src/fix/Job.java:1\n\n## Fields\n\n```json\n{\n  \"tdr\": \"TDR-001\",\n  \"to\": \"In Progress\",\n  \"note\": \"the job replaces the script\"\n}\n```\n\n_Tier 0: the architecture repository writes it once the issue carries the label `architecture-tier0` (architecture-tier0.yml); a request that is no Tier 0 write is refused there, with the reason._\n<!-- sa-tier0 -->\n"
+      },
+      "read_back": {
+        "kind": "tdr-status",
+        "title": "TDR-001 is in progress",
+        "request": "replace the manual ledger fix with a job",
+        "components": [
+          "Ledger Store"
+        ],
+        "requested_by": "",
+        "architecture": "architecture-v1.4.0",
+        "evidence": [
+          {
+            "where": "ledger-jobs@9f00d1e src/fix/Job.java:1"
+          }
+        ],
+        "fields": {
+          "tdr": "TDR-001",
+          "to": "In Progress",
+          "note": "the job replaces the script"
+        }
+      }
     }
   ],
   "refused": [

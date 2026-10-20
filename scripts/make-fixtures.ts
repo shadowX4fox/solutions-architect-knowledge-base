@@ -181,6 +181,13 @@ const T0_CASES: Record<string, any> = {
 // an unattended build agent files without the key (10.10.0): no architecture-tier0 label, its own footer; "attended" is the default
 T0_CASES["unattended"] = { ...T0_CASES["tdr-workaround"], supervision: "unattended" };
 T0_CASES["attended"] = { ...T0_CASES["tdr-status"], supervision: "attended" };
+// a kind the architecture lists in tier0.auto (10.12.0): the unattended agent keys it itself — the label, its own footer;
+// any other kind, or an attended request, as without it. `auto` is support.tier0_auto, read through list()
+const T0_AUTO: Record<string, string[]> = { "unattended-auto": [" doc-fix ", "tdr-status"], "unattended-not-auto": ["tdr-status"], "attended-auto": ["tdr-status"] };
+T0_CASES["unattended-auto"] = { ...T0_CASES["tdr-status"], supervision: "unattended",
+  evidence: [{ where: "acme/ledger-jobs@9f00d1e5 src/fix/Job.java:1" }], fields: { tdr: "TDR-001", to: "Resolved", note: "the job replaced the script" } };
+T0_CASES["unattended-not-auto"] = { ...T0_CASES["tdr-workaround"], supervision: "unattended" };
+T0_CASES["attended-auto"] = { ...T0_CASES["tdr-status"] };
 const T0_REFUSED: Record<string, any> = {
   "unknown-kind": { kind: " doc-fix", title: "x", request: "y", fields: {} },
   "nothing-filled": { kind: "tdr-workaround", title: "  ", request: " ", evidence: [{ where: " ", note: "n" }], fields: { solutions: [" ", null], description: "　", impact: 0, owner_technical: false } },
@@ -196,10 +203,11 @@ const T0_REFUSED: Record<string, any> = {
 const t0: any = { architecture: RS, cases: [], refused: [] };
 for (const [name, req] of Object.entries(T0_CASES)) {
   const errors = T.validate(req); if (errors.length) throw new Error(`${name}: tier0.js refuses it: ${errors.join("; ")}`);
-  const issue = { title: T.issueTitle(req), labels: T.labelsOf(req), body: T.issueBody({ ...req, architecture: RS }) };
+  const auto = T0_AUTO[name];
+  const issue = { title: T.issueTitle(req), labels: T.labelsOf(req, auto), body: T.issueBody({ ...req, architecture: RS }, auto) };
   const back = T.requestOf(issue);
   if (JSON.stringify(back.fields) !== JSON.stringify(req.fields) || back.kind !== req.kind) throw new Error(`${name}: requestOf does not read the request back`);
-  t0.cases.push({ name, request: req, issue, read_back: back });
+  t0.cases.push({ name, ...(auto ? { auto } : {}), request: req, issue, read_back: back });
 }
 for (const [name, req] of Object.entries(T0_REFUSED)) t0.refused.push({ name, request: req, errors: T.validate(req) });
 const T0_GOLDEN = join(OUT, "..", "..", "tier0", "issues.json");
