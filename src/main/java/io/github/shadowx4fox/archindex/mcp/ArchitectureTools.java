@@ -196,7 +196,7 @@ public class ArchitectureTools {
 		return answer(() -> packs.asset(project, component, asset, version, offset));
 	}
 
-	@McpTool(name = "what_changed", description = "What changed for one component since the version and the build pack revision it was built against: facts, contracts, interfaces, integrations, flows and budgets, ADRs, security obligations, open questions, technical debt (the TDRs its descriptor names: added, moved, dropped — listed, never an action) — and whether code must move (action_required). Use after a release, or when get_build_pack returns another pack_revision for the same version; then update the service and .architecture.json.")
+	@McpTool(name = "what_changed", description = "What changed for one component since the version and the build pack revision it was built against: facts, contracts, interfaces, integrations, flows and budgets, ADRs, security obligations, open questions, technical debt (the TDRs its descriptor names: added, moved, dropped — listed, never an action), restamped (parts that moved only their version stamp, link targets or debt table — never an action) — and whether code must move (action_required). Use after a release, or when get_build_pack returns another pack_revision for the same version; then update the service and .architecture.json.")
 	public CallToolResult whatChanged(@McpToolParam(description = PROJECT) String project,
 			@McpToolParam(description = COMPONENT + " (omit for every container that changed; required with from_revision)", required = false) String component,
 			@McpToolParam(description = "The version built against — the one in .architecture.json") String from,

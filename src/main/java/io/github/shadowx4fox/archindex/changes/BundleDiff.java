@@ -1,5 +1,10 @@
 package io.github.shadowx4fox.archindex.changes;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -16,6 +21,7 @@ import java.util.regex.Pattern;
 import io.github.shadowx4fox.archindex.bundle.Bundle;
 import io.github.shadowx4fox.archindex.bundle.Chunk;
 import io.github.shadowx4fox.archindex.bundle.J;
+import io.github.shadowx4fox.archindex.escalation.Escalate;
 
 /**
  * What changed for each container between two bundles of one project — the plugin's {@code diffBundles} and
@@ -83,6 +89,68 @@ public final class BundleDiff {
 			return m;
 		}
 
+	}
+
+	// ---- a part's substance (10.10.4): its text with every link target and the architecture's own version masked, and the
+	// specification's technical debt table out — a release restamps every part, a pack relinks to where its parts are packed,
+	// and the debt table is code's from the descriptor, reported as technical_debt; none is a change the developer acts on.
+	// The plugin's regular expressions with JavaScript's meaning: \s is ECMAScript's, ^ $ and . know four line terminators,
+	// \b is ASCII
+
+	private static final String LT = "\\n\\r\\u2028\\u2029";
+
+	private static final String BOL = "(?<![^" + LT + "])";
+
+	private static final String EOL = "(?![^" + LT + "])";
+
+	private static final String S = "[" + Escalate.WS + "]";
+
+	/** {@code /^#{3,4}\s.*<!--\s*LABEL:\s*Technical Debt\s*-->[\s\S]*?(?=^#{2,4}\s|^-{3,}[ \t]*$|$(?![\s\S]))/m} */
+	private static final Pattern DEBT_BLOCK = Pattern.compile(BOL + "#{3,4}" + S + "[^" + LT + "]*<!--" + S + "*LABEL:" + S
+			+ "*Technical Debt" + S + "*-->[\\s\\S]*?(?=" + BOL + "#{2,4}" + S + "|" + BOL + "-{3,}[ \\t]*" + EOL + "|" + EOL
+			+ "(?![\\s\\S]))");
+
+	private static final Pattern LINK_TARGET = Pattern.compile("\\]\\([^)" + Escalate.WS + "]*\\)");
+
+	private static final String WORD = "[A-Za-z0-9_]";
+
+	private static final String BOUNDARY = "(?:(?<=" + WORD + ")(?!" + WORD + ")|(?<!" + WORD + ")(?=" + WORD + "))";
+
+	/** The plugin's {@code substance(t, v)}: what a part says once a release's restamping is masked. */
+	public static String substance(String text, String version) {
+		String t = DEBT_BLOCK.matcher(String.valueOf(text).replaceAll("\\r\\n?", "\n")).replaceFirst("");
+		t = LINK_TARGET.matcher(t).replaceAll("](·)");
+		return version == null || version.isEmpty() ? t
+				: Pattern.compile(BOUNDARY + "v?" + Pattern.quote(version) + BOUNDARY).matcher(t).replaceAll("·");
+	}
+
+	/** A part's text, read from the bundle on disk; null when the pack does not hold it. */
+	private static String partText(Bundle b, String slug, Map<String, Object> part) {
+		String p = J.str(part, "path");
+		Map<String, Object> entry = find(J.maps(b.manifest(), "buildpacks"), "component", slug);
+		if (b.dir() == null || entry == null || J.str(entry, "path") == null || p == null || p.isEmpty()) {
+			return null;
+		}
+		Path root = b.dir().toAbsolutePath().normalize();
+		Path packDir = root.resolve(J.str(entry, "path")).normalize().getParent();
+		Path f = packDir == null ? null : packDir.resolve(p).normalize();
+		if (f == null || !f.startsWith(root) || !Files.isRegularFile(f)) {
+			return null;
+		}
+		try {
+			return Files.readString(f, StandardCharsets.UTF_8);
+		}
+		catch (java.nio.charset.MalformedInputException e) {
+			try {
+				return new String(Files.readAllBytes(f), StandardCharsets.UTF_8);
+			}
+			catch (IOException x) {
+				throw new UncheckedIOException(x);
+			}
+		}
+		catch (IOException e) {
+			throw new UncheckedIOException(e);
+		}
 	}
 
 	private static <T> SetDiff setDiff(List<T> a, List<T> b, Function<T, String> key, BiPredicate<T, T> same) {
@@ -210,31 +278,51 @@ public final class BundleDiff {
 		SetDiff adrs = null;
 		List<String> documents = new ArrayList<>();
 		Map<String, Object> openQuestions = null;
+		List<String> restamped = null;
 		if (op != null || np != null) {
-			BiPredicate<Map<String, Object>, Map<String, Object>> byHash = (a, b) -> Objects.equals(J.str(a, "sha256"), J.str(b, "sha256"));
+			String ov = J.str(J.map(o.manifest(), "architecture"), "version");
+			String nv = J.str(J.map(n.manifest(), "architecture"), "version");
+			List<String> stamped = new ArrayList<>();
+			restamped = stamped;
+			// bytes moved, substance did not: restamped, listed and never an action
+			BiPredicate<Map<String, Object>, Map<String, Object>> byHash = (a, b) -> {
+				if (Objects.equals(J.str(a, "sha256"), J.str(b, "sha256"))) {
+					return true;
+				}
+				String ta = partText(o, slug, a);
+				String tb = partText(n, slug, b);
+				boolean same = ta != null && tb != null && substance(ta, ov).equals(substance(tb, nv));
+				if (same && !stamped.contains(J.str(b, "title"))) {
+					stamped.add(J.str(b, "title"));
+				}
+				return same;
+			};
 			contracts = setDiff(parts(op, "asset"), parts(np, "asset"), (x) -> J.str(x, "title"), byHash);
 			interfaces = setDiff(parts(op, "interface"), parts(np, "interface"), (x) -> J.str(x, "id").replaceFirst("^interface:", ""), byHash);
 			adrs = setDiff(parts(op, "adr"), parts(np, "adr"), (x) -> J.str(x, "id").replaceFirst("^adr:", ""), byHash);
 			for (String[] d : new String[][] { { "spec", "Component Specification" }, { "security", "Security Obligations" }, { "cross-cutting-standards", "Cross-Cutting Standards" }, { "runtime-view", "System Runtime View" }, { "instructions", "Build instructions" } }) {
 				Map<String, Object> a = op == null ? null : find(J.maps(op, "parts"), "id", d[0]);
 				Map<String, Object> b = np == null ? null : find(J.maps(np, "parts"), "id", d[0]);
-				if (a != null && b != null && !Objects.equals(J.str(a, "sha256"), J.str(b, "sha256"))) {
+				if (a != null && b != null && !byHash.test(a, b)) {
 					documents.add(d[1]);
 				}
 			}
 			List<Map<String, Object>> oq = op == null ? List.of() : J.maps(op, "open_questions");
 			List<Map<String, Object>> nq = np == null ? List.of() : J.maps(np, "open_questions");
-			Function<Map<String, Object>, String> qk = (x) -> J.str(x, "part") + "\u0000" + J.str(x, "text");
-			Set<String> ok = new LinkedHashSet<>(oq.stream().map(qk).toList());
-			Set<String> nk = new LinkedHashSet<>(nq.stream().map(qk).toList());
+			Function<String, Function<Map<String, Object>, String>> qk = (v) -> (x) -> J.str(x, "part") + "\u0000" + substance(J.str(x, "text"), v);
+			Set<String> ok = new LinkedHashSet<>(oq.stream().map(qk.apply(ov)).toList());
+			Set<String> nk = new LinkedHashSet<>(nq.stream().map(qk.apply(nv)).toList());
 			openQuestions = new LinkedHashMap<>();
-			openQuestions.put("new", nq.stream().filter((x) -> !ok.contains(qk.apply(x))).toList());
-			openQuestions.put("resolved", oq.stream().filter((x) -> !nk.contains(qk.apply(x))).toList());
+			openQuestions.put("new", nq.stream().filter((x) -> !ok.contains(qk.apply(nv).apply(x))).toList());
+			openQuestions.put("resolved", oq.stream().filter((x) -> !nk.contains(qk.apply(ov).apply(x))).toList());
 		}
 		r.put("contracts", contracts == null ? null : contracts.json());
 		r.put("interfaces", interfaces == null ? null : interfaces.json());
 		r.put("adrs", adrs == null ? null : adrs.json());
 		r.put("documents", documents);
+		if (restamped != null) {
+			r.put("restamped", restamped);
+		}
 		// the flows it takes part in, from each version's ledger — a budget moves with or without a build pack
 		List<Map<String, Object>> flows = new ArrayList<>();
 		List<Map<String, Object>> oldFlows = flowsOf(o.ledger(), slug);
@@ -446,6 +534,10 @@ public final class BundleDiff {
 			List<String> docs = J.strings(c, "documents");
 			if (!docs.isEmpty()) {
 				l.add("- documents: " + String.join(", ", docs));
+			}
+			List<String> stamped = c.get("restamped") instanceof List<?> ls ? ls.stream().map((x) -> x == null ? "" : String.valueOf(x)).toList() : List.of();
+			if (!stamped.isEmpty()) {
+				l.add("- restamped — version, links or the debt table only: " + String.join(", ", stamped));
 			}
 			Map<String, Object> td = J.map(c, "technical_debt");
 			if (anyDebt(td)) {
