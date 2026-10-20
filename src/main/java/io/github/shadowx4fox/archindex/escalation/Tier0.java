@@ -95,10 +95,12 @@ public final class Tier0 {
 	}
 
 	/**
-	 * {@code support.tier0_kinds}, {@code support.tdr_moves}, {@code support.tdr_statuses} and
-	 * {@code support.tdr_drivers}, as the bundle lists them.
+	 * {@code support.tier0_kinds}, {@code support.tdr_moves}, {@code support.tdr_statuses},
+	 * {@code support.tdr_drivers} and {@code support.tier0_auto} (the kinds an unattended agent keys itself, plugin
+	 * v10.12.0; none before), as the bundle lists them.
 	 */
-	public record Policy(Map<String, Kind> kinds, Map<String, List<String>> moves, List<String> statuses, List<String> drivers) {
+	public record Policy(Map<String, Kind> kinds, Map<String, List<String>> moves, List<String> statuses, List<String> drivers,
+			List<String> auto) {
 
 		public static Policy of(Map<String, Object> support) {
 			Map<String, Kind> kinds = new LinkedHashMap<>();
@@ -109,7 +111,8 @@ public final class Tier0 {
 			});
 			Map<String, List<String>> moves = new LinkedHashMap<>();
 			J.map(support, "tdr_moves").forEach((k, v) -> moves.put(k, v instanceof List<?> l ? l.stream().map(String::valueOf).toList() : List.of()));
-			return new Policy(kinds, moves, listed(support, "tdr_statuses", STATUSES), listed(support, "tdr_drivers", DRIVERS));
+			return new Policy(kinds, moves, listed(support, "tdr_statuses", STATUSES), listed(support, "tdr_drivers", DRIVERS),
+					list(support.get("tier0_auto")));
 		}
 
 		private static List<String> listed(Map<String, Object> support, String key, List<String> before) {
@@ -326,10 +329,19 @@ public final class Tier0 {
 		return p.statuses().stream().filter((x) -> x.equalsIgnoreCase(s)).findFirst().orElse(null);
 	}
 
-	/** {@code issueTitle}, {@code labelsOf} and {@code issueBody}. */
+	/**
+	 * {@code autoKeyed}: an unattended request of a kind the architecture lists in {@code tier0.auto} — the agent keys it
+	 * itself, and the architecture repository accepts that key from a trusted agent on an issue it filed.
+	 */
+	public static boolean autoKeyed(Request r, Policy p) {
+		return r.unattended() && p.auto().contains(r.kind());
+	}
+
+	/** {@code issueTitle}, {@code labelsOf} and {@code issueBody}, with {@code support.tier0_auto} as {@code auto}. */
 	public static Escalate.Issue issue(Request r, Policy p, String architecture) {
 		return new Escalate.Issue("[" + UNNUMBERED + "] " + Escalate.trim(string(r.title())),
-				r.unattended() ? List.of("tier0:" + r.kind()) : List.of(LABEL, "tier0:" + r.kind()), body(r, p, architecture));
+				r.unattended() && !autoKeyed(r, p) ? List.of("tier0:" + r.kind()) : List.of(LABEL, "tier0:" + r.kind()),
+				body(r, p, architecture));
 	}
 
 	static String body(Request r, Policy p, String architecture) {
@@ -354,7 +366,12 @@ public final class Tier0 {
 			.toList();
 		w.addAll(ev.isEmpty() ? List.of("- None.") : ev);
 		w.addAll(List.of("", "## Fields", "", fence(fields) + "json", fields, fence(fields), ""));
-		w.add(r.unattended()
+		w.add(autoKeyed(r, p)
+				? "_Tier 0, filed and keyed by an unattended build agent: this architecture lets a trusted agent start `"
+						+ r.kind() + "` itself (`tier0.auto`), so the architecture repository writes it now (architecture-tier0.yml) "
+						+ "and a person reviews it after, in its pull request and the release; a request that is no Tier 0 write is "
+						+ "refused there, with the reason._"
+				: r.unattended()
 				? "_Tier 0, filed by an unattended build agent: a person reviews it and applies the label `" + LABEL
 						+ "` — that is the approval; the architecture repository then writes it (architecture-tier0.yml), and a "
 						+ "request that is no Tier 0 write is refused there, with the reason._"
