@@ -118,8 +118,17 @@ public final class Tier0 {
 
 	}
 
-	/** What the release's ledger holds of the records a request names: each TDR's status, and the ADR ids. */
-	public record Ledger(Map<String, String> tdrs, Set<String> adrs, String version) {
+	/**
+	 * What the release's ledger holds of the records a request names: each TDR's status, and the ADR ids; and what the
+	 * project's draft holds ({@code draft} names it, null without one), for the records a Tier 0 write created since.
+	 */
+	public record Ledger(Map<String, String> tdrs, Set<String> adrs, String version, Map<String, String> draftTdrs,
+			Set<String> draftAdrs, String draft) {
+
+		public Ledger(Map<String, String> tdrs, Set<String> adrs, String version) {
+			this(tdrs, adrs, version, Map.of(), Set.of(), null);
+		}
+
 	}
 
 	/** {@code validate()}: an empty list when the request is a Tier 0 write as written. */
@@ -211,17 +220,34 @@ public final class Tier0 {
 	 * between releases, and the architecture repository checks a move against main ({@code tier0.js prepare}). A move refused
 	 * from the released status but valid from one a Tier 0 write may have set since — reachable along the moves, never through
 	 * Won't Fix, which only the architect sets — is previewed, with what it assumes; a move to the released status itself
-	 * stays refused.
+	 * stays refused. A record the release lacks but the draft lists — a TDR or a project ADR a Tier 0 write created since —
+	 * is checked on the draft, and that is assumed too; without a draft listing it, it is refused.
 	 */
 	public static List<String> against(Request r, Policy p, Ledger l, List<String> assumed) {
 		List<String> errors = new ArrayList<>();
 		Map<String, Object> f = r.fields();
 		if ("tdr-workaround".equals(r.kind())) {
-			list(f.get("adrs")).stream().filter((a) -> !l.adrs().contains(a)).forEach((a) -> errors.add("fields.adrs: " + a + " does not exist"));
+			for (String a : list(f.get("adrs"))) {
+				if (l.adrs().contains(a)) {
+					continue;
+				}
+				if (l.draftAdrs().contains(a)) {
+					assumed.add(a + " is not in " + l.version() + "; it is in " + l.draft() + ", and this request assumes it is in main "
+							+ "— the architecture repository checks it");
+				}
+				else {
+					errors.add("fields.adrs: " + a + " does not exist");
+				}
+			}
 		}
 		if ("tdr-status".equals(r.kind())) {
 			String tdr = string(f.get("tdr"));
 			String status = l.tdrs().get(tdr);
+			String where = l.version();
+			if (status == null && l.draftTdrs().get(tdr) != null) {
+				status = l.draftTdrs().get(tdr);
+				where = l.draft();
+			}
 			if (status == null) {
 				errors.add(tdr + " has no record under tdr/");
 			}
@@ -229,9 +255,14 @@ public final class Tier0 {
 				String to = string(f.get("to"));
 				String reason = move(p, status, to);
 				List<String> from = reason == null ? List.of() : since(p, status, to);
+				String in = where.equals(l.version()) ? tdr + " is " + status + " in " + where
+						: tdr + " is not in " + l.version() + "; it is " + status + " in " + where;
 				if (!from.isEmpty()) {
-					assumed.add(tdr + " is " + status + " in " + l.version() + "; this move assumes it is " + String.join(" or ", from)
+					assumed.add(in + "; this move assumes it is " + String.join(" or ", from)
 							+ " in main — the architecture repository checks it");
+				}
+				else if (reason == null && !where.equals(l.version())) {
+					assumed.add(in + "; this move assumes it still is in main — the architecture repository checks it");
 				}
 				else if (reason != null) {
 					errors.add(tdr + ": " + status + " → " + to + " is refused — " + reason);

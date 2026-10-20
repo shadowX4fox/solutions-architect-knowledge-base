@@ -172,6 +172,8 @@ class Tier0Test {
 		assertThat(J.str(ok, "next")).startsWith("Nothing has been written");
 		assertThatThrownBy(() -> s.preview("order-desk", move("TDR-001", "Open"))).hasMessageContaining("already `Open`");
 		assertThatThrownBy(() -> s.preview("order-desk", move("TDR-404", "In Progress"))).hasMessageContaining("TDR-404 has no record under tdr/");
+		// created since the release, and no draft lists it
+		assertThatThrownBy(() -> s.preview("order-desk", move("TDR-002", "In Progress"))).hasMessageContaining("TDR-002 has no record under tdr/");
 		assertThatThrownBy(() -> s.preview("order-desk", move("TDR-001", "Won't Fix")))
 			.hasMessageContaining("a move to Won't Fix is a decision, not a Tier 0 write — the architect makes it");
 
@@ -193,6 +195,45 @@ class Tier0Test {
 		assertThatThrownBy(() -> s.preview("order-desk", new Tier0.Request("big-bang", "t", "r", null, null, null, null)))
 			.isInstanceOf(ToolException.class)
 			.hasMessageContaining("kind \"big-bang\" is not a Tier 0 write — one of tdr-workaround, tdr-status, adr-proposed, doc-fix");
+	}
+
+	@Test
+	@SuppressWarnings("unchecked")
+	void aRecordCreatedSinceTheReleaseIsCheckedOnTheDraft() throws Exception {
+		// a Tier 0 merge published the draft: TDR-002 (Open) and ADR-102 (Proposed) are in it, not in 1.4.0
+		int n = ++stores;
+		BundleStore store = new BundleStore(tmp.resolve("data-" + n), 50_000_000);
+		store.publish("order-desk", "1.4.0", "released", new ByteArrayInputStream(Fixtures.tgz(Fixtures.bundle("1.4.0"))));
+		store.publish("order-desk", "1.4.0", "draft", new ByteArrayInputStream(Fixtures.tgz(Fixtures.bundle("draft"))));
+		Tier0Service s = new Tier0Service(new Bundles(store), new Escalation(List.of(EscalationTest.GITHUB)));
+		String draft = "the draft of " + J.str(J.obj(Files.readAllBytes(Fixtures.bundle("draft").resolve("manifest.json"))), "generated_at")
+			.substring(0, 10);
+
+		Map<String, Object> ok = s.preview("order-desk", move("TDR-002", "In Progress"));
+		assertThat(ok.get("version")).isEqualTo("1.4.0");
+		assertThat(J.str(ok, "next")).startsWith("TDR-002 is not in 1.4.0; it is Open in " + draft
+				+ "; this move assumes it still is in main — the architecture repository checks it. Nothing has been written");
+		assertThat(J.str((Map<String, Object>) ok.get("issue"), "body")).contains("TDR-002").doesNotContain("assumes");
+		assertThat(J.str(s.preview("order-desk", move("TDR-002", "Resolved")), "next")).startsWith("TDR-002 is not in 1.4.0; it is Open in "
+				+ draft + "; this move assumes it is In Progress in main — the architecture repository checks it. ");
+		// a record in the release is checked on the release, as before
+		assertThat(J.str(s.preview("order-desk", move("TDR-001", "In Progress")), "next")).startsWith("Nothing has been written");
+		assertThatThrownBy(() -> s.preview("order-desk", move("TDR-002", "Open"))).hasMessageContaining("TDR-002: Open → Open is refused");
+		assertThatThrownBy(() -> s.preview("order-desk", move("TDR-404", "In Progress"))).hasMessageContaining("TDR-404 has no record under tdr/");
+
+		Map<String, Object> f = new LinkedHashMap<>();
+		f.put("description", "d");
+		f.put("impact", "i");
+		f.put("solutions", List.of("s"));
+		f.put("owner_technical", "o");
+		f.put("adrs", List.of("ADR-101", "ADR-102"));
+		Tier0.Request workaround = new Tier0.Request("tdr-workaround", "A workaround", "r", List.of("Hub API"), null,
+				List.of(new Tier0.Evidence("svc@1 a.go:1", null)), f);
+		assertThat(J.str(s.preview("order-desk", workaround), "next")).startsWith("ADR-102 is not in 1.4.0; it is in " + draft
+				+ ", and this request assumes it is in main — the architecture repository checks it. ");
+		f.put("adrs", List.of("ADR-102", "ADR-999"));
+		assertThatThrownBy(() -> s.preview("order-desk", workaround)).hasMessageContaining("fields.adrs: ADR-999 does not exist")
+			.hasMessageNotContaining("ADR-102");
 	}
 
 	@Test
