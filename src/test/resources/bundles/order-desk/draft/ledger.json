@@ -265,7 +265,8 @@
    "status": "Open",
    "initiative": null,
    "driver": null,
-   "capability": null
+   "capability": null,
+   "components": []
   },
   {
    "id": "TDR-002",
@@ -274,7 +275,8 @@
    "status": "Open",
    "initiative": null,
    "driver": null,
-   "capability": null
+   "capability": null,
+   "components": []
   }
  ],
  "layers": [],

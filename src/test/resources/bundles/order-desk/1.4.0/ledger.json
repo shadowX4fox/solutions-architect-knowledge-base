@@ -258,7 +258,8 @@
    "status": "Open",
    "initiative": null,
    "driver": null,
-   "capability": null
+   "capability": null,
+   "components": []
   }
  ],
  "layers": [],
