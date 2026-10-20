@@ -29,7 +29,7 @@ public final class Escalate {
 	public static final String UNNUMBERED = "ESC-?";
 
 	/** ECMAScript WhiteSpace and LineTerminator: what {@code trim()} removes and {@code \s} matches. */
-	private static final String WS = "\\t\\n\\x0B\\f\\r \\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF";
+	public static final String WS = "\\t\\n\\x0B\\f\\r \\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF";
 
 	private static final Pattern EDGES = Pattern.compile("^[" + WS + "]+|[" + WS + "]+$");
 

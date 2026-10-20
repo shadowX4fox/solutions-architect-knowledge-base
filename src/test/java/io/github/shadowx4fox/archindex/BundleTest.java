@@ -93,6 +93,30 @@ class BundleTest {
 		assertThatThrownBy(() -> BundleDiff.diff(o, n, "nope", false)).hasMessageContaining("container of neither version");
 	}
 
+	@Test
+	void aPartIsComparedByItsSubstance() throws Exception {
+		// the plugin's diffBundles and renderChanges of the pair (scripts/make-fixtures.ts): a part that moved only its version,
+		// its link targets, its line ends or the specification's debt table is restamped, never an action; the rest is compared
+		// with JavaScript's regular expressions
+		Bundle o = Bundle.load(Fixtures.bundle("1.4.0-stamped"));
+		Bundle n = Bundle.load(Fixtures.bundle("1.5.0-restamped"));
+		Map<String, Object> ours = BundleDiff.diff(o, n, null, false);
+		assertThat(dropNulls(J.obj(J.write(ours)))).isEqualTo(dropNulls(n.changes().orElseThrow()));
+		assertThat(BundleDiff.render(ours)).isEqualTo(Files.readString(Fixtures.bundle("1.5.0-restamped").resolve("changes.md")));
+		Map<String, Object> hub = J.maps(ours, "components").get(0);
+		assertThat(J.strings(hub, "restamped")).containsExactly("c4-descriptor.md", "Interface Contract: Web App → Hub API",
+				"ADR-101: Idempotency keys on every write", "Component Specification");
+		assertThat(J.strings(hub, "documents")).containsExactly("Security Obligations", "System Runtime View", "Build instructions");
+		assertThat(J.strings(J.map(hub, "adrs"), "changed")).containsExactly("ADR-012");
+		assertThat(J.maps(J.map(hub, "open_questions"), "new")).extracting((q) -> q.get("text")).containsExactly("Which caller signs?");
+
+		assertThat(BundleDiff.substance("x\r\ny\rz", null)).isEqualTo("x\ny\nz");
+		assertThat(BundleDiff.substance("[a](b c) [d](e)", "1.0")).isEqualTo("[a](b c) [d](·)");
+		assertThat(BundleDiff.substance("v1.0 é1.0 1.0x _1.0 1.0.1 (1.0)", "1.0")).isEqualTo("· é· 1.0x _1.0 ·.1 (·)");
+		assertThat(BundleDiff.substance("## A\n### Debt <!-- LABEL: Technical Debt -->\n| x |\n---\nrest\n### B <!-- LABEL: Technical Debt -->\ny\n", null))
+			.isEqualTo("## A\n---\nrest\n### B <!-- LABEL: Technical Debt -->\ny\n");
+	}
+
 	/** 1.3.0 with hub-api's descriptor naming {@code names} and the ledger holding {@code tdrs}; null names: no `tdrs` at all. */
 	Bundle withDebt(String dir, List<String> names, List<Map<String, Object>> tdrs) throws Exception {
 		Path b = Fixtures.copy(Fixtures.bundle("1.3.0"), tmp.resolve(dir));
