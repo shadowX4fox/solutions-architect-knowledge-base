@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.slf4j.Logger;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import io.github.shadowx4fox.archindex.ArchIndexProperties.Escalation;
 import io.github.shadowx4fox.archindex.ArchIndexProperties.Target;
 import io.github.shadowx4fox.archindex.bundle.Bundle;
+import io.github.shadowx4fox.archindex.bundle.BundleStore;
 import io.github.shadowx4fox.archindex.bundle.J;
 import io.github.shadowx4fox.archindex.mcp.Bundles;
 import io.github.shadowx4fox.archindex.mcp.ToolException;
@@ -77,7 +79,16 @@ public class Tier0Service {
 			Set<String> adrs = new HashSet<>();
 			J.maps(b.ledger(), "tdrs").forEach((x) -> tdrs.put(J.str(x, "id"), J.str(x, "status")));
 			J.maps(b.ledger(), "adrs").forEach((x) -> adrs.add(J.str(x, "id")));
-			errors.addAll(Tier0.against(req, policy, new Tier0.Ledger(tdrs, adrs, b.version()), assumed));
+			// a Tier 0 merge publishes the draft: a record created since the release is checked there
+			Map<String, String> draftTdrs = new LinkedHashMap<>();
+			Set<String> draftAdrs = new HashSet<>();
+			Optional<Bundle> draft = bundles.store().find(b.projectKey()).flatMap(BundleStore.Project::draft);
+			draft.ifPresent((d) -> {
+				J.maps(d.ledger(), "tdrs").forEach((x) -> draftTdrs.put(J.str(x, "id"), J.str(x, "status")));
+				J.maps(d.ledger(), "adrs").forEach((x) -> draftAdrs.add(J.str(x, "id")));
+			});
+			String drafted = draft.map(Tier0Service::draftOf).orElse(null);
+			errors.addAll(Tier0.against(req, policy, new Tier0.Ledger(tdrs, adrs, b.version(), draftTdrs, draftAdrs, drafted), assumed));
 		}
 		if (!errors.isEmpty()) {
 			throw new ToolException("the Tier 0 request cannot be filed as it is:\n- " + String.join("\n- ", errors));
@@ -134,6 +145,12 @@ public class Tier0Service {
 		out.put("next", "Filed. The architecture repository writes the record once the issue carries the label "
 				+ Tier0.LABEL + " (architecture-tier0.yml), or refuses it there with the reason; nothing changes in this repository.");
 		return out;
+	}
+
+	/** How the draft is named in what a preview assumes: by the date it was exported, so an old draft shows its age. */
+	static String draftOf(Bundle d) {
+		String at = J.str(d.manifest(), "generated_at");
+		return at == null || at.length() < 10 ? "the draft" : "the draft of " + at.substring(0, 10);
 	}
 
 	private Target target(String project) {

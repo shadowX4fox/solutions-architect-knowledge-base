@@ -252,7 +252,10 @@ changes no fact (`doc-fix`) is requested, never made from the service repository
    and arrow on the release's ledger. A move to `Won't Fix` is always refused: it is the architect's decision. The release
    may be behind `main`, where Tier 0 writes merge between releases: a move refused from the released status but valid
    from one a Tier 0 write may have set since (reachable along `support.tdr_moves`, never through `Won't Fix`) is previewed,
-   and `next` says what it assumes — the architecture repository checks it against `main`. It returns
+   and `next` says what it assumes — the architecture repository checks it against `main`. A TDR or a project ADR a
+   Tier 0 write created since the release is not on its ledger; when the project's draft (which a Tier 0 merge
+   publishes) lists it, it is checked on the draft and `next` says so (`TDR-003 is not in 1.5.1; it is Open in the draft
+   of 2026-10-20; …`). Without a draft listing it, it is refused as before. It returns
    the issue exactly as `tier0.js render` writes it (`[T0-?] …`, labels `architecture-tier0` and `tier0:<kind>`, the
    fields as a JSON block) and `file_with`, the same commands as an escalation's.
 2. **The agent shows the user the issue** and files it only after a yes.
