@@ -28,7 +28,9 @@ import io.github.shadowx4fox.archindex.index.Indexer;
  * <pre>
  * GET  /bundles/{key}/before/{version}             200 application/gzip — the newest released bundle older than version · 404 none
  * POST /bundles/{key}/{version}?channel={channel}  body application/gzip — 201 stored · 200 a version held, the body
- *                                                  {"added":[…],"replaced":[…],"unchanged":[…]} naming the build packs ·
+ *                                                  {"added":[…],"replaced":[…],"unchanged":[…]} naming the build packs and
+ *                                                  {"ledger":"same|extended","ledger_added":[…]} · a ledger that only adds
+ *                                                  fields to the one held (a newer plugin's) is stored ·
  *                                                  409 refused, {"reason":"chunks_differ|ledger_differs|packs_missing","packs":[…]}
  * </pre>
  *
@@ -95,6 +97,8 @@ public class BundleController {
 			body.put("added", p.added());
 			body.put("replaced", p.replaced());
 			body.put("unchanged", p.unchanged());
+			body.put("ledger", p.ledgerAdded().isEmpty() ? "same" : "extended");
+			body.put("ledger_added", p.ledgerAdded());
 		}
 		indexer.reconcile(key);
 		body.put("search", p.chunksChanged() ? "indexing — GET /bundles shows when it is ready" : "unchanged");

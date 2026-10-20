@@ -254,7 +254,7 @@ class BundleTest {
 	}
 
 	@Test
-	void aSecondPublishOfAReleasedVersionMayAddAndReplacePacksButNeverDropOneOrMoveTheLedger() throws Exception {
+	void aSecondPublishOfAReleasedVersionMayAddAndReplacePacksAndExtendTheLedgerButNeverDropOneOrChangeAFact() throws Exception {
 		BundleStore s = new BundleStore(tmp.resolve("data"), 50_000_000);
 		publish(s, "order-desk", "1.4.0", "released", Fixtures.bundle("1.4.0"));
 		String first = s.resolve("order-desk", "1.4.0").orElseThrow().packRevision("hub-api").orElseThrow();
@@ -269,15 +269,45 @@ class BundleTest {
 		assertThat(p.added()).isEmpty();
 		assertThat(p.chunksChanged()).isFalse();
 		assertThat(s.resolve("order-desk", "1.4.0").orElseThrow().packRevision("hub-api").orElseThrow()).isNotEqualTo(first);
-		// another ledger under the same chunks (a plugin bump between the two publishes) → 409 ledger_differs
-		Path ledger = Fixtures.copy(Fixtures.bundle("1.4.0-revised"), tmp.resolve("ledger"));
-		Map<String, Object> l = J.obj(Files.readAllBytes(ledger.resolve("ledger.json")));
+		// a ledger that only adds fields (a plugin bump between the two publishes) extends the one held: stored, recorded
+		Path extended = Fixtures.copy(Fixtures.bundle("1.4.0-revised"), tmp.resolve("extended"));
+		Map<String, Object> l = J.obj(Files.readAllBytes(extended.resolve("ledger.json")));
 		l.put("plugin_field", "new");
-		Fixtures.rewrite(ledger, "ledger.json", J.write(l));
-		p = publish(s, "order-desk", "1.4.0", "released", ledger);
+		Fixtures.rewrite(extended, "ledger.json", J.write(l));
+		p = publish(s, "order-desk", "1.4.0", "released", extended);
+		assertThat(p.outcome()).isEqualTo(Outcome.LEDGER_EXTENDED);
+		assertThat(p.ledgerAdded()).containsExactly(".plugin_field");
+		assertThat(p.unchanged()).containsExactly("hub-api");
+		assertThat(p.chunksChanged()).isFalse();
+		assertThat(s.resolve("order-desk", "1.4.0").orElseThrow().ledger()).containsEntry("plugin_field", "new");
+		assertThat(s.find("order-desk").orElseThrow().revisions("1.4.0")).last()
+			.satisfies((r) -> assertThat(J.strings(r, "ledger_extended")).containsExactly(".plugin_field"));
+		// the same again: nothing moves
+		p = publish(s, "order-desk", "1.4.0", "released", extended);
+		assertThat(p.outcome()).isEqualTo(Outcome.UNCHANGED);
+		// a field the held ledger has, dropped, or a value changed → 409 ledger_differs, what is held stays
+		Path dropped = Fixtures.copy(Fixtures.bundle("1.4.0-revised"), tmp.resolve("dropped"));
+		p = publish(s, "order-desk", "1.4.0", "released", dropped);
 		assertThat(p.outcome()).isEqualTo(Outcome.CONFLICT);
 		assertThat(p.conflict()).isEqualTo(BundleStore.Conflict.LEDGER_DIFFERS);
-		assertThat(s.resolve("order-desk", "1.4.0").orElseThrow().ledger()).doesNotContainKey("plugin_field");
+		Path changed = Fixtures.copy(extended, tmp.resolve("changed"));
+		l.put("plugin_field", "other");
+		Fixtures.rewrite(changed, "ledger.json", J.write(l));
+		p = publish(s, "order-desk", "1.4.0", "released", changed);
+		assertThat(p.conflict()).isEqualTo(BundleStore.Conflict.LEDGER_DIFFERS);
+		assertThat(s.resolve("order-desk", "1.4.0").orElseThrow().ledger()).containsEntry("plugin_field", "new");
+	}
+
+	@Test
+	void aLedgerExtendsAnotherOnlyByKeysItAdds() {
+		Map<String, Object> held = J.obj("{\"tdrs\":[{\"id\":\"TDR-001\",\"status\":\"open\"}],\"n\":1}");
+		assertThat(J.extensions(held, J.obj("{\"n\":1,\"tdrs\":[{\"status\":\"open\",\"id\":\"TDR-001\",\"components\":[\"Hub API\"]}]}")))
+			.contains(List.of(".tdrs[0].components"));
+		assertThat(J.extensions(held, held)).contains(List.of());
+		assertThat(J.extensions(held, J.obj("{\"tdrs\":[{\"id\":\"TDR-001\",\"status\":\"resolved\"}],\"n\":1}"))).isEmpty();
+		assertThat(J.extensions(held, J.obj("{\"tdrs\":[{\"id\":\"TDR-001\",\"status\":\"open\"},{\"id\":\"TDR-002\"}],\"n\":1}"))).isEmpty();
+		assertThat(J.extensions(held, J.obj("{\"tdrs\":[{\"id\":\"TDR-001\",\"status\":\"open\"}]}"))).isEmpty();
+		assertThat(J.extensions(held, J.obj("{\"tdrs\":[{\"id\":\"TDR-001\",\"status\":\"open\"}],\"n\":\"1\"}"))).isEmpty();
 	}
 
 	@Test

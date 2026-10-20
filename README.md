@@ -156,15 +156,19 @@ The plugin's `ci/publish-index.sh` calls this contract. Its pipeline secret `SA_
 | Request | Answer |
 |---|---|
 | `GET /bundles/{key}/before/{version}` | 200 `application/gzip`: the newest released bundle older than `version`, which the export diffs against for `changes.json` · 404 none |
-| `POST /bundles/{key}/{version}?channel=released\|draft` (gzipped tar) | 201 stored · 200 a released version held, the body naming the build packs `added`, `replaced` and `unchanged` · 409 refused, `reason` `chunks_differ`, `ledger_differs` or `packs_missing` · 400 the URL does not match the bundle · 413 too large · 422 the bundle fails its check |
+| `POST /bundles/{key}/{version}?channel=released\|draft` (gzipped tar) | 201 stored · 200 a released version held, the body naming the build packs `added`, `replaced` and `unchanged`, and `ledger` `same` or `extended` with the paths in `ledger_added` · 409 refused, `reason` `chunks_differ`, `ledger_differs` or `packs_missing` · 400 the URL does not match the bundle · 413 too large · 422 the bundle fails its check |
 | `GET /bundles` | what is held, per slot, with the indexing state |
 
 - **A released version is immutable** in what search serves. A second publish of it — the second phase of a release, when
   the regenerated handoff kit is committed — carries the same chunks, the same ledger and every build pack held. It may
   add packs and replace them, never drop one. Anything else is refused and what is held stays.
+- **A ledger may be extended, never changed.** The plugin adds derived fields over time (e.g. `tdrs[].components`), so a
+  ledger that only adds keys to the objects of the one held, at any depth, is stored with the publish that carries the
+  packs, and the 200 says `"ledger": "extended"` with the paths added. A changed value, or an array element added or
+  removed, is `ledger_differs`. A publish without packs keeps what is held.
 - **A pack is replaced when its revision moved:** the `sha256` the manifest lists for its `pack.json`, which lists every
   part's hash. `get_build_pack` returns it as `pack_revision`.
-- The ledger is compared exactly, without the clock an export before plugin v8.150.1 wrote into it. Pin `SA_PLUGIN_REF`
+- The ledger is compared without the clock an export before plugin v8.150.1 wrote into it. Pin `SA_PLUGIN_REF`
   so both publishes of a release run the same plugin. A re-run of the same job changes nothing.
 - Each replacement is kept under `{data}/bundles/{key}/revisions/{version}.json`, so `what_changed` with `from_revision`
   lists the replacements since that revision, then the diff to the newer version.
