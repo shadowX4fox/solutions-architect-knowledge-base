@@ -50,8 +50,9 @@ import io.github.shadowx4fox.archindex.changes.BundleDiff;
  *
  * A released version is immutable in what search serves. A second publish of it (the second phase of a release, when
  * the regenerated kit is committed) carries the same chunks, the same ledger and every build pack held for it; it may
- * add packs and replace them — a pack is replaced when its revision, the sha256 of its pack.json, moved. Anything else
- * is refused with its reason, and what is held stays. The bundle held is replaced, so each replacement is kept apart
+ * add packs and replace them — a pack is replaced when its revision, the sha256 of its pack.json, moved — and extend the
+ * ledger with fields a newer plugin derives, every value held unchanged. Anything else is refused with its reason, and
+ * what is held stays. The bundle held is replaced, so each replacement is kept apart
  * as a revision — the packs' revisions on both sides and {@code diffBundles(held, incoming)} — for {@code what_changed}
  * to answer a developer who built from an earlier revision of the same version.
  */
@@ -75,6 +76,8 @@ public class BundleStore {
 		STORED,
 		/** 200: the released version held, build packs added or replaced by this publish. */
 		PACKS_UPDATED,
+		/** 200: the released version held, its ledger extended with fields a newer plugin derives; the packs the same. */
+		LEDGER_EXTENDED,
 		/** 200: the released version held, nothing new — no packs in this publish, or the same ones; the held packs stay. */
 		UNCHANGED,
 		/** 409: refused — {@link Conflict} says why; what is held stays. */
@@ -95,17 +98,21 @@ public class BundleStore {
 
 	/**
 	 * What a publish did. {@code added}, {@code replaced} and {@code unchanged} name the build packs of a released
-	 * version held (empty for a version stored new); on a conflict, {@code conflict} and {@code conflictPacks} say why.
+	 * version held (empty for a version stored new); {@code ledgerAdded} the paths a ledger that extends the one held
+	 * adds; on a conflict, {@code conflict} and {@code conflictPacks} say why.
 	 */
 	public record Published(Outcome outcome, Bundle bundle, boolean chunksChanged, String message, List<String> added,
-			List<String> replaced, List<String> unchanged, Conflict conflict, List<String> conflictPacks) {
+			List<String> replaced, List<String> unchanged, List<String> ledgerAdded, Conflict conflict,
+			List<String> conflictPacks) {
 
 		static Published stored(Bundle b, boolean chunksChanged, String message) {
-			return new Published(Outcome.STORED, b, chunksChanged, message, List.of(), List.of(), List.of(), null, List.of());
+			return new Published(Outcome.STORED, b, chunksChanged, message, List.of(), List.of(), List.of(), List.of(), null,
+					List.of());
 		}
 
 		static Published refused(Bundle held, Conflict why, List<String> packs, String message) {
-			return new Published(Outcome.CONFLICT, held, false, message, List.of(), List.of(), List.of(), why, packs);
+			return new Published(Outcome.CONFLICT, held, false, message, List.of(), List.of(), List.of(), List.of(), why,
+					packs);
 		}
 
 	}
@@ -476,7 +483,7 @@ public class BundleStore {
 			}
 			else {
 				out = republish(p, held, b, incoming, base);
-				if (out.outcome() != Outcome.PACKS_UPDATED) {
+				if (out.outcome() != Outcome.PACKS_UPDATED && out.outcome() != Outcome.LEDGER_EXTENDED) {
 					return out;
 				}
 				p.released.put(version, out.bundle());
@@ -607,9 +614,10 @@ public class BundleStore {
 	}
 
 	/**
-	 * A second publish of the released version {@code held}: the same chunks, the same ledger and every pack held, or
-	 * refused. Without packs, or with the same ones, nothing moves. Otherwise the incoming bundle — a superset of the
-	 * packs held — replaces the version whole, so the server never writes a manifest of its own.
+	 * A second publish of the released version {@code held}: the same chunks, the same ledger — or one that only extends
+	 * it with fields a newer plugin derives — and every pack held, or refused. Without packs, or with the same ones and
+	 * the same ledger, nothing moves. Otherwise the incoming bundle — a superset of the packs held — replaces the version
+	 * whole, so the server never writes a manifest of its own.
 	 */
 	private Published republish(Project p, Bundle held, Bundle b, Path incoming, Path base) {
 		String version = held.version();
@@ -617,14 +625,17 @@ public class BundleStore {
 			return Published.refused(held, Conflict.CHUNKS_DIFFER, List.of(), "released " + version
 					+ " is held with other chunks — a released version does not change; release a new version");
 		}
-		if (!J.same(held.ledgerFacts(), b.ledgerFacts())) {
+		List<String> ledgerAdded = J.same(held.ledgerFacts(), b.ledgerFacts()) ? List.of()
+				: J.extensions(held.ledgerFacts(), b.ledgerFacts()).orElse(null);
+		if (ledgerAdded == null) {
 			return Published.refused(held, Conflict.LEDGER_DIFFERS, List.of(), "released " + version
-					+ " is held with another ledger — publish the same commit with the same plugin (SA_PLUGIN_REF), or release a new version");
+					+ " is held with another ledger — a value changed, not only fields added; publish the same commit, or release a new version");
 		}
 		if (b.packs().isEmpty()) {
 			return new Published(Outcome.UNCHANGED, held, false,
-					version + " held with the same chunks; its " + held.packs().size() + " build packs kept", List.of(),
-					List.of(), List.copyOf(held.packs().keySet()), null, List.of());
+					version + " held with the same chunks; its " + held.packs().size() + " build packs kept"
+							+ (ledgerAdded.isEmpty() ? "" : "; the extended ledger is stored with the next publish that carries them"),
+					List.of(), List.of(), List.copyOf(held.packs().keySet()), List.of(), null, List.of());
 		}
 		List<String> missing = held.packs().keySet().stream().filter((s) -> !b.packs().containsKey(s)).sorted().toList();
 		if (!missing.isEmpty()) {
@@ -646,22 +657,27 @@ public class BundleStore {
 				unchanged.add(s);
 			}
 		}
-		if (added.isEmpty() && replaced.isEmpty()) {
+		if (added.isEmpty() && replaced.isEmpty() && ledgerAdded.isEmpty()) {
 			return new Published(Outcome.UNCHANGED, held, false, version + " held with the same build packs", List.of(),
-					List.of(), unchanged, null, List.of());
+					List.of(), unchanged, List.of(), null, List.of());
 		}
-		if (!replaced.isEmpty()) {
-			record(p, base, held, b, replaced);
+		if (!replaced.isEmpty() || !ledgerAdded.isEmpty()) {
+			record(p, base, held, b, replaced, ledgerAdded);
 		}
 		Bundle placed = place(incoming, base.resolve("released").resolve(version + "~" + id()));
-		log.info("released {} {}: build packs added {}, replaced {}", placed.projectKey(), version, added, replaced);
-		return new Published(Outcome.PACKS_UPDATED, placed, false, version + " updated — build packs added: "
-				+ none(added) + " · replaced: " + none(replaced) + " · unchanged: " + none(unchanged), added, replaced,
-				unchanged, null, List.of());
+		log.info("released {} {}: build packs added {}, replaced {}; ledger extended {}", placed.projectKey(), version,
+				added, replaced, ledgerAdded);
+		Outcome outcome = added.isEmpty() && replaced.isEmpty() ? Outcome.LEDGER_EXTENDED : Outcome.PACKS_UPDATED;
+		return new Published(outcome, placed, false, version + " updated — build packs added: " + none(added)
+				+ " · replaced: " + none(replaced) + " · unchanged: " + none(unchanged) + " · ledger extended: "
+				+ none(ledgerAdded), added, replaced, unchanged, ledgerAdded, null, List.of());
 	}
 
-	/** Appends a replacement to the version's revisions, written before the bundle moves, so no replaced pack goes unrecorded. */
-	private void record(Project p, Path base, Bundle held, Bundle b, List<String> replaced) {
+	/**
+	 * Appends a replacement to the version's revisions, written before the bundle moves, so no replaced pack or ledger
+	 * extension goes unrecorded.
+	 */
+	private void record(Project p, Path base, Bundle held, Bundle b, List<String> replaced, List<String> ledgerAdded) {
 		Map<String, Object> packs = new LinkedHashMap<>();
 		for (String s : replaced) {
 			Map<String, Object> r = new LinkedHashMap<>();
@@ -672,6 +688,9 @@ public class BundleStore {
 		Map<String, Object> entry = new LinkedHashMap<>();
 		entry.put("at", Instant.now().toString());
 		entry.put("packs", packs);
+		if (!ledgerAdded.isEmpty()) {
+			entry.put("ledger_extended", ledgerAdded);
+		}
 		entry.put("changes", BundleDiff.diff(held, b, null, false));
 		List<Map<String, Object>> all = new ArrayList<>(p.revisions.getOrDefault(held.version(), List.of()));
 		all.add(entry);

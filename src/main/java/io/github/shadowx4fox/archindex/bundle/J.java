@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -81,6 +82,44 @@ public final class J {
 	/** Equality as the plugin's {@code JSON.stringify(a ?? null) === JSON.stringify(b ?? null)}. */
 	public static boolean same(Object a, Object b) {
 		return Objects.equals(write(a), write(b));
+	}
+
+	/**
+	 * The paths {@code b} adds to {@code a} when it only extends it — every value of {@code a} unchanged in {@code b},
+	 * the difference being keys an object of {@code a} does not have, at any depth — or empty when it does not. An
+	 * array element added or removed, or a changed value, is not an extension. Paths read {@code .tdrs[0].components}.
+	 */
+	public static Optional<List<String>> extensions(Object a, Object b) {
+		List<String> added = new ArrayList<>();
+		return extends_(a, b, "", added) ? Optional.of(added) : Optional.empty();
+	}
+
+	private static boolean extends_(Object a, Object b, String at, List<String> added) {
+		if (a instanceof Map<?, ?> ma && b instanceof Map<?, ?> mb) {
+			for (Map.Entry<?, ?> e : ma.entrySet()) {
+				if (!mb.containsKey(e.getKey()) || !extends_(e.getValue(), mb.get(e.getKey()), at + "." + e.getKey(), added)) {
+					return false;
+				}
+			}
+			for (Object k : mb.keySet()) {
+				if (!ma.containsKey(k)) {
+					added.add(at + "." + k);
+				}
+			}
+			return true;
+		}
+		if (a instanceof List<?> la && b instanceof List<?> lb) {
+			if (la.size() != lb.size()) {
+				return false;
+			}
+			for (int i = 0; i < la.size(); i++) {
+				if (!extends_(la.get(i), lb.get(i), at + "[" + i + "]", added)) {
+					return false;
+				}
+			}
+			return true;
+		}
+		return same(a, b);
 	}
 
 	public static String sha256(byte[] bytes) {
