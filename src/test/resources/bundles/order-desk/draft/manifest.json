@@ -1,8 +1,8 @@
 {
  "schema": "sa-index/1",
  "generator": "sa-delivery:architecture-index-export",
- "generator_version": "10.10.4",
- "generated_at": "2026-10-20T01:52:15.448Z",
+ "generator_version": "10.10.11",
+ "generated_at": "2026-10-20T07:16:12.915Z",
  "project": {
   "key": "order-desk",
   "name": "Order Desk"
@@ -16,9 +16,9 @@
  },
  "channel": "draft",
  "git": {
-  "sha": "15491133f97985ac9633ce56e48a625ac6552526",
+  "sha": "3196bf19cc5ac933444c82b5b30c81f5f2c4fa02",
   "tag": "architecture-v1.4.0",
-  "tag_sha": "4f9ddf03bd252ab5bc7eb2ba7afa7f11d3fc16c9",
+  "tag_sha": "ef2dc81f78a994606950d4b856367bb9c39e80c1",
   "at_tag": false,
   "matches_tag": true,
   "dirty": true
@@ -139,9 +139,9 @@
   "hash_field": "content_hash"
  },
  "counts": {
-  "chunks": 23,
+  "chunks": 25,
   "by_kind": {
-   "adr": 2,
+   "adr": 3,
    "overview": 2,
    "section": 8,
    "principle": 1,
@@ -149,7 +149,7 @@
    "flow": 1,
    "integration": 2,
    "component": 4,
-   "tdr": 1
+   "tdr": 2
   },
   "buildpacks": 1,
   "skipped": 2
@@ -176,8 +176,8 @@
  "files": [
   {
    "path": "buildpacks/hub-api/BUILD.md",
-   "bytes": 11561,
-   "sha256": "b412efc0d26ff817e766671730bac424a08c54a9cbf139e466a3af3ed0d8c817"
+   "bytes": 11559,
+   "sha256": "cc36dcb59ae1acbd2a09848c2a28b6c00896e8fc156904079b44c1840414b6d2"
   },
   {
    "path": "buildpacks/hub-api/adrs/ADR-012-service-mesh.md",
@@ -222,7 +222,7 @@
   {
    "path": "buildpacks/hub-api/pack.json",
    "bytes": 6207,
-   "sha256": "8be67a76e266a7706db6865f9bd09694c5490648f29135d1062c73fe1206c389"
+   "sha256": "48f7774c13e8bdeef468f416e565bd2ccbb3981bf4e68795b361f26c2674ba2a"
   },
   {
    "path": "buildpacks/hub-api/runtime-view.md",
@@ -241,13 +241,13 @@
   },
   {
    "path": "chunks.jsonl",
-   "bytes": 14774,
-   "sha256": "73c8c538ec50e41938cd927139d15fc3c7fda1749b6eeded3c29c9b5f19acd0b"
+   "bytes": 15963,
+   "sha256": "cb5083596334e28e53030a6c216c72b4edfc04fbaa32c878e9a83705394e0a30"
   },
   {
    "path": "ledger.json",
-   "bytes": 6155,
-   "sha256": "e0a3d01e5f5ef97714798ed4875d5bb59871e1eaf54705a6a7c1a76c142a7aec"
+   "bytes": 6500,
+   "sha256": "b07201ff021f94e392b53fc30d508a80892cba56ea033c40f3479ac7945feaa6"
   }
  ]
 }

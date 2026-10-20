@@ -248,6 +248,13 @@
    "title": "Idempotency keys on every write",
    "status": "Accepted",
    "scope": "Project"
+  },
+  {
+   "id": "ADR-102",
+   "file": "adr/ADR-102-retry-queue.md",
+   "title": "A retry queue for bookings",
+   "status": "Proposed",
+   "scope": "Project"
   }
  ],
  "tdrs": [
@@ -255,6 +262,15 @@
    "id": "TDR-001",
    "file": "tdr/TDR-001-manual-ledger-fix.md",
    "title": "Manual ledger fix",
+   "status": "Open",
+   "initiative": null,
+   "driver": null,
+   "capability": null
+  },
+  {
+   "id": "TDR-002",
+   "file": "tdr/TDR-002-retry-by-hand.md",
+   "title": "Retry by hand",
    "status": "Open",
    "initiative": null,
    "driver": null,

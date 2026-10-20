@@ -80,8 +80,10 @@ exportIndex(P, { ...opts, out: join(OUT, "1.4.0"), previous: join(OUT, "1.3.0") 
 edit("handoffs/assets/02-hub-api/security.md", "Any other caller is rejected.", "Any other caller is rejected. Ledger Store calls back over I-02.");
 git("add", "-A"); git("commit", "-qm", "kit 1.4.0 regenerated");
 exportIndex(P, { ...opts, out: join(OUT, "1.4.0-revised"), previous: join(OUT, "1.4.0") });
-// a draft on top of 1.4.0
+// a draft on top of 1.4.0, with what Tier 0 writes merged since the release: a workaround (TDR-002) and a proposed ADR
 edit("docs/01-system-overview.md", "Shops phone orders in.", "Shops phone and e-mail orders in.");
+w("tdr/TDR-002-retry-by-hand.md", `---\nstatus: Open\n---\n# TDR-002: Retry by hand\n\n## Description\n\nA failed booking is retried by hand.\n`);
+w("adr/ADR-102-retry-queue.md", `# ADR-102: A retry queue for bookings\n\n**Status**: Proposed\n**Scope**: Project\n\n## Context\n\nBookings fail.\n\n## Decision\n\nA queue retries them.\n`);
 exportIndex(P, { ...opts, out: join(OUT, "draft") });
 rmSync(BASE, { recursive: true, force: true });
 // what_changed by substance (10.10.4): two copies of 1.4.0-revised whose hub-api parts move only in what a release restamps —
