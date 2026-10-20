@@ -522,10 +522,10 @@ class ServerTest {
 	void aTier0RequestThePolicyRefusesIsNotPreviewed() throws Exception {
 		Map<String, Object> move = new java.util.LinkedHashMap<>();
 		move.put("tdr", "TDR-001");
-		move.put("to", "Resolved");
+		move.put("to", "Open");
 		move.put("note", "fixed in the service");
 		assertThat(J.str(tool("preview_tier0", tier0Args("tdr-status", move), true), "text"))
-			.contains("TDR-001: Open → Resolved is refused — never straight to `Resolved`");
+			.contains("TDR-001: Open → Open is refused — already `Open`");
 		move.put("to", "Won't Fix");
 		assertThat(J.str(tool("preview_tier0", tier0Args("tdr-status", move), true), "text"))
 			.contains("a move to Won't Fix is a decision, not a Tier 0 write — the architect makes it");

@@ -249,7 +249,10 @@ changes no fact (`doc-fix`) is requested, never made from the service repository
 1. **`preview_tier0`** checks the request against the latest release as the plugin's `tier0.js prepare` would:
    `validate()` with its own words (the kind, its fields, the evidence, a TDR id, a status, a `YYYY-MM-DD` date, a file
    under `docs/`, a line number), then every component by canonical name, a workaround's ADRs and a status move's TDR
-   and arrow on the release's ledger. A move to `Won't Fix` is always refused: it is the architect's decision. It returns
+   and arrow on the release's ledger. A move to `Won't Fix` is always refused: it is the architect's decision. The release
+   may be behind `main`, where Tier 0 writes merge between releases: a move refused from the released status but valid
+   from one a Tier 0 write may have set since (reachable along `support.tdr_moves`, never through `Won't Fix`) is previewed,
+   and `next` says what it assumes — the architecture repository checks it against `main`. It returns
    the issue exactly as `tier0.js render` writes it (`[T0-?] …`, labels `architecture-tier0` and `tier0:<kind>`, the
    fields as a JSON block) and `file_with`, the same commands as an escalation's.
 2. **The agent shows the user the issue** and files it only after a yes.
