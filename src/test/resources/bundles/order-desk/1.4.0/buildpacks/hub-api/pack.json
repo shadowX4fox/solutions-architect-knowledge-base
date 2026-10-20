@@ -21,8 +21,8 @@
    "title": "Build instructions",
    "path": "BUILD.md",
    "source": null,
-   "bytes": 11400,
-   "sha256": "2a2670ef3887abff9b0f422b50b93520500753e7edb2eb2e6e6defc600aa1aa4"
+   "bytes": 11526,
+   "sha256": "380ff881a055e64d0b4665c44e7706179115a5d8c1636ff883f344744960409f"
   },
   {
    "id": "spec",
@@ -39,8 +39,8 @@
    "title": "Security Obligations",
    "path": "security.md",
    "source": "handoffs/assets/02-hub-api/security.md",
-   "bytes": 590,
-   "sha256": "26bab3a73c943936020d296714e6e03aeafb1acbb3ccdc9bf1cde53b17b1b83e"
+   "bytes": 582,
+   "sha256": "083131d4bc613f1588103bd40df15a6a7d0852da6d7244cc892ddd04766d3014"
   },
   {
    "id": "asset:c4-descriptor.md",
@@ -245,6 +245,7 @@
   "ADR-012",
   "ADR-101"
  ],
+ "tdrs": [],
  "open_questions": [],
  "instructions": "BUILD.md"
 }

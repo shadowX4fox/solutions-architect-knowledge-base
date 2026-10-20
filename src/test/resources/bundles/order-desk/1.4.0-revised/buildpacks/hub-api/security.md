@@ -12,4 +12,4 @@ Any other caller is rejected. Ledger Store calls back over I-02.
 
 ## Decisions in force <!-- SECTION: Decisions in Force -->
 
-- [ADR-012](../../../adr/ADR-012-service-mesh.md) — Service mesh
+- [ADR-012](adrs/ADR-012-service-mesh.md) — Service mesh
