@@ -57,12 +57,16 @@ class Tier0Test {
 		Map<String, Object> g = golden();
 		List<Map<String, Object>> cases = J.maps(g, "cases");
 		assertThat(cases).extracting((c) -> c.get("name"))
-			.contains("tdr-workaround", "tdr-status", "adr-proposed", "doc-fix", "every-edge", "unattended", "attended");
+			.contains("tdr-workaround", "tdr-status", "adr-proposed", "doc-fix", "every-edge", "unattended", "attended",
+					"unattended-auto", "unattended-not-auto", "attended-auto");
 		for (Map<String, Object> c : cases) {
 			Tier0.Request req = request(J.map(c, "request"));
 			assertThat(Tier0.validate(req, p)).as(J.str(c, "name")).isEmpty();
 			assertThat(Tier0.oneLine(req)).as(J.str(c, "name")).isEmpty();
-			Escalate.Issue issue = Tier0.issue(req, p, J.str(g, "architecture"));
+			// the case's tier0.auto, as support.tier0_auto carries it
+			Map<String, Object> support = new LinkedHashMap<>(support());
+			support.put("tier0_auto", c.get("auto"));
+			Escalate.Issue issue = Tier0.issue(req, Tier0.Policy.of(support), J.str(g, "architecture"));
 			Map<String, Object> want = J.map(c, "issue");
 			assertThat(issue.title()).as(J.str(c, "name")).isEqualTo(J.str(want, "title"));
 			assertThat(issue.labels()).as(J.str(c, "name")).isEqualTo(J.strings(want, "labels"));
@@ -262,6 +266,41 @@ class Tier0Test {
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
+	void anUnattendedBuildKeysAKindTheArchitectureListsInTier0Auto() throws Exception {
+		Tier0Service s = service((x) -> x.put("tier0_auto", List.of("tdr-status")));
+		Tier0.Request r = move("TDR-001", "In Progress");
+		Tier0.Request u = new Tier0.Request(r.kind(), r.title(), r.request(), r.components(), r.requestedBy(), r.evidence(), r.fields(),
+				"unattended");
+		Map<String, Object> p = s.preview("order-desk", u);
+		Map<String, Object> issue = (Map<String, Object>) p.get("issue");
+		assertThat(J.strings(issue, "labels")).containsExactly("architecture-tier0", "tier0:tdr-status");
+		assertThat(J.str(issue, "body")).contains("_Tier 0, filed and keyed by an unattended build agent: this architecture lets a trusted agent start `tdr-status` itself (`tier0.auto`)");
+		assertThat((List<String>) J.map(J.map(p, "file_with"), "create").get("argv")).containsSequence("--label", "architecture-tier0", "--label", "tier0:tdr-status");
+		assertThat(J.strings(J.map(p, "file_with"), "steps")).anySatisfy((x) -> assertThat(x).contains("create carries the label architecture-tier0", "keep it"))
+			.noneSatisfy((x) -> assertThat(x).contains("never add the label"));
+		assertThat(J.str(p, "next")).contains("support.tier0_auto", "list the issue in your pull request").doesNotContain("never apply it yourself");
+		assertThat(J.strings(p, "warnings")).noneSatisfy((x) -> assertThat(x).contains("owner/repo@sha"));
+		// a kind the architecture does not list: no key, as before
+		Map<String, Object> w = new LinkedHashMap<>();
+		w.put("description", "Hub API caches the stock lookup.");
+		w.put("impact", "Stale stock for 5 minutes.");
+		w.put("solutions", List.of("Push stock events"));
+		w.put("owner_technical", "Desk team");
+		Map<String, Object> other = s.preview("order-desk", new Tier0.Request("tdr-workaround", "Cache", "build within p95",
+				List.of("hub-api"), "Desk team", r.evidence(), w, "unattended"));
+		assertThat(J.strings(J.map(other, "issue"), "labels")).containsExactly("tier0:tdr-workaround");
+		// a move to Resolved keyed by the agent names the commit that resolved it, owner/repo@sha
+		Map<String, Object> resolved = s.preview("order-desk", new Tier0.Request(r.kind(), r.title(), r.request(), r.components(),
+				r.requestedBy(), r.evidence(), Map.of("tdr", "TDR-001", "to", "Resolved", "note", "fixed"), "unattended"));
+		assertThat(J.strings(resolved, "warnings")).anySatisfy((x) -> assertThat(x).contains("owner/repo@sha", "refuses it"));
+		Map<String, Object> named = s.preview("order-desk", new Tier0.Request(r.kind(), r.title(), r.request(), r.components(),
+				r.requestedBy(), List.of(new Tier0.Evidence("acme/ledger-jobs@9f00d1e src/fix/Job.java:1", null)),
+				Map.of("tdr", "TDR-001", "to", "Resolved", "note", "fixed"), "unattended"));
+		assertThat(J.strings(named, "warnings")).noneSatisfy((x) -> assertThat(x).contains("owner/repo@sha"));
+	}
+
+	@Test
 	void theStatusesAndDriversAreTheReleases() throws Exception {
 		Map<String, Object> s = support();
 		assertThat(Tier0.Policy.of(s).statuses()).isEqualTo(J.strings(s, "tdr_statuses")).isEqualTo(Tier0.STATUSES);
@@ -294,7 +333,7 @@ class Tier0Test {
 	}
 
 	static List<String> since(Map<String, List<String>> moves, String released, String to) {
-		Tier0.Policy p = new Tier0.Policy(Map.of(), moves, Tier0.STATUSES, Tier0.DRIVERS);
+		Tier0.Policy p = new Tier0.Policy(Map.of(), moves, Tier0.STATUSES, Tier0.DRIVERS, List.of());
 		List<String> assumed = new java.util.ArrayList<>();
 		List<String> errors = Tier0.against(move("TDR-001", to), p,
 				new Tier0.Ledger(Map.of("TDR-001", released), java.util.Set.of(), "2.0.0"), assumed);

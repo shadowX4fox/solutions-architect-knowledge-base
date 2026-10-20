@@ -115,10 +115,15 @@ final class FilingPlan {
 		String dup = "An open " + f.titlePrefix() + "…] issue that covers the same request is a duplicate: ";
 		String write = "Write issue.body to a file in the system temp directory, byte for byte, and put its path where create says " + BODY_FILE + ".";
 		String argv = "Run create, with each argument passed as it is (quote it for the shell, never retype it)";
+		// a kind in support.tier0_auto: the issue carries the key, which the architecture accepts from a trusted agent
+		String key = f != Flavor.TIER0 ? ""
+				: issue.labels().contains(Tier0.LABEL)
+						? "; create carries the label " + Tier0.LABEL + ": this architecture lets a trusted agent key this kind itself (support.tier0_auto) — keep it"
+						: "; never add the label " + Tier0.LABEL + ": a person applies it, and that is the approval";
 		m.put("steps", unattended
 				? List.of(same + "list its URL in your pull request and file nothing. " + dup + "say so in your pull request and file nothing.",
 						write,
-						argv + ", with this build's own identity" + (f == Flavor.TIER0 ? "; never add the label " + Tier0.LABEL + ": a person applies it, and that is the approval" : "")
+						argv + ", with this build's own identity" + key
 								+ ". If that identity cannot write issues on " + t.repository() + ", or the tool is not installed or logged in, put the title and the body in your pull request for a person to file.",
 						"Call " + f.recordTool() + " with the project, this preview_id and the issue's URL, and list the issue in your pull request.")
 				: List.of(same + "give the user its URL and file nothing. " + dup + "tell the user and file nothing.",

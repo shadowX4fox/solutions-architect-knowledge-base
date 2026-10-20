@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +37,9 @@ public class Tier0Service {
 	private final Bundles bundles;
 
 	private final Escalation settings;
+
+	/** tier0.js {@code commitsOf}: the {@code owner/repo@sha} an evidence names, 7 to 40 hex digits. */
+	private static final Pattern COMMIT = Pattern.compile("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{7,40}\\b");
 
 	public Tier0Service(Bundles bundles, Escalation settings) {
 		this.bundles = bundles;
@@ -93,6 +97,12 @@ public class Tier0Service {
 		if (!errors.isEmpty()) {
 			throw new ToolException("the Tier 0 request cannot be filed as it is:\n- " + String.join("\n- ", errors));
 		}
+		boolean keyed = Tier0.autoKeyed(req, policy);
+		if (keyed && "tdr-status".equals(req.kind()) && "Resolved".equals(J.str(req.fields(), "to"))
+				&& req.evidence().stream().noneMatch((e) -> e != null && e.where() != null && COMMIT.matcher(e.where()).find())) {
+			warnings.add("a move to Resolved keyed by an agent names the commit that resolved it — evidence owner/repo@sha, on "
+					+ "that repository's default branch; none is named, and the architecture repository refuses it");
+		}
 		String architecture = J.str(support, "released") != null ? J.str(support, "released")
 				: J.str(J.map(b.manifest(), "git"), "tag");
 		Escalate.Issue issue = Tier0.issue(req, policy, architecture);
@@ -110,7 +120,15 @@ public class Tier0Service {
 		out.put("warnings", warnings);
 		out.put("file_with", FilingPlan.of(target, issue, issue.body(), fingerprint, FilingPlan.Flavor.TIER0, unattended));
 		String assumes = assumed.isEmpty() ? "" : String.join(". ", assumed) + ". ";
-		out.put("next", assumes + (unattended
+		out.put("next", assumes + (keyed
+				? "Nothing has been written, and nothing is written in this repository. Nobody attends this build: follow "
+						+ "file_with.steps with this build's own identity, then list the issue in your pull request. This "
+						+ "architecture lets a trusted agent key " + req.kind() + " itself (support.tier0_auto): the issue carries "
+						+ Tier0.LABEL + ", and the architecture repository writes the record when this identity is one of its "
+						+ "trusted agents; otherwise a person applies the label. A move to Resolved names the commit that resolved "
+						+ "it as owner/repo@sha, already on that repository's default branch: file it once the pull request "
+						+ "carrying it is merged."
+				: unattended
 				? "Nothing has been written, and nothing is written in this repository. Nobody attends this build: follow "
 						+ "file_with.steps with this build's own identity, then list the issue in your pull request. The issue "
 						+ "carries no " + Tier0.LABEL + " label: a person reviews the request and applies it, and that is the "
@@ -118,9 +136,9 @@ public class Tier0Service {
 				: "Nothing has been written, and nothing is written in this repository: the architecture repository "
 						+ "writes the record once the issue is filed. Show the user this issue as it stands — title, labels and body — "
 						+ "with the warnings, and ask whether to file it. Only after the user says yes, follow file_with.steps."));
-		audit.info("tier0 preview project={} version={} kind={} requested_by=\"{}\" supervision={} preview_id={}", b.projectKey(),
-				b.version(), req.kind(), req.requestedBy() == null ? "" : req.requestedBy(), unattended ? "unattended" : "attended",
-				fingerprint);
+		audit.info("tier0 preview project={} version={} kind={} requested_by=\"{}\" supervision={} keyed={} preview_id={}",
+				b.projectKey(), b.version(), req.kind(), req.requestedBy() == null ? "" : req.requestedBy(),
+				unattended ? "unattended" : "attended", keyed, fingerprint);
 		return out;
 	}
 
