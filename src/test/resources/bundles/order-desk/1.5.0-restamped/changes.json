@@ -1,0 +1,77 @@
+{
+ "schema": "sa-index/1#changes",
+ "project": "order-desk",
+ "from": "1.4.0",
+ "to": "1.5.0",
+ "same_version": false,
+ "components": [
+  {
+   "component": "hub-api",
+   "name": "Hub API",
+   "status": "present",
+   "facts": [],
+   "contracts": {
+    "added": [],
+    "removed": [],
+    "changed": []
+   },
+   "interfaces": {
+    "added": [],
+    "removed": [],
+    "changed": []
+   },
+   "adrs": {
+    "added": [],
+    "removed": [],
+    "changed": [
+     "ADR-012"
+    ]
+   },
+   "documents": [
+    "Security Obligations",
+    "System Runtime View",
+    "Build instructions"
+   ],
+   "flows": [],
+   "integrations": {
+    "added": [],
+    "removed": [],
+    "changed": [],
+    "fields": []
+   },
+   "sections": {
+    "added": [],
+    "removed": [],
+    "changed": []
+   },
+   "open_questions": {
+    "new": [
+     {
+      "part": "security",
+      "text": "Which caller signs?"
+     }
+    ],
+    "resolved": []
+   },
+   "technical_debt": {
+    "added": [],
+    "removed": [],
+    "status": []
+   },
+   "pack_revision": {
+    "from": "8be67a76e266a7706db6865f9bd09694c5490648f29135d1062c73fe1206c389",
+    "to": "8be67a76e266a7706db6865f9bd09694c5490648f29135d1062c73fe1206c389"
+   },
+   "pack": "present",
+   "pack_revised": false,
+   "restamped": [
+    "c4-descriptor.md",
+    "Interface Contract: Web App → Hub API",
+    "ADR-101: Idempotency keys on every write",
+    "Component Specification"
+   ],
+   "changed": true,
+   "action_required": true
+  }
+ ]
+}

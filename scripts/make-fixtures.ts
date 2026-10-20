@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync, cpSync } f
 //   SA_SKILLS_DIR=<solutions-architect-skills checkout> bun scripts/make-fixtures.ts src/test/resources/bundles/order-desk
 // The project text is copied from the plugin's tests/export-index.test.ts (fixture()), so the bundles are what the plugin writes.
 const SA = process.env.SA_SKILLS_DIR; if (!SA) { console.error("set SA_SKILLS_DIR to a solutions-architect-skills checkout"); process.exit(2); }
-const { exportIndex } = require(join(SA, "plugins/sa-delivery/skills/architecture-index-export/scripts/export-index.js"));
+const { exportIndex, diffBundles, renderChanges } = require(join(SA, "plugins/sa-delivery/skills/architecture-index-export/scripts/export-index.js"));
 const E = require(join(SA, "plugins/sa-records/scripts/shared/escalate.js"));
 const BASE = mkdtempSync(join(tmpdir(), "sa-index-"));
 const P = join(BASE, "order-desk");
@@ -84,6 +84,42 @@ exportIndex(P, { ...opts, out: join(OUT, "1.4.0-revised"), previous: join(OUT, "
 edit("docs/01-system-overview.md", "Shops phone orders in.", "Shops phone and e-mail orders in.");
 exportIndex(P, { ...opts, out: join(OUT, "draft") });
 rmSync(BASE, { recursive: true, force: true });
+// what_changed by substance (10.10.4): two copies of 1.4.0-revised whose hub-api parts move only in what a release restamps —
+// the version, link targets, line ends, the specification's debt table — and, one per part, in what JavaScript's regular
+// expressions keep apart (\b is ASCII, [^)\s] stops at a no-break space, . and ^ know \n \r U+2028 U+2029, never U+0085).
+// changes.json and changes.md in 1.5.0-restamped are the plugin's diffBundles and renderChanges of the pair
+const STAMPED = join(OUT, "1.4.0-stamped"), RESTAMPED = join(OUT, "1.5.0-restamped");
+const DEBT = "### Technical debt <!-- LABEL: Technical Debt -->\n\n| TDR | Title | Status |\n|---|---|---|\n| [TDR-001](tdrs/TDR-001.md) | Manual ledger fix | Open |\n\n";
+const STAMP: Record<string, [string, string]> = {   // the part, appended (or edited) in the old and in the new copy
+  "spec": ["\nSee [the release](releases/v1.4.0.md), v1.4.0.\n", "\nSee [the release](../moved/releases/v1.5.0.md), v1.5.0.\n"],
+  "asset:c4-descriptor.md": ["\r\nversion: é1.4.0 v1.4.0 (1.4.0)\r\n", "\nversion: é1.5.0 v1.5.0 (1.5.0)\n"],
+  "interface:web-app→hub-api": ["\nSee [the spec](../spec.md).\n", "\nSee [the spec](../../packed/spec.md).\n"],
+  "adr:ADR-101": ["\na\rb\n", "\na\nb\n"],
+  "runtime-view": ["\nbuild 1.4.0x\n", "\nbuild 1.5.0x\n"],
+  "security": ["\nSee [a](x\u00a0y).\n", "\nSee [a](z\u00a0y).\n"],
+  "instructions": ["", "\n#### Debt\u2028x <!-- LABEL: Technical Debt -->\n"],
+  "adr:ADR-012": ["\nx\u0085", "\nx\u0085### T <!-- LABEL: Technical Debt -->"],
+};
+for (const [dir, version, side] of [[STAMPED, "1.4.0", 0], [RESTAMPED, "1.5.0", 1]] as const) {
+  cpSync(join(OUT, "1.4.0-revised"), dir, { recursive: true });
+  const man = JSON.parse(readFileSync(join(dir, "manifest.json"), "utf8")); man.architecture.version = version; delete man.changes;
+  writeFileSync(join(dir, "manifest.json"), JSON.stringify(man, null, 1) + "\n"); rmSync(join(dir, "changes.json"), { force: true });
+  const pd = join(dir, "buildpacks", "hub-api"), pack = JSON.parse(readFileSync(join(pd, "pack.json"), "utf8"));
+  for (const part of pack.parts) {
+    if (!STAMP[part.id]) continue;
+    let t = readFileSync(join(pd, part.path), "utf8");
+    if (side === 1) t = t.replace(/1\.4\.0/g, "1.5.0");
+    if (side === 1 && part.id === "spec") t = t.replace("## Acceptance", DEBT + "## Acceptance");
+    writeFileSync(join(pd, part.path), t + STAMP[part.id][side]); part.sha256 = (side ? "b-" : "a-") + part.sha256;
+  }
+  pack.open_questions = [{ part: "spec", text: `Who owns [the key](${side ? "../moved/" : ""}keys.md) in v${version}?` }, ...(side ? [{ part: "security", text: "Which caller signs?" }] : [])];
+  writeFileSync(join(pd, "pack.json"), JSON.stringify(pack, null, 1) + "\n");
+}
+const substance = diffBundles(STAMPED, RESTAMPED);
+writeFileSync(join(RESTAMPED, "changes.json"), JSON.stringify(substance, null, 1) + "\n");
+writeFileSync(join(RESTAMPED, "changes.md"), renderChanges(substance));
+const hub = substance.components.find((c: any) => c.component === "hub-api");
+console.log("restamped", JSON.stringify(hub.restamped), "documents", JSON.stringify(hub.documents), "adrs", JSON.stringify(hub.adrs), "oq", JSON.stringify(hub.open_questions), "action", hub.action_required);
 for (const d of ["1.3.0-search", "1.3.0", "1.4.0", "1.4.0-revised", "draft"]) { const m = JSON.parse(readFileSync(join(OUT, d, "manifest.json"), "utf8")); console.log(d, m.channel, m.architecture.version, m.counts.chunks, m.buildpacks.map((b: any) => b.component), m.changes?.action_required ?? ""); }
 
 // the escalation issue as the plugin renders it (escalate.js issueBody, `ESC-?` as the MCP server files it): the contract

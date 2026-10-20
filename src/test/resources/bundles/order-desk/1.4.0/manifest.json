@@ -1,8 +1,8 @@
 {
  "schema": "sa-index/1",
  "generator": "sa-delivery:architecture-index-export",
- "generator_version": "10.10.0",
- "generated_at": "2026-10-19T22:39:59.716Z",
+ "generator_version": "10.10.4",
+ "generated_at": "2026-10-20T01:52:15.428Z",
  "project": {
   "key": "order-desk",
   "name": "Order Desk"
@@ -16,9 +16,9 @@
  },
  "channel": "released",
  "git": {
-  "sha": "5002fbd8b795b2113aba66a1c7ea0458ab1084d7",
+  "sha": "4f9ddf03bd252ab5bc7eb2ba7afa7f11d3fc16c9",
   "tag": "architecture-v1.4.0",
-  "tag_sha": "5002fbd8b795b2113aba66a1c7ea0458ab1084d7",
+  "tag_sha": "4f9ddf03bd252ab5bc7eb2ba7afa7f11d3fc16c9",
   "at_tag": true,
   "matches_tag": true,
   "dirty": false
@@ -176,8 +176,8 @@
  "files": [
   {
    "path": "buildpacks/hub-api/BUILD.md",
-   "bytes": 11400,
-   "sha256": "2a2670ef3887abff9b0f422b50b93520500753e7edb2eb2e6e6defc600aa1aa4"
+   "bytes": 11526,
+   "sha256": "380ff881a055e64d0b4665c44e7706179115a5d8c1636ff883f344744960409f"
   },
   {
    "path": "buildpacks/hub-api/adrs/ADR-012-service-mesh.md",
@@ -221,8 +221,8 @@
   },
   {
    "path": "buildpacks/hub-api/pack.json",
-   "bytes": 6194,
-   "sha256": "12fdebfe8f21f0760776d98118947b6dfbb0dbc776b0d3b924a9419068ba4514"
+   "bytes": 6207,
+   "sha256": "3299ed1bc37e7d5e3428de1372839cd50e82ef4b8535ded885b1c05b931616fd"
   },
   {
    "path": "buildpacks/hub-api/runtime-view.md",
@@ -231,8 +231,8 @@
   },
   {
    "path": "buildpacks/hub-api/security.md",
-   "bytes": 590,
-   "sha256": "26bab3a73c943936020d296714e6e03aeafb1acbb3ccdc9bf1cde53b17b1b83e"
+   "bytes": 582,
+   "sha256": "083131d4bc613f1588103bd40df15a6a7d0852da6d7244cc892ddd04766d3014"
   },
   {
    "path": "buildpacks/hub-api/spec.md",
@@ -241,8 +241,8 @@
   },
   {
    "path": "changes.json",
-   "bytes": 4433,
-   "sha256": "b4fa10f1c1bd96887280c679f48d51c4995be3d83f3122e6202d69cad1c464f7"
+   "bytes": 4453,
+   "sha256": "1cdb09f6e8cb192d79d54b4bbb5da00c2d78d2a41cd0e635927f4a58a9985ca9"
   },
   {
    "path": "chunks.jsonl",

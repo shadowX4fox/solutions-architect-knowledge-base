@@ -114,11 +114,12 @@
     "status": []
    },
    "pack_revision": {
-    "from": "080a38e2e0e7321cbb71526c8a6508b9afd21db274fc769beeb975bee228af0d",
-    "to": "12fdebfe8f21f0760776d98118947b6dfbb0dbc776b0d3b924a9419068ba4514"
+    "from": "37a1260e87c8a93f9465c27548fef4d4d12c4c9ecbb45c791779592750e13cd3",
+    "to": "3299ed1bc37e7d5e3428de1372839cd50e82ef4b8535ded885b1c05b931616fd"
    },
    "pack": "present",
    "pack_revised": true,
+   "restamped": [],
    "changed": true,
    "action_required": true
   },

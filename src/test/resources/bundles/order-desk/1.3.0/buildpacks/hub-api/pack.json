@@ -20,8 +20,8 @@
    "title": "Build instructions",
    "path": "BUILD.md",
    "source": null,
-   "bytes": 11504,
-   "sha256": "90c16b55015b05e7b3999052ffe81eec5ba9ceb902c42c66eaf1e87ff761d560"
+   "bytes": 11630,
+   "sha256": "4e62ab692cf3c7502bae25dda15cb61d2b2ffc5f4582dde438f5af7d062844e5"
   },
   {
    "id": "spec",
@@ -38,8 +38,8 @@
    "title": "Security Obligations",
    "path": "security.md",
    "source": "handoffs/assets/02-hub-api/security.md",
-   "bytes": 590,
-   "sha256": "26bab3a73c943936020d296714e6e03aeafb1acbb3ccdc9bf1cde53b17b1b83e"
+   "bytes": 582,
+   "sha256": "083131d4bc613f1588103bd40df15a6a7d0852da6d7244cc892ddd04766d3014"
   },
   {
    "id": "asset:c4-descriptor.md",
@@ -244,6 +244,7 @@
   "ADR-012",
   "ADR-101"
  ],
+ "tdrs": [],
  "open_questions": [
   {
    "part": "interface:hub-api→ledger-store",
