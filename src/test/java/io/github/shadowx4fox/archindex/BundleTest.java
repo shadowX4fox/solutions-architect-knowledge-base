@@ -35,7 +35,8 @@ class BundleTest {
 		for (String b : List.of("1.3.0-search", "1.3.0", "1.4.0", "1.4.0-revised", "draft")) {
 			BundleChecker.Result r = BundleChecker.check(Fixtures.bundle(b));
 			assertThat(r.findings()).as(b).isEmpty();
-			assertThat(r.chunks()).isEqualTo(23);
+			// the draft carries the records Tier 0 writes created since 1.4.0: TDR-002 and ADR-102
+			assertThat(r.chunks()).as(b).isEqualTo(b.equals("draft") ? 25 : 23);
 		}
 	}
 
@@ -413,7 +414,7 @@ class BundleTest {
 		};
 		reconcile(s, index);
 		long chunks = index.count("order-desk", "draft");
-		assertThat(chunks).isEqualTo(23);
+		assertThat(chunks).isEqualTo(25);
 		// a point of a chunk the draft no longer has, as another instance or an older draft left it
 		index.upsert(List.of(new VectorIndex.Point("stale", Fixtures.HashingEmbeddingModel.vector("gone"),
 				new SparseEncoder().document("gone"), Map.of("project", "order-desk", "slot", "draft", "chunk_id", "gone"))));
