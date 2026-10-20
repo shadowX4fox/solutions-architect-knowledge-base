@@ -2,8 +2,11 @@ package io.github.shadowx4fox.archindex.escalation;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -116,7 +119,7 @@ public final class Tier0 {
 	}
 
 	/** What the release's ledger holds of the records a request names: each TDR's status, and the ADR ids. */
-	public record Ledger(Map<String, String> tdrs, Set<String> adrs) {
+	public record Ledger(Map<String, String> tdrs, Set<String> adrs, String version) {
 	}
 
 	/** {@code validate()}: an empty list when the request is a Tier 0 write as written. */
@@ -200,6 +203,17 @@ public final class Tier0 {
 	 * workaround's ADRs exist; a status move's TDR exists and its status takes the arrow ({@code tdr-check.js move}).
 	 */
 	public static List<String> against(Request r, Policy p, Ledger l) {
+		return against(r, p, l, new ArrayList<>());
+	}
+
+	/**
+	 * The ledger checks, and in {@code assumed} what a move takes for granted. The release is behind main: Tier 0 writes merge
+	 * between releases, and the architecture repository checks a move against main ({@code tier0.js prepare}). A move refused
+	 * from the released status but valid from one a Tier 0 write may have set since — reachable along the moves, never through
+	 * Won't Fix, which only the architect sets — is previewed, with what it assumes; a move to the released status itself
+	 * stays refused.
+	 */
+	public static List<String> against(Request r, Policy p, Ledger l, List<String> assumed) {
 		List<String> errors = new ArrayList<>();
 		Map<String, Object> f = r.fields();
 		if ("tdr-workaround".equals(r.kind())) {
@@ -212,13 +226,44 @@ public final class Tier0 {
 				errors.add(tdr + " has no record under tdr/");
 			}
 			else {
-				String reason = move(p, status, string(f.get("to")));
-				if (reason != null) {
-					errors.add(tdr + ": " + status + " → " + string(f.get("to")) + " is refused — " + reason);
+				String to = string(f.get("to"));
+				String reason = move(p, status, to);
+				List<String> from = reason == null ? List.of() : since(p, status, to);
+				if (!from.isEmpty()) {
+					assumed.add(tdr + " is " + status + " in " + l.version() + "; this move assumes it is " + String.join(" or ", from)
+							+ " in main — the architecture repository checks it");
+				}
+				else if (reason != null) {
+					errors.add(tdr + ": " + status + " → " + to + " is refused — " + reason);
 				}
 			}
 		}
 		return errors;
+	}
+
+	/** The statuses a Tier 0 write may have moved a TDR to since the release, from which {@code to} is a move. */
+	static List<String> since(Policy p, String released, String to) {
+		String f = canon(p, released);
+		String t = canon(p, to);
+		if (f == null || t == null || f.equals(t)) {
+			return List.of();
+		}
+		Set<String> seen = new LinkedHashSet<>(List.of(f));
+		Deque<String> next = new ArrayDeque<>(List.of(f));
+		List<String> out = new ArrayList<>();
+		while (!next.isEmpty()) {
+			for (String s : p.moves().getOrDefault(next.poll(), List.of())) {
+				String c = canon(p, s);
+				if (c == null || WONT_FIX.equals(c) || !seen.add(c)) {
+					continue;
+				}
+				next.add(c);
+				if (move(p, c, t) == null) {
+					out.add(c);
+				}
+			}
+		}
+		return out;
 	}
 
 	/** {@code tdr-check.js move}: null when the arrow is allowed, otherwise why not. */

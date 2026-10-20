@@ -71,12 +71,13 @@ public class Tier0Service {
 			}
 		}
 		Tier0.Request req = request.withComponents(names);
+		List<String> assumed = new ArrayList<>();
 		if (errors.isEmpty()) {
 			Map<String, String> tdrs = new LinkedHashMap<>();
 			Set<String> adrs = new HashSet<>();
 			J.maps(b.ledger(), "tdrs").forEach((x) -> tdrs.put(J.str(x, "id"), J.str(x, "status")));
 			J.maps(b.ledger(), "adrs").forEach((x) -> adrs.add(J.str(x, "id")));
-			errors.addAll(Tier0.against(req, policy, new Tier0.Ledger(tdrs, adrs)));
+			errors.addAll(Tier0.against(req, policy, new Tier0.Ledger(tdrs, adrs, b.version()), assumed));
 		}
 		if (!errors.isEmpty()) {
 			throw new ToolException("the Tier 0 request cannot be filed as it is:\n- " + String.join("\n- ", errors));
@@ -97,14 +98,15 @@ public class Tier0Service {
 		out.put("issue", Map.of("title", issue.title(), "labels", issue.labels(), "body", issue.body()));
 		out.put("warnings", warnings);
 		out.put("file_with", FilingPlan.of(target, issue, issue.body(), fingerprint, FilingPlan.Flavor.TIER0, unattended));
-		out.put("next", unattended
+		String assumes = assumed.isEmpty() ? "" : String.join(". ", assumed) + ". ";
+		out.put("next", assumes + (unattended
 				? "Nothing has been written, and nothing is written in this repository. Nobody attends this build: follow "
 						+ "file_with.steps with this build's own identity, then list the issue in your pull request. The issue "
 						+ "carries no " + Tier0.LABEL + " label: a person reviews the request and applies it, and that is the "
 						+ "approval — never apply it yourself. The architecture repository then writes the record."
 				: "Nothing has been written, and nothing is written in this repository: the architecture repository "
 						+ "writes the record once the issue is filed. Show the user this issue as it stands — title, labels and body — "
-						+ "with the warnings, and ask whether to file it. Only after the user says yes, follow file_with.steps.");
+						+ "with the warnings, and ask whether to file it. Only after the user says yes, follow file_with.steps."));
 		audit.info("tier0 preview project={} version={} kind={} requested_by=\"{}\" supervision={} preview_id={}", b.projectKey(),
 				b.version(), req.kind(), req.requestedBy() == null ? "" : req.requestedBy(), unattended ? "unattended" : "attended",
 				fingerprint);

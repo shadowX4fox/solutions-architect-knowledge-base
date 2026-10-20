@@ -165,8 +165,11 @@ class Tier0Test {
 		assertThat(J.strings(J.map(ok, "file_with"), "steps").get(0)).contains("with this title and this body").doesNotContain("holds");
 		assertThat(ok).doesNotContainKey("open_in_release");
 
-		assertThatThrownBy(() -> s.preview("order-desk", move("TDR-001", "Resolved")))
-			.hasMessageContaining("TDR-001: Open → Resolved is refused — never straight to `Resolved` — the arrow is Open ──► In Progress ──► Resolved");
+		// Open in the release, maybe In Progress in main since: the architecture repository checks it
+		Map<String, Object> second = s.preview("order-desk", move("TDR-001", "Resolved"));
+		assertThat(J.str(second, "next")).startsWith("TDR-001 is Open in 1.4.0; this move assumes it is In Progress in main — the architecture repository checks it. ");
+		assertThat(J.str((Map<String, Object>) second.get("issue"), "body")).doesNotContain("assumes").doesNotContain("1.4.0;");
+		assertThat(J.str(ok, "next")).startsWith("Nothing has been written");
 		assertThatThrownBy(() -> s.preview("order-desk", move("TDR-001", "Open"))).hasMessageContaining("already `Open`");
 		assertThatThrownBy(() -> s.preview("order-desk", move("TDR-404", "In Progress"))).hasMessageContaining("TDR-404 has no record under tdr/");
 		assertThatThrownBy(() -> s.preview("order-desk", move("TDR-001", "Won't Fix")))
@@ -247,6 +250,53 @@ class Tier0Test {
 		before.remove("tdr_drivers");
 		assertThat(Tier0.Policy.of(before).statuses()).isEqualTo(Tier0.STATUSES);
 		assertThat(Tier0.Policy.of(before).drivers()).isEqualTo(Tier0.DRIVERS);
+	}
+
+	static List<String> since(Map<String, List<String>> moves, String released, String to) {
+		Tier0.Policy p = new Tier0.Policy(Map.of(), moves, Tier0.STATUSES, Tier0.DRIVERS);
+		List<String> assumed = new java.util.ArrayList<>();
+		List<String> errors = Tier0.against(move("TDR-001", to), p,
+				new Tier0.Ledger(Map.of("TDR-001", released), java.util.Set.of(), "2.0.0"), assumed);
+		return errors.isEmpty() ? assumed : errors;
+	}
+
+	@Test
+	void aMoveValidFromAStatusSetSinceTheReleaseIsAssumedNeverOneThroughWontFix() throws Exception {
+		// tdr-check.js MOVES, as the bundle lists them
+		Map<String, List<String>> moves = new LinkedHashMap<>();
+		J.map(support(), "tdr_moves").forEach((k, v) -> moves.put(k, J.strings(Map.of("v", v), "v")));
+		assertThat(since(moves, "Open", "In Progress")).isEmpty();
+		assertThat(since(moves, "Open", "Resolved"))
+			.containsExactly("TDR-001 is Open in 2.0.0; this move assumes it is In Progress in main — the architecture repository checks it");
+		assertThat(since(moves, "Planned", "Resolved"))
+			.containsExactly("TDR-001 is Planned in 2.0.0; this move assumes it is In Progress in main — the architecture repository checks it");
+		assertThat(since(moves, "Planned", "In Progress")).isEmpty();
+		// nothing a Tier 0 write sets makes these valid
+		assertThat(since(moves, "Resolved", "Open")).singleElement().asString()
+			.isEqualTo("TDR-001: Resolved → Open is refused — no arrow from `Resolved` to `Open` — from `Resolved` the moves are none (terminal)");
+		assertThat(since(moves, "Won't Fix", "In Progress")).singleElement().asString().startsWith("TDR-001: Won't Fix → In Progress is refused");
+		assertThat(since(moves, "In Progress", "Open")).singleElement().asString().startsWith("TDR-001: In Progress → Open is refused");
+		assertThat(since(moves, "Open", "Done")).singleElement().asString().contains("`Done` is not a status");
+
+		Map<String, List<String>> other = new LinkedHashMap<>();
+		other.put("Open", List.of("In Progress", "Won't Fix", "Planned"));
+		other.put("Planned", List.of("Open", "Resolved"));
+		other.put("In Progress", List.of("Resolved"));
+		other.put("Resolved", List.of());
+		other.put("Won't Fix", List.of());
+		// several statuses it may be in: the ones the move is valid from, in the order the moves reach them
+		assertThat(since(other, "Open", "Resolved")).containsExactly(
+				"TDR-001 is Open in 2.0.0; this move assumes it is In Progress or Planned in main — the architecture repository checks it");
+		// a move to the released status stays refused, even with a way back (Open ──► Planned ──► Open)
+		assertThat(since(other, "Open", "Open")).singleElement().asString().contains("already `Open`");
+
+		// never through Won't Fix, which only the architect sets: Open ──► Won't Fix ──► Planned is no way to Planned
+		Map<String, List<String>> through = new LinkedHashMap<>(moves);
+		through.put("Won't Fix", List.of("Planned"));
+		assertThat(since(through, "Open", "Planned")).singleElement().asString().startsWith("TDR-001: Open → Planned is refused");
+		// a release that is Won't Fix already may move on where the arrows let it
+		assertThat(since(through, "Won't Fix", "Open")).containsExactly(
+				"TDR-001 is Won't Fix in 2.0.0; this move assumes it is Planned in main — the architecture repository checks it");
 	}
 
 	@Test
