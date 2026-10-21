@@ -167,6 +167,7 @@ class Tier0Test {
 		assertThat(J.str(issue, "body")).contains("| Components | Ledger Store |").doesNotContain(ok.get("preview_id").toString());
 		assertThat(J.strings(ok, "warnings")).containsExactly("component \"ledger-store\" is requested under its canonical name \"Ledger Store\"");
 		assertThat(J.strings(J.map(ok, "file_with"), "steps").get(0)).contains("with this title and this body").doesNotContain("holds");
+		assertThat(J.strings(J.map(ok, "file_with"), "steps").get(3)).contains("record_tier0 with project, preview_id", "and url (");
 		assertThat(ok).doesNotContainKey("open_in_release");
 
 		// Open in the release, maybe In Progress in main since: the architecture repository checks it

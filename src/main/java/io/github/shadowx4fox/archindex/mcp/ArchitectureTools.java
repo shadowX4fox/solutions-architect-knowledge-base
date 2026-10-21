@@ -226,7 +226,7 @@ public class ArchitectureTools {
 				questions, components, integrations, adrs, tdrs, requested_by, route), supervision));
 	}
 
-	@McpTool(name = "record_escalation", description = "After the user said yes and the issue from preview_escalation was filed on the git host: records which issue it became, so the escalation is counted. Call it once per filed issue, with its URL.")
+	@McpTool(name = "record_escalation", description = "After the user said yes and the issue from preview_escalation was filed on the git host: records which issue it became, so the escalation is counted. Call it once per filed issue, with project, preview_id and url (the issue's URL).")
 	public CallToolResult recordEscalation(@McpToolParam(description = PROJECT) String project,
 			@McpToolParam(description = "The preview_id preview_escalation returned") String preview_id,
 			@McpToolParam(description = "The URL of the filed issue") String url) {
@@ -248,7 +248,7 @@ public class ArchitectureTools {
 		return answer(() -> tier0.preview(project, new Tier0.Request(kind, title, request, components, requested_by, evidence, fields, supervision)));
 	}
 
-	@McpTool(name = "record_tier0", description = "After the user said yes and the issue from preview_tier0 was filed on the git host: records which issue it became, so the Tier 0 request is counted. Call it once per filed issue, with its URL.")
+	@McpTool(name = "record_tier0", description = "After the user said yes and the issue from preview_tier0 was filed on the git host: records which issue it became, so the Tier 0 request is counted. Call it once per filed issue, with project, preview_id and url (the issue's URL).")
 	public CallToolResult recordTier0(@McpToolParam(description = PROJECT) String project,
 			@McpToolParam(description = "The preview_id preview_tier0 returned") String preview_id,
 			@McpToolParam(description = "The URL of the filed issue") String url) {

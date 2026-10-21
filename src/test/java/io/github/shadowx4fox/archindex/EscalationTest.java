@@ -103,6 +103,7 @@ class EscalationTest {
 				"--title", J.str(issue, "title"), "--body-file", "<body-file>", "--label", "architecture-escalation", "--label",
 				"tier-1", "--label", "trigger:security-iam");
 		assertThat(J.strings(plan, "steps")).hasSize(4).first().asString().contains(id);
+		assertThat(J.strings(plan, "steps").get(3)).contains("record_escalation with project, preview_id", "and url (");
 	}
 
 	@Test
