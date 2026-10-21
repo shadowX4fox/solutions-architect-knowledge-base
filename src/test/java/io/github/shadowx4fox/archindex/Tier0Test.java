@@ -267,19 +267,20 @@ class Tier0Test {
 
 	@Test
 	@SuppressWarnings("unchecked")
-	void anUnattendedBuildKeysAKindTheArchitectureListsInTier0Auto() throws Exception {
+	void theArchitectureKeysAKindItListsInTier0AutoAndTheAgentNever() throws Exception {
 		Tier0Service s = service((x) -> x.put("tier0_auto", List.of("tdr-status")));
 		Tier0.Request r = move("TDR-001", "In Progress");
 		Tier0.Request u = new Tier0.Request(r.kind(), r.title(), r.request(), r.components(), r.requestedBy(), r.evidence(), r.fields(),
 				"unattended");
 		Map<String, Object> p = s.preview("order-desk", u);
 		Map<String, Object> issue = (Map<String, Object>) p.get("issue");
-		assertThat(J.strings(issue, "labels")).containsExactly("architecture-tier0", "tier0:tdr-status");
-		assertThat(J.str(issue, "body")).contains("_Tier 0, filed and keyed by an unattended build agent: this architecture lets a trusted agent start `tdr-status` itself (`tier0.auto`)");
-		assertThat((List<String>) J.map(J.map(p, "file_with"), "create").get("argv")).containsSequence("--label", "architecture-tier0", "--label", "tier0:tdr-status");
-		assertThat(J.strings(J.map(p, "file_with"), "steps")).anySatisfy((x) -> assertThat(x).contains("create carries the label architecture-tier0", "keep it"))
-			.noneSatisfy((x) -> assertThat(x).contains("never add the label"));
-		assertThat(J.str(p, "next")).contains("support.tier0_auto", "list the issue in your pull request").doesNotContain("never apply it yourself");
+		// tier0.js 10.13: only tier0:<kind> — the architecture repository keys it for a trusted agent — and its own footer
+		assertThat(J.strings(issue, "labels")).containsExactly("tier0:tdr-status");
+		assertThat(J.str(issue, "body")).contains("_Tier 0, filed by an unattended build agent: this architecture writes `tdr-status` from a trusted agent without a person's label (`tier0.auto`) — the architecture repository keys it itself");
+		assertThat((List<String>) J.map(J.map(p, "file_with"), "create").get("argv")).doesNotContain("architecture-tier0");
+		assertThat(J.strings(J.map(p, "file_with"), "steps")).anySatisfy((x) -> assertThat(x).contains("never add the label architecture-tier0", "keys this kind itself"))
+			.noneSatisfy((x) -> assertThat(x).contains("that is the approval"));
+		assertThat(J.str(p, "next")).contains("support.tier0_auto", "Never apply architecture-tier0", "owner/repo#N", "list the issue in your pull request");
 		assertThat(J.strings(p, "warnings")).noneSatisfy((x) -> assertThat(x).contains("owner/repo@sha"));
 		// a kind the architecture does not list: no key, as before
 		Map<String, Object> w = new LinkedHashMap<>();
@@ -293,11 +294,25 @@ class Tier0Test {
 		// a move to Resolved keyed by the agent names the commit that resolved it, owner/repo@sha
 		Map<String, Object> resolved = s.preview("order-desk", new Tier0.Request(r.kind(), r.title(), r.request(), r.components(),
 				r.requestedBy(), r.evidence(), Map.of("tdr", "TDR-001", "to", "Resolved", "note", "fixed"), "unattended"));
-		assertThat(J.strings(resolved, "warnings")).anySatisfy((x) -> assertThat(x).contains("owner/repo@sha", "refuses it"));
-		Map<String, Object> named = s.preview("order-desk", new Tier0.Request(r.kind(), r.title(), r.request(), r.components(),
-				r.requestedBy(), List.of(new Tier0.Evidence("acme/ledger-jobs@9f00d1e src/fix/Job.java:1", null)),
+		assertThat(J.strings(resolved, "warnings")).anySatisfy((x) -> assertThat(x).contains("owner/repo#N", "owner/repo@sha", "refuses it"));
+		// its pull request, open or merged, or a commit: no warning — the architecture repository waits for the merge
+		for (String where : List.of("acme/ledger-jobs#42", "acme/ledger-jobs@9f00d1e src/fix/Job.java:1")) {
+			Map<String, Object> named = s.preview("order-desk", new Tier0.Request(r.kind(), r.title(), r.request(), r.components(),
+					r.requestedBy(), List.of(new Tier0.Evidence(where, null)), Map.of("tdr", "TDR-001", "to", "Resolved", "note", "fixed"),
+					"unattended"));
+			assertThat(J.strings(named, "warnings")).as(where).noneSatisfy((x) -> assertThat(x).contains("owner/repo"));
+		}
+		// JavaScript's \b is ASCII: a letter after the number is a word, a non-ASCII one is not
+		for (String where : List.of("acme/ledger-jobs#42x", "ledger-jobs#42")) {
+			Map<String, Object> bad = s.preview("order-desk", new Tier0.Request(r.kind(), r.title(), r.request(), r.components(),
+					r.requestedBy(), List.of(new Tier0.Evidence(where, null)), Map.of("tdr", "TDR-001", "to", "Resolved", "note", "fixed"),
+					"unattended"));
+			assertThat(J.strings(bad, "warnings")).as(where).anySatisfy((x) -> assertThat(x).contains("owner/repo#N"));
+		}
+		Map<String, Object> accented = s.preview("order-desk", new Tier0.Request(r.kind(), r.title(), r.request(), r.components(),
+				r.requestedBy(), List.of(new Tier0.Evidence("acme/ledger-jobs#42é", null)),
 				Map.of("tdr", "TDR-001", "to", "Resolved", "note", "fixed"), "unattended"));
-		assertThat(J.strings(named, "warnings")).noneSatisfy((x) -> assertThat(x).contains("owner/repo@sha"));
+		assertThat(J.strings(accented, "warnings")).noneSatisfy((x) -> assertThat(x).contains("owner/repo"));
 	}
 
 	@Test

@@ -330,8 +330,8 @@ public final class Tier0 {
 	}
 
 	/**
-	 * {@code autoKeyed}: an unattended request of a kind the architecture lists in {@code tier0.auto} — the agent keys it
-	 * itself, and the architecture repository accepts that key from a trusted agent on an issue it filed.
+	 * {@code autoKeyed}: an unattended request of a kind the architecture lists in {@code tier0.auto} — the architecture
+	 * repository keys it itself when a trusted agent opened the issue (plugin v10.13.0); the agent never applies the label.
 	 */
 	public static boolean autoKeyed(Request r, Policy p) {
 		return r.unattended() && p.auto().contains(r.kind());
@@ -340,8 +340,7 @@ public final class Tier0 {
 	/** {@code issueTitle}, {@code labelsOf} and {@code issueBody}, with {@code support.tier0_auto} as {@code auto}. */
 	public static Escalate.Issue issue(Request r, Policy p, String architecture) {
 		return new Escalate.Issue("[" + UNNUMBERED + "] " + Escalate.trim(string(r.title())),
-				r.unattended() && !autoKeyed(r, p) ? List.of("tier0:" + r.kind()) : List.of(LABEL, "tier0:" + r.kind()),
-				body(r, p, architecture));
+				r.unattended() ? List.of("tier0:" + r.kind()) : List.of(LABEL, "tier0:" + r.kind()), body(r, p, architecture));
 	}
 
 	static String body(Request r, Policy p, String architecture) {
@@ -367,10 +366,10 @@ public final class Tier0 {
 		w.addAll(ev.isEmpty() ? List.of("- None.") : ev);
 		w.addAll(List.of("", "## Fields", "", fence(fields) + "json", fields, fence(fields), ""));
 		w.add(autoKeyed(r, p)
-				? "_Tier 0, filed and keyed by an unattended build agent: this architecture lets a trusted agent start `"
-						+ r.kind() + "` itself (`tier0.auto`), so the architecture repository writes it now (architecture-tier0.yml) "
-						+ "and a person reviews it after, in its pull request and the release; a request that is no Tier 0 write is "
-						+ "refused there, with the reason._"
+				? "_Tier 0, filed by an unattended build agent: this architecture writes `" + r.kind()
+						+ "` from a trusted agent without a person's label (`tier0.auto`) — the architecture repository keys it itself "
+						+ "(architecture-tier0.yml), and a person reviews it after, in its pull request and the release; a request "
+						+ "that is no Tier 0 write is refused there, with the reason._"
 				: r.unattended()
 				? "_Tier 0, filed by an unattended build agent: a person reviews it and applies the label `" + LABEL
 						+ "` — that is the approval; the architecture repository then writes it (architecture-tier0.yml), and a "

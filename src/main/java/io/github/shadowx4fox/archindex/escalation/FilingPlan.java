@@ -50,10 +50,12 @@ final class FilingPlan {
 	}
 
 	static Map<String, Object> of(Target t, Escalate.Issue issue, String body, String fingerprint, boolean unattended) {
-		return of(t, issue, body, fingerprint, Flavor.ESCALATION, unattended);
+		return of(t, issue, body, fingerprint, Flavor.ESCALATION, unattended, false);
 	}
 
-	static Map<String, Object> of(Target t, Escalate.Issue issue, String body, String fingerprint, Flavor f, boolean unattended) {
+	/** {@code keyed}: a Tier 0 request of a kind in {@code support.tier0_auto}, keyed by the architecture repository. */
+	static Map<String, Object> of(Target t, Escalate.Issue issue, String body, String fingerprint, Flavor f, boolean unattended,
+			boolean keyed) {
 		if (t.host() == null || t.repository() == null || t.repository().isBlank() || t.server() == null) {
 			throw new ToolException("the " + f.noun() + " target of " + t.project()
 					+ " is incomplete on this server: it needs host, repository and, for Gitea, server");
@@ -115,10 +117,9 @@ final class FilingPlan {
 		String dup = "An open " + f.titlePrefix() + "…] issue that covers the same request is a duplicate: ";
 		String write = "Write issue.body to a file in the system temp directory, byte for byte, and put its path where create says " + BODY_FILE + ".";
 		String argv = "Run create, with each argument passed as it is (quote it for the shell, never retype it)";
-		// a kind in support.tier0_auto: the issue carries the key, which the architecture accepts from a trusted agent
+		// a kind in support.tier0_auto: the architecture repository keys it for a trusted agent; the agent never does
 		String key = f != Flavor.TIER0 ? ""
-				: issue.labels().contains(Tier0.LABEL)
-						? "; create carries the label " + Tier0.LABEL + ": this architecture lets a trusted agent key this kind itself (support.tier0_auto) — keep it"
+				: keyed ? "; never add the label " + Tier0.LABEL + ": the architecture repository keys this kind itself for a trusted agent (support.tier0_auto)"
 						: "; never add the label " + Tier0.LABEL + ": a person applies it, and that is the approval";
 		m.put("steps", unattended
 				? List.of(same + "list its URL in your pull request and file nothing. " + dup + "say so in your pull request and file nothing.",

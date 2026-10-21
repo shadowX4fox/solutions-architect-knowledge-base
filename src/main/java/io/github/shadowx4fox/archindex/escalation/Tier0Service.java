@@ -38,8 +38,11 @@ public class Tier0Service {
 
 	private final Escalation settings;
 
-	/** tier0.js {@code commitsOf}: the {@code owner/repo@sha} an evidence names, 7 to 40 hex digits. */
-	private static final Pattern COMMIT = Pattern.compile("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{7,40}\\b");
+	/**
+	 * tier0.js {@code refsOf}: what an evidence names as having resolved a TDR — its pull request {@code owner/repo#N}, or a
+	 * commit {@code owner/repo@sha} of 7 to 40 hex digits; JavaScript's {@code \\b}, an ASCII word boundary.
+	 */
+	private static final Pattern REF = Pattern.compile("[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:@[0-9a-f]{7,40}|#\\d+)(?![A-Za-z0-9_])");
 
 	public Tier0Service(Bundles bundles, Escalation settings) {
 		this.bundles = bundles;
@@ -99,9 +102,9 @@ public class Tier0Service {
 		}
 		boolean keyed = Tier0.autoKeyed(req, policy);
 		if (keyed && "tdr-status".equals(req.kind()) && "Resolved".equals(J.str(req.fields(), "to"))
-				&& req.evidence().stream().noneMatch((e) -> e != null && e.where() != null && COMMIT.matcher(e.where()).find())) {
-			warnings.add("a move to Resolved keyed by an agent names the commit that resolved it — evidence owner/repo@sha, on "
-					+ "that repository's default branch; none is named, and the architecture repository refuses it");
+				&& req.evidence().stream().noneMatch((e) -> e != null && e.where() != null && REF.matcher(e.where()).find())) {
+			warnings.add("a move to Resolved keyed for an agent names what resolved it — evidence owner/repo#N (its pull request) "
+					+ "or owner/repo@sha; none is named, and the architecture repository refuses it");
 		}
 		String architecture = J.str(support, "released") != null ? J.str(support, "released")
 				: J.str(J.map(b.manifest(), "git"), "tag");
@@ -118,16 +121,16 @@ public class Tier0Service {
 		out.put("preview_id", fingerprint);
 		out.put("issue", Map.of("title", issue.title(), "labels", issue.labels(), "body", issue.body()));
 		out.put("warnings", warnings);
-		out.put("file_with", FilingPlan.of(target, issue, issue.body(), fingerprint, FilingPlan.Flavor.TIER0, unattended));
+		out.put("file_with", FilingPlan.of(target, issue, issue.body(), fingerprint, FilingPlan.Flavor.TIER0, unattended, keyed));
 		String assumes = assumed.isEmpty() ? "" : String.join(". ", assumed) + ". ";
 		out.put("next", assumes + (keyed
 				? "Nothing has been written, and nothing is written in this repository. Nobody attends this build: follow "
-						+ "file_with.steps with this build's own identity, then list the issue in your pull request. This "
-						+ "architecture lets a trusted agent key " + req.kind() + " itself (support.tier0_auto): the issue carries "
-						+ Tier0.LABEL + ", and the architecture repository writes the record when this identity is one of its "
-						+ "trusted agents; otherwise a person applies the label. A move to Resolved names the commit that resolved "
-						+ "it as owner/repo@sha, already on that repository's default branch: file it once the pull request "
-						+ "carrying it is merged."
+						+ "file_with.steps with this build's own identity, now, then list the issue in your pull request. Never "
+						+ "apply " + Tier0.LABEL + " yourself: this architecture lets a trusted agent request " + req.kind()
+						+ " (support.tier0_auto), so the architecture repository keys it itself when this identity is one of its "
+						+ "trusted agents, and a person applies it otherwise. A move to Resolved names what resolved it — this "
+						+ "build's pull request as owner/repo#N, or a commit as owner/repo@sha: the architecture repository writes "
+						+ "the move once it is merged into that repository's default branch, and waits until then."
 				: unattended
 				? "Nothing has been written, and nothing is written in this repository. Nobody attends this build: follow "
 						+ "file_with.steps with this build's own identity, then list the issue in your pull request. The issue "
