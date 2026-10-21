@@ -121,16 +121,18 @@ final class FilingPlan {
 		String key = f != Flavor.TIER0 ? ""
 				: keyed ? "; never add the label " + Tier0.LABEL + ": the architecture repository keys this kind itself for a trusted agent (support.tier0_auto)"
 						: "; never add the label " + Tier0.LABEL + ": a person applies it, and that is the approval";
+		// the arguments by name: file_with's own issue_url is the same value, and an agent that guesses it is refused
+		String record = "Call " + f.recordTool() + " with project, preview_id (this preview's) and url (the issue's URL; not issue_url)";
 		m.put("steps", unattended
 				? List.of(same + "list its URL in your pull request and file nothing. " + dup + "say so in your pull request and file nothing.",
 						write,
 						argv + ", with this build's own identity" + key
 								+ ". If that identity cannot write issues on " + t.repository() + ", or the tool is not installed or logged in, put the title and the body in your pull request for a person to file.",
-						"Call " + f.recordTool() + " with the project, this preview_id and the issue's URL, and list the issue in your pull request.")
+						record + ", and list the issue in your pull request.")
 				: List.of(same + "give the user its URL and file nothing. " + dup + "tell the user and file nothing.",
 						write,
 						argv + ". If the developer cannot write issues on " + t.repository() + ", or the tool is not installed or logged in, say so and give them the title and the body to file by hand.",
-						"Call " + f.recordTool() + " with the project, this preview_id and the issue's URL."));
+						record + "."));
 		return m;
 	}
 
