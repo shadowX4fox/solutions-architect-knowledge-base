@@ -279,11 +279,12 @@ repository's `.architecture.json` (plugin v10.10.0), and its agent passes `super
   never `architecture-tier0`, and a footer saying a person reviews it and applies the label — that is the approval.
   `file_with` adds no `architecture-tier0`, and the agent never applies it. The architecture repository refuses the label
   from a bot or an account in `SA_TIER0_AGENTS` regardless.
-- **A kind the architecture lists in `tier0.auto`** (`support.tier0_auto`, plugin v10.12.0) is the exception: the
-  unattended agent keys it itself. `preview_tier0` renders it as `tier0.js` does with `--auto`: both labels, and a footer
-  saying the architecture repository writes it now and a person reviews it after. That repository accepts the key only
-  from an account in `SA_TIER0_TRUSTED_AGENTS`, on an issue it filed. A move to `Resolved` must name the commit that
-  resolved it as `owner/repo@sha` on that repository's default branch; the preview warns when the evidence names none.
+- **A kind the architecture lists in `tier0.auto`** (`support.tier0_auto`, plugin v10.13.0) needs no person: the
+  architecture repository keys it itself when an account in `SA_TIER0_TRUSTED_AGENTS` opened the issue. The agent still
+  files it with `tier0:<kind>` only; `preview_tier0` renders the footer `tier0.js` writes for it. A move to `Resolved`
+  names what resolved it, the build's pull request `owner/repo#N` or a commit `owner/repo@sha`, and is filed at once:
+  the architecture repository writes it once that is merged into the default branch. The preview warns when the
+  evidence names neither.
 - **`preview_escalation`** renders the same issue: an escalation writes nothing, so it is filed without a yes.
 - **Either way,** `file_with` is followed with the build's own identity, and the issue is listed in the build's pull
   request, where a person reviews the work.
