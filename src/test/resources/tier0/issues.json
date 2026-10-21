@@ -435,6 +435,10 @@
         ],
         "evidence": [
           {
+            "where": "acme/ledger-jobs#42",
+            "note": "its pull request"
+          },
+          {
             "where": "acme/ledger-jobs@9f00d1e5 src/fix/Job.java:1"
           }
         ],
@@ -448,10 +452,9 @@
       "issue": {
         "title": "[T0-?] TDR-001 is in progress",
         "labels": [
-          "architecture-tier0",
           "tier0:tdr-status"
         ],
-        "body": "| | |\n|---|---|\n| Architecture | architecture-v1.4.0 |\n| Kind | `tdr-status` — a TDR status move tdr-check.js --move accepts, with its dated History note |\n| Requested by | — |\n| Components | Ledger Store |\n\n## Request\n\n```text\nreplace the manual ledger fix with a job\n```\n\n## Evidence\n\n- acme/ledger-jobs@9f00d1e5 src/fix/Job.java:1\n\n## Fields\n\n```json\n{\n  \"tdr\": \"TDR-001\",\n  \"to\": \"Resolved\",\n  \"note\": \"the job replaced the script\"\n}\n```\n\n_Tier 0, filed and keyed by an unattended build agent: this architecture lets a trusted agent start `tdr-status` itself (`tier0.auto`), so the architecture repository writes it now (architecture-tier0.yml) and a person reviews it after, in its pull request and the release; a request that is no Tier 0 write is refused there, with the reason._\n<!-- sa-tier0 -->\n"
+        "body": "| | |\n|---|---|\n| Architecture | architecture-v1.4.0 |\n| Kind | `tdr-status` — a TDR status move tdr-check.js --move accepts, with its dated History note |\n| Requested by | — |\n| Components | Ledger Store |\n\n## Request\n\n```text\nreplace the manual ledger fix with a job\n```\n\n## Evidence\n\n- acme/ledger-jobs#42 — its pull request\n- acme/ledger-jobs@9f00d1e5 src/fix/Job.java:1\n\n## Fields\n\n```json\n{\n  \"tdr\": \"TDR-001\",\n  \"to\": \"Resolved\",\n  \"note\": \"the job replaced the script\"\n}\n```\n\n_Tier 0, filed by an unattended build agent: this architecture writes `tdr-status` from a trusted agent without a person's label (`tier0.auto`) — the architecture repository keys it itself (architecture-tier0.yml), and a person reviews it after, in its pull request and the release; a request that is no Tier 0 write is refused there, with the reason._\n<!-- sa-tier0 -->\n"
       },
       "read_back": {
         "kind": "tdr-status",
@@ -463,6 +466,10 @@
         "requested_by": "",
         "architecture": "architecture-v1.4.0",
         "evidence": [
+          {
+            "where": "acme/ledger-jobs#42",
+            "note": "its pull request"
+          },
           {
             "where": "acme/ledger-jobs@9f00d1e5 src/fix/Job.java:1"
           }
