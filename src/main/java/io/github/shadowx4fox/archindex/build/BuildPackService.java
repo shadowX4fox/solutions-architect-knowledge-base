@@ -82,6 +82,13 @@ public class BuildPackService {
 			e.put("title", x.get("title"));
 			e.put("bytes", x.get("bytes"));
 			e.put("sha256", x.get("sha256"));
+			// an adr part (sa-skills 10.23.0+): own when the descriptor names it, context when only an interface, a flow or
+			// the security section brings it — via lists every origin
+			for (String k : List.of("scope", "via")) {
+				if (x.get(k) != null) {
+					e.put(k, x.get(k));
+				}
+			}
 			downloadUrl(l, x).ifPresent((u) -> e.put("download_url", u));
 			parts.add(e);
 		}

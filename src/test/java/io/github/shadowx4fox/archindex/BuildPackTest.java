@@ -90,6 +90,22 @@ class BuildPackTest {
 	}
 
 	@Test
+	void anAdrPartSaysWhyItIsInThePack() throws Exception {
+		BundleStore store = new BundleStore(tmp.resolve("data"), 50_000_000);
+		store.publish("order-desk", "1.4.0", "released", new ByteArrayInputStream(Fixtures.tgz(Fixtures.bundle("1.4.0"))));
+		Map<String, Map<String, Object>> parts = new LinkedHashMap<>();
+		J.maps(new BuildPackService(new Bundles(store), 60_000, null).index("order-desk", "hub-api", "1.4.0"), "parts")
+			.forEach((x) -> parts.put(J.str(x, "id"), x));
+		// the descriptor names ADR-101; ADR-012 comes only through the security obligations
+		assertThat(parts.get("adr:ADR-101")).containsEntry("scope", "own")
+			.containsEntry("via", java.util.List.of("component", "interface:web-app→hub-api", "flow:1"));
+		assertThat(parts.get("adr:ADR-012")).containsEntry("scope", "context").containsEntry("via", java.util.List.of("security"));
+		// other kinds of parts have neither field
+		assertThat(parts.values()).filteredOn((x) -> !"adr".equals(x.get("kind")))
+			.allSatisfy((x) -> assertThat(x).doesNotContainKeys("scope", "via"));
+	}
+
+	@Test
 	void aPageNeverEndsInsideASurrogatePair() {
 		String s = "a🧾b";
 		assertThat(Paging.end(s, 0, 2)).isEqualTo(1);

@@ -21,8 +21,8 @@
    "title": "Build instructions",
    "path": "BUILD.md",
    "source": null,
-   "bytes": 12170,
-   "sha256": "b-086ce03e3118691a92155313abe48a5d4e5a888016a451106999735f73472c7e"
+   "bytes": 12832,
+   "sha256": "b-bd334b7db808a061e0e066e3b3e3e676fbed29c0530bedeb5fdf662b4bb7ddc9"
   },
   {
    "id": "spec",
@@ -103,7 +103,11 @@
    "path": "adrs/ADR-012-service-mesh.md",
    "source": "adr/ADR-012-service-mesh.md",
    "bytes": 104,
-   "sha256": "b-2b75c9ef051082ba092e4a965ce4f75adf5651b90ff51ef639781fdaf8959cf7"
+   "sha256": "b-2b75c9ef051082ba092e4a965ce4f75adf5651b90ff51ef639781fdaf8959cf7",
+   "scope": "context",
+   "via": [
+    "security"
+   ]
   },
   {
    "id": "adr:ADR-101",
@@ -112,7 +116,13 @@
    "path": "adrs/ADR-101-idempotency-keys.md",
    "source": "adr/ADR-101-idempotency-keys.md",
    "bytes": 141,
-   "sha256": "b-26c61b2d88cba87dc89407ff5eaff1077f79bd84044c94e9d230ae5f921b4014"
+   "sha256": "b-26c61b2d88cba87dc89407ff5eaff1077f79bd84044c94e9d230ae5f921b4014",
+   "scope": "own",
+   "via": [
+    "component",
+    "interface:web-app→hub-api",
+    "flow:1"
+   ]
   },
   {
    "id": "runtime-view",
