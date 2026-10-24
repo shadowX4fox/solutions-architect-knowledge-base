@@ -164,7 +164,7 @@ public class ArchitectureTools {
 
 	// ---- building one component
 
-	@McpTool(name = "get_build_pack", description = "The build pack of one component for one architecture version — the index only: its parts (spec, security obligations, contract assets, interface contracts, ADRs, standards, runtime view), the ordered build plan, interfaces both ways, flows and budgets, open questions. Each part has its sha256 and, when the server has a public URL, a download_url serving its bytes as stored (the MCP bearer token). Then call get_build_instructions and get_build_part. Contracts are never searched: they are read whole.")
+	@McpTool(name = "get_build_pack", description = "The build pack of one component for one architecture version — the index only: its parts (spec, security obligations, contract assets, interface contracts, ADRs, standards, runtime view), the ordered build plan, interfaces both ways, flows and budgets, open questions. Each ADR part has a scope: own when this component's descriptor names it (the code carries it out), context when only an interface contract, a flow or the security section brings it (what the other side does, not an obligation of this code) — and via, every origin that brought it in. Each part has its sha256 and, when the server has a public URL, a download_url serving its bytes as stored (the MCP bearer token). Then call get_build_instructions and get_build_part. Contracts are never searched: they are read whole.")
 	public CallToolResult getBuildPack(@McpToolParam(description = PROJECT) String project,
 			@McpToolParam(description = COMPONENT) String component,
 			@McpToolParam(description = VERSION, required = false) String version) {

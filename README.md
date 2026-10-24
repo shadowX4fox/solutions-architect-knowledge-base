@@ -132,7 +132,7 @@ Every capability is a tool, because every IDE client supports tools, while suppo
 | `search_architecture` | vector index | reasons and explanations: dense + sparse fused by weighted RRF; each hit has file, lines, anchor, version |
 | `get_chunk` | bundle | the whole text of a hit |
 | `get_document` | bundle | a whole document (by file, ADR/TDR id or component) rebuilt from its chunks in line order |
-| `get_build_pack` | pack | the index: parts (each with its `sha256` and `download_url`), ordered plan, interfaces both ways, flows, open questions |
+| `get_build_pack` | pack | the index: parts (each with its `sha256` and `download_url`; an ADR part also with `scope`, `own` or `context`, and `via`), ordered plan, interfaces both ways, flows, open questions |
 | `get_build_instructions` | pack | `BUILD.md`: the `.architecture.json` binding, the rules, the plan and the done list |
 | `get_build_part` · `get_asset` | pack | one part byte for byte (spec, `asset:openapi.yaml`, `interface:a→b`, `adr:ADR-101` …), paged over 60,000 characters |
 | `what_changed` | bundles | what changed for a component since the version and `pack_revision` it was built against, its technical debt included (the TDRs its descriptor names, never an action); a part is compared by its substance, so one that moved only its version stamp, link targets or debt table is `restamped`, never an action; `action_required` where code must move |
