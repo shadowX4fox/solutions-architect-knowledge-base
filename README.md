@@ -20,10 +20,30 @@ Alia serves the `sa-index/1` bundles that the
 `ARCHITECTURE.md`. The plugin produces data only. This server embeds it, answers exact questions from the facts ledger,
 and serves build packs as stored. It is self-hosted: no architecture text leaves your network.
 
-```
-architecture repo ──tag──▶ CI: export-index.js ──POST /bundles/{key}/{version}──▶ server ──▶ Qdrant (dense + sparse)
-                                                                                  │  ├──▶ Ollama: Qwen3-Embedding 0.6B
-IDE (VS Code · JetBrains) ◀──── MCP, Streamable HTTP /mcp ────────────────────────┘  └──▶ bundles on disk (ledger, packs)
+```mermaid
+flowchart LR
+    repo["📐 Architecture repo<br/>ARCHITECTURE.md · ADRs · handoff kit"]
+    ci["⚙️ CI<br/>export-index.js"]
+    ide["💻 IDE<br/>VS Code · JetBrains · Claude Code"]
+
+    subgraph net["Self-hosted"]
+        server(["🧭 Alia server"])
+        qdrant[("Qdrant<br/>dense + sparse")]
+        ollama["Ollama<br/>Qwen3-Embedding 0.6B"]
+        disk[("Bundles on disk<br/>ledger · build packs")]
+    end
+
+    repo -->|"tag"| ci
+    ci -->|"POST /bundles/{key}/{version}"| server
+    server --> qdrant
+    server --> ollama
+    server --> disk
+    ide <-->|"MCP · Streamable HTTP /mcp"| server
+
+    classDef store fill:#eef6ff,stroke:#2f6fb3,color:#123
+    classDef core fill:#fff4e5,stroke:#d9822b,color:#321,stroke-width:2px
+    class qdrant,disk store
+    class server core
 ```
 
 ---
