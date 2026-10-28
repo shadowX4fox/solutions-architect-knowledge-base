@@ -472,7 +472,7 @@ answers deep in long chunks, and exact identifiers. Run it before changing the m
 
 | Item | State |
 |---|---|
-| Sign-in through an identity provider, permissions per project | open; bearer tokens until then |
+| Sign-in through an identity provider, permissions per project | planned: OIDC as the MCP authorization spec sets it, CI keeps the ingest token ([#40](https://github.com/shadowX4fox/solutions-architect-knowledge-base/issues/40)); bearer tokens until then |
 | A service template (skeleton, libraries, CI) | outside the architecture; `BUILD.md` points the agent to the organization's own |
 | Retrieval eval on a real architecture | `eval/` measures on a synthetic one; confirm the model and the sparse weight on yours |
 | Bundles on blob storage (S3-compatible, Azure Blob) for Kubernetes | deferred until Kubernetes is the target ([#12](https://github.com/shadowX4fox/solutions-architect-knowledge-base/issues/12)); a volume until then, ReadWriteMany for readers across nodes |
