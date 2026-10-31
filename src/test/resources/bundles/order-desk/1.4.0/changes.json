@@ -28,6 +28,11 @@
      "openapi.yaml"
     ]
    },
+   "dependencies": {
+    "added": [],
+    "removed": [],
+    "changed": []
+   },
    "interfaces": {
     "added": [],
     "removed": [],
@@ -114,8 +119,8 @@
     "status": []
    },
    "pack_revision": {
-    "from": "25f8fb73d0b20148129637ca2fa35bcc219a6338c19d21b1e2158e0ff835002a",
-    "to": "6d3c34910ebcc9fbc82b989a47152d7b6041908b5dbb7441669241f1c49d30f8"
+    "from": "0606424c0acc02376126330a7a581cfaeb7f20992f9eb613b719bd31f17fc46c",
+    "to": "3cf645aaca169511bea15fd82a88b035f6c0c255a8103501b3431f3c2deae10f"
    },
    "pack": "present",
    "pack_revised": true,
@@ -129,6 +134,7 @@
    "status": "present",
    "facts": [],
    "contracts": null,
+   "dependencies": null,
    "interfaces": null,
    "adrs": null,
    "documents": [],
@@ -189,6 +195,7 @@
    "status": "present",
    "facts": [],
    "contracts": null,
+   "dependencies": null,
    "interfaces": null,
    "adrs": null,
    "documents": [],

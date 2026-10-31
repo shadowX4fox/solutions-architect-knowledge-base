@@ -1,0 +1,321 @@
+{
+ "schema": "sa-index/1",
+ "generator": "sa-delivery:architecture-index-export",
+ "generator_version": "11.1.0",
+ "generated_at": "2026-10-31T05:39:55.181Z",
+ "project": {
+  "key": "order-desk",
+  "name": "Order Desk"
+ },
+ "architecture": {
+  "version": "1.6.0",
+  "status": "Released",
+  "released": "2026-10-01",
+  "language": "en",
+  "type": null
+ },
+ "channel": "released",
+ "git": {
+  "sha": "acd1ab9a0013ca3a4b5ed30e9b552b0904cf7b01",
+  "tag": "architecture-v1.6.0",
+  "tag_sha": "acd1ab9a0013ca3a4b5ed30e9b552b0904cf7b01",
+  "at_tag": true,
+  "matches_tag": true,
+  "dirty": false
+ },
+ "support": {
+  "mode": "run",
+  "tier0": true,
+  "released": "architecture-v1.6.0",
+  "tier0_writes": [
+   "tdr-workaround",
+   "tdr-status",
+   "adr-proposed",
+   "doc-fix"
+  ],
+  "triggers": {
+   "new-integration": "a new external integration",
+   "data-classification": "a data classification change",
+   "cross-domain": "cross-domain impact",
+   "security-iam": "a security or IAM change",
+   "regulatory": "regulatory or audit scope",
+   "new-technology": "a new technology or vendor",
+   "low-confidence": "low AI confidence"
+  },
+  "routes": {
+   "tier-1": "Tier 1 — SA office hours",
+   "tier-2": "Tier 2 — design authority (CHANGE work)"
+  },
+  "tier0_kinds": {
+   "tdr-workaround": {
+    "label": "a workaround recorded as a new TDR",
+    "required": [
+     "description",
+     "impact",
+     "solutions",
+     "owner_technical"
+    ],
+    "evidence": true
+   },
+   "tdr-status": {
+    "label": "a TDR status move tdr-check.js --move accepts, with its dated History note",
+    "required": [
+     "tdr",
+     "to",
+     "note"
+    ],
+    "evidence": true
+   },
+   "adr-proposed": {
+    "label": "a project ADR (101+) written with status Proposed",
+    "required": [
+     "context",
+     "decision",
+     "consequences"
+    ],
+    "evidence": false
+   },
+   "doc-fix": {
+    "label": "a wording, typo or link fix in docs/ that changes no fact — no value, name, id, integration, technology, decision or status",
+    "required": [
+     "file",
+     "line",
+     "before",
+     "after"
+    ],
+    "evidence": false
+   }
+  },
+  "tdr_moves": {
+   "Planned": [
+    "In Progress",
+    "Open"
+   ],
+   "Open": [
+    "In Progress",
+    "Won't Fix"
+   ],
+   "In Progress": [
+    "Resolved"
+   ],
+   "Resolved": [],
+   "Won't Fix": []
+  },
+  "tdr_statuses": [
+   "Open",
+   "Planned",
+   "In Progress",
+   "Resolved",
+   "Won't Fix"
+  ],
+  "tdr_drivers": [
+   "Strategy",
+   "Architecture",
+   "Talent",
+   "Process"
+  ],
+  "tier0_label": "architecture-tier0",
+  "tier0_auto": [],
+  "escalations_open": [
+   {
+    "id": "ESC-001",
+    "status": "Open",
+    "route": "tier-1",
+    "triggers": [
+     "security-iam"
+    ],
+    "components": [
+     "Hub API"
+    ],
+    "title": "Hub API calls the partner ledger with a shared client secret",
+    "issue": null
+   }
+  ]
+ },
+ "embedding": {
+  "unit": "chunk",
+  "max_chars": 24000,
+  "text_field": "text",
+  "id_field": "id",
+  "hash_field": "content_hash"
+ },
+ "counts": {
+  "chunks": 25,
+  "by_kind": {
+   "adr": 3,
+   "overview": 2,
+   "section": 8,
+   "principle": 1,
+   "phase": 2,
+   "flow": 1,
+   "integration": 2,
+   "component": 4,
+   "tdr": 2
+  },
+  "buildpacks": 2,
+  "skipped": 1
+ },
+ "buildpacks": [
+  {
+   "component": "hub-api",
+   "path": "buildpacks/hub-api/pack.json",
+   "parts": 14,
+   "open_questions": 0
+  },
+  {
+   "component": "web-app",
+   "path": "buildpacks/web-app/pack.json",
+   "parts": 10,
+   "open_questions": 0
+  }
+ ],
+ "skipped": [
+  {
+   "component": "ledger-store",
+   "reason": "missing handoffs/components/03-ledger-store.md, handoffs/assets/03-ledger-store/security.md"
+  }
+ ],
+ "warnings": [],
+ "files": [
+  {
+   "path": "buildpacks/hub-api/BUILD.md",
+   "bytes": 13704,
+   "sha256": "476360480a3692f6cb74ef01aebbe8b863c11265b121f99dfe1d4094f92d8c92"
+  },
+  {
+   "path": "buildpacks/hub-api/adrs/ADR-012-service-mesh.md",
+   "bytes": 104,
+   "sha256": "2b75c9ef051082ba092e4a965ce4f75adf5651b90ff51ef639781fdaf8959cf7"
+  },
+  {
+   "path": "buildpacks/hub-api/adrs/ADR-101-idempotency-keys.md",
+   "bytes": 141,
+   "sha256": "26c61b2d88cba87dc89407ff5eaff1077f79bd84044c94e9d230ae5f921b4014"
+  },
+  {
+   "path": "buildpacks/hub-api/assets/c4-descriptor.md",
+   "bytes": 10,
+   "sha256": "789e943a357045b5ae4cdf4fa81ad9caca7736de91ef88b9ddffa4e0dfd6af36"
+  },
+  {
+   "path": "buildpacks/hub-api/assets/ddl.sql",
+   "bytes": 43,
+   "sha256": "0eef7d9bcb4e370fc17d077b34a5047c03977bcdcd2dc1c50ac9845c16f072a7"
+  },
+  {
+   "path": "buildpacks/hub-api/assets/openapi.yaml",
+   "bytes": 76,
+   "sha256": "fb66095f075e43f374144eedfddd5996b53d8c7229031648acaadfe7d3621a97"
+  },
+  {
+   "path": "buildpacks/hub-api/cross-cutting-standards.md",
+   "bytes": 169,
+   "sha256": "d5f269d7a9edd6963a29edf2ac092926201de7ca3df3c898f9f47722e6c85193"
+  },
+  {
+   "path": "buildpacks/hub-api/deps/ledger-store/openapi.yaml",
+   "bytes": 70,
+   "sha256": "610efdeab361b5feaa7363fe4cadb8e6d6876dc5dba518577455c3cfddfcf013"
+  },
+  {
+   "path": "buildpacks/hub-api/deps/web-app/asyncapi.yaml",
+   "bytes": 56,
+   "sha256": "4748470fff8a8ee630c30b3f34c8c2477b5e856ee00e14b839db6362fefab5d0"
+  },
+  {
+   "path": "buildpacks/hub-api/interfaces/hub-api→ledger-store.md",
+   "bytes": 161,
+   "sha256": "16777a9541b01ee8f518f2b316ef424553b751dff1f2783d14c7ac85ed780ee8"
+  },
+  {
+   "path": "buildpacks/hub-api/interfaces/web-app→hub-api.md",
+   "bytes": 146,
+   "sha256": "009b4c2e25e57ab816e6785bf75548d73edd0e1a189dbf3a52c0342f5bda99ac"
+  },
+  {
+   "path": "buildpacks/hub-api/pack.json",
+   "bytes": 7150,
+   "sha256": "26c0f9698476a72e8be4d627696062900f98fe3ed55efef599d2b7c82f33cb8e"
+  },
+  {
+   "path": "buildpacks/hub-api/runtime-view.md",
+   "bytes": 153,
+   "sha256": "43bb47dc5d7d24228b2e7d639d6476eeb80d8223d6e36bee6af1deac9af69531"
+  },
+  {
+   "path": "buildpacks/hub-api/security.md",
+   "bytes": 617,
+   "sha256": "5c824c798ec872e4c97b7009085b51e351ce1fc22baa58d2e41d1282dcea436b"
+  },
+  {
+   "path": "buildpacks/hub-api/spec.md",
+   "bytes": 165,
+   "sha256": "bcd29034af31da945b7f7157f1bf314d6cb4bf4c20bb92e0a6e829c84f487acf"
+  },
+  {
+   "path": "buildpacks/web-app/BUILD.md",
+   "bytes": 12715,
+   "sha256": "5ad3364b37e8374de2c694a71f0dcf7df16877124029c1e1d1fcc7fdbb8ab42f"
+  },
+  {
+   "path": "buildpacks/web-app/adrs/ADR-101-idempotency-keys.md",
+   "bytes": 141,
+   "sha256": "26c61b2d88cba87dc89407ff5eaff1077f79bd84044c94e9d230ae5f921b4014"
+  },
+  {
+   "path": "buildpacks/web-app/assets/asyncapi.yaml",
+   "bytes": 56,
+   "sha256": "4748470fff8a8ee630c30b3f34c8c2477b5e856ee00e14b839db6362fefab5d0"
+  },
+  {
+   "path": "buildpacks/web-app/assets/openapi.yaml",
+   "bytes": 65,
+   "sha256": "69666e3457465e4ae26daa6809ad671a0d23f6af5066e756fbb615cbc220c905"
+  },
+  {
+   "path": "buildpacks/web-app/cross-cutting-standards.md",
+   "bytes": 169,
+   "sha256": "d5f269d7a9edd6963a29edf2ac092926201de7ca3df3c898f9f47722e6c85193"
+  },
+  {
+   "path": "buildpacks/web-app/deps/hub-api/openapi.yaml",
+   "bytes": 76,
+   "sha256": "fb66095f075e43f374144eedfddd5996b53d8c7229031648acaadfe7d3621a97"
+  },
+  {
+   "path": "buildpacks/web-app/interfaces/web-app→hub-api.md",
+   "bytes": 146,
+   "sha256": "009b4c2e25e57ab816e6785bf75548d73edd0e1a189dbf3a52c0342f5bda99ac"
+  },
+  {
+   "path": "buildpacks/web-app/pack.json",
+   "bytes": 5205,
+   "sha256": "195fbb98741d71aae1d1410f7d6391da60e9916977812651b9243c84dace70db"
+  },
+  {
+   "path": "buildpacks/web-app/runtime-view.md",
+   "bytes": 153,
+   "sha256": "43bb47dc5d7d24228b2e7d639d6476eeb80d8223d6e36bee6af1deac9af69531"
+  },
+  {
+   "path": "buildpacks/web-app/security.md",
+   "bytes": 131,
+   "sha256": "abfe38851af879cda325461b2c28ce611f5e5e4420709fed7ddbf8561514aee0"
+  },
+  {
+   "path": "buildpacks/web-app/spec.md",
+   "bytes": 99,
+   "sha256": "a2edb033447bff900596be2bc99f6a433e5136aa63491930ab52fa40d249e335"
+  },
+  {
+   "path": "chunks.jsonl",
+   "bytes": 16038,
+   "sha256": "7d3537effe731757c1d089374531cd8b465785a99c77a7960a3622038a5cd816"
+  },
+  {
+   "path": "ledger.json",
+   "bytes": 6542,
+   "sha256": "d5a550830a29aeabe587257f42102f949d92eb040c0a5e1c926980bf7ab6b498"
+  }
+ ]
+}

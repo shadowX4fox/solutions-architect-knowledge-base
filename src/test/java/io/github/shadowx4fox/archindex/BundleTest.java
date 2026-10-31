@@ -118,6 +118,22 @@ class BundleTest {
 			.isEqualTo("## A\n---\nrest\n### B <!-- LABEL: Technical Debt -->\ny\n");
 	}
 
+	@Test
+	void aProvidersContractMovingIsAnAction() throws Exception {
+		// the plugin's diffBundles and renderChanges of the pair (scripts/make-fixtures.ts, 11.1.0): Hub API's pack carries the
+		// contracts at the other end of its interfaces; 1.6.1 changes Ledger Store's API and drops Web App's events
+		Bundle o = Bundle.load(Fixtures.bundle("1.6.0-deps"));
+		Bundle n = Bundle.load(Fixtures.bundle("1.6.1-deps"));
+		Map<String, Object> ours = BundleDiff.diff(o, n, null, false);
+		assertThat(dropNulls(J.obj(J.write(ours)))).isEqualTo(dropNulls(n.changes().orElseThrow()));
+		assertThat(BundleDiff.render(ours)).isEqualTo(Files.readString(Fixtures.bundle("1.6.1-deps").resolve("changes.md")));
+		Map<String, Object> hub = J.maps(ours, "components").stream().filter((c) -> "hub-api".equals(J.str(c, "component"))).findFirst().orElseThrow();
+		assertThat(J.strings(J.map(hub, "dependencies"), "changed")).containsExactly("ledger-store/openapi.yaml");
+		assertThat(J.strings(J.map(hub, "dependencies"), "removed")).containsExactly("web-app/asyncapi.yaml");
+		assertThat(J.strings(J.map(hub, "contracts"), "changed")).isEmpty();
+		assertThat(hub).containsEntry("action_required", true);
+	}
+
 	/** 1.3.0 with hub-api's descriptor naming {@code names} and the ledger holding {@code tdrs}; null names: no `tdrs` at all. */
 	Bundle withDebt(String dir, List<String> names, List<Map<String, Object>> tdrs) throws Exception {
 		Path b = Fixtures.copy(Fixtures.bundle("1.3.0"), tmp.resolve(dir));

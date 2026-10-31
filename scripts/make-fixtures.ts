@@ -85,6 +85,31 @@ edit("docs/01-system-overview.md", "Shops phone orders in.", "Shops phone and e-
 w("tdr/TDR-002-retry-by-hand.md", `---\nstatus: Open\n---\n# TDR-002: Retry by hand\n\n## Description\n\nA failed booking is retried by hand.\n`);
 w("adr/ADR-102-retry-queue.md", `# ADR-102: A retry queue for bookings\n\n**Status**: Proposed\n**Scope**: Project\n\n## Context\n\nBookings fail.\n\n## Decision\n\nA queue retries them.\n`);
 exportIndex(P, { ...opts, out: join(OUT, "draft") });
+// dependency contracts (11.1.0), the case of the plugin's test "a dependency's contract comes whole…": Hub API calls Ledger
+// Store (its openapi.yaml, never its ddl.sql) and reads Web App's events (its asyncapi.yaml, never its openapi.yaml).
+// 1.6.1 moves Ledger Store's API and leaves Web App's part of the kit at 1.6.0, so its contract drops out: the plugin's
+// changes.json in 1.6.1-deps is what the server's what_changed must say
+const release = (from: string, to: string) => {
+  for (const f of ["ARCHITECTURE.md", "handoffs/.manifest.json"]) edit(f, new RegExp(from.replace(/\./g, "\\."), "g") as any, to);
+};
+release("1.4.0", "1.6.0");
+w("handoffs/assets/03-ledger-store/openapi.yaml", "openapi: 3.1.0\ninfo:\n  title: Ledger Store\n  version: 1.0.0\npaths: {}\n");
+w("handoffs/assets/03-ledger-store/ddl.sql", "CREATE TABLE entries (id uuid);\n");
+w("handoffs/assets/01-web-app/asyncapi.yaml", "asyncapi: 3.0.0\ninfo:\n  title: Web App\n  version: 1.0.0\n");
+w("handoffs/assets/01-web-app/openapi.yaml", "openapi: 3.1.0\ninfo:\n  title: Web App\n  version: 1.0.0\npaths: {}\n");
+const mf = JSON.parse(readFileSync(join(P, "handoffs/.manifest.json"), "utf8"));
+mf.cut_sheets["ledger-store"] = { ...mf.cut_sheets["hub-api"], cut_sheet_file: "components/03-ledger-store.md" };
+mf.cut_sheets["web-app"].architecture_version = "1.6.0";
+w("handoffs/.manifest.json", JSON.stringify(mf));
+git("add", "-A"); git("commit", "-qm", "release 1.6.0"); git("tag", "architecture-v1.6.0");
+exportIndex(P, { ...opts, out: join(OUT, "1.6.0-deps") });
+release("1.6.0", "1.6.1");
+const mf2 = JSON.parse(readFileSync(join(P, "handoffs/.manifest.json"), "utf8")); mf2.cut_sheets["web-app"].architecture_version = "1.6.0";
+w("handoffs/.manifest.json", JSON.stringify(mf2));
+edit("handoffs/assets/03-ledger-store/openapi.yaml", "paths: {}", "paths:\n  /entries: {}");
+git("add", "-A"); git("commit", "-qm", "release 1.6.1"); git("tag", "architecture-v1.6.1");
+exportIndex(P, { ...opts, out: join(OUT, "1.6.1-deps"), previous: join(OUT, "1.6.0-deps") });
+writeFileSync(join(OUT, "1.6.1-deps", "changes.md"), renderChanges(JSON.parse(readFileSync(join(OUT, "1.6.1-deps", "changes.json"), "utf8"))));
 rmSync(BASE, { recursive: true, force: true });
 // what_changed by substance (10.10.4): two copies of 1.4.0-revised whose hub-api parts move only in what a release restamps —
 // the version, link targets, line ends, the specification's debt table — and, one per part, in what JavaScript's regular
@@ -122,7 +147,7 @@ writeFileSync(join(RESTAMPED, "changes.json"), JSON.stringify(substance, null, 1
 writeFileSync(join(RESTAMPED, "changes.md"), renderChanges(substance));
 const hub = substance.components.find((c: any) => c.component === "hub-api");
 console.log("restamped", JSON.stringify(hub.restamped), "documents", JSON.stringify(hub.documents), "adrs", JSON.stringify(hub.adrs), "oq", JSON.stringify(hub.open_questions), "action", hub.action_required);
-for (const d of ["1.3.0-search", "1.3.0", "1.4.0", "1.4.0-revised", "draft"]) { const m = JSON.parse(readFileSync(join(OUT, d, "manifest.json"), "utf8")); console.log(d, m.channel, m.architecture.version, m.counts.chunks, m.buildpacks.map((b: any) => b.component), m.changes?.action_required ?? ""); }
+for (const d of ["1.3.0-search", "1.3.0", "1.4.0", "1.4.0-revised", "draft", "1.6.0-deps", "1.6.1-deps"]) { const m = JSON.parse(readFileSync(join(OUT, d, "manifest.json"), "utf8")); console.log(d, m.channel, m.architecture.version, m.counts.chunks, m.buildpacks.map((b: any) => b.component), m.changes?.action_required ?? ""); }
 
 // the escalation issue as the plugin renders it (escalate.js issueBody, `ESC-?` as the MCP server files it): the contract
 // EscalateTest holds the server's port to, byte for byte — and requestOf() reads each back the same with the server's

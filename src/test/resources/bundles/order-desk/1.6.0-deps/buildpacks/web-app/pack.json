@@ -1,0 +1,214 @@
+{
+ "schema": "sa-index/1#buildpack",
+ "project": "order-desk",
+ "architecture_version": "1.6.0",
+ "component": {
+  "slug": "web-app",
+  "name": "Web App",
+  "internal_name": null,
+  "type": "Web Application",
+  "technology": [
+   "React"
+  ],
+  "system": "desk",
+  "component_version": null
+ },
+ "parts": [
+  {
+   "id": "instructions",
+   "kind": "instructions",
+   "title": "Build instructions",
+   "path": "BUILD.md",
+   "source": null,
+   "bytes": 12715,
+   "sha256": "5ad3364b37e8374de2c694a71f0dcf7df16877124029c1e1d1fcc7fdbb8ab42f"
+  },
+  {
+   "id": "spec",
+   "kind": "specification",
+   "title": "Component Specification",
+   "path": "spec.md",
+   "source": "handoffs/components/01-web-app.md",
+   "bytes": 99,
+   "sha256": "a2edb033447bff900596be2bc99f6a433e5136aa63491930ab52fa40d249e335"
+  },
+  {
+   "id": "security",
+   "kind": "security",
+   "title": "Security Obligations",
+   "path": "security.md",
+   "source": "handoffs/assets/01-web-app/security.md",
+   "bytes": 131,
+   "sha256": "abfe38851af879cda325461b2c28ce611f5e5e4420709fed7ddbf8561514aee0"
+  },
+  {
+   "id": "asset:asyncapi.yaml",
+   "kind": "asset",
+   "title": "asyncapi.yaml",
+   "path": "assets/asyncapi.yaml",
+   "source": "handoffs/assets/01-web-app/asyncapi.yaml",
+   "bytes": 56,
+   "sha256": "4748470fff8a8ee630c30b3f34c8c2477b5e856ee00e14b839db6362fefab5d0"
+  },
+  {
+   "id": "asset:openapi.yaml",
+   "kind": "asset",
+   "title": "openapi.yaml",
+   "path": "assets/openapi.yaml",
+   "source": "handoffs/assets/01-web-app/openapi.yaml",
+   "bytes": 65,
+   "sha256": "69666e3457465e4ae26daa6809ad671a0d23f6af5066e756fbb615cbc220c905"
+  },
+  {
+   "id": "dependency:hub-api/openapi.yaml",
+   "kind": "dependency",
+   "title": "Hub API — openapi.yaml",
+   "path": "deps/hub-api/openapi.yaml",
+   "source": "handoffs/assets/02-hub-api/openapi.yaml",
+   "bytes": 76,
+   "sha256": "fb66095f075e43f374144eedfddd5996b53d8c7229031648acaadfe7d3621a97",
+   "provider": "hub-api"
+  },
+  {
+   "id": "interface:web-app→hub-api",
+   "kind": "interface",
+   "title": "Interface Contract: Web App → Hub API",
+   "path": "interfaces/web-app→hub-api.md",
+   "source": "handoffs/interfaces/web-app→hub-api.md",
+   "bytes": 146,
+   "sha256": "009b4c2e25e57ab816e6785bf75548d73edd0e1a189dbf3a52c0342f5bda99ac"
+  },
+  {
+   "id": "cross-cutting-standards",
+   "kind": "standards",
+   "title": "Cross-Cutting Standards",
+   "path": "cross-cutting-standards.md",
+   "source": "handoffs/CROSS_CUTTING_STANDARDS.md",
+   "bytes": 169,
+   "sha256": "d5f269d7a9edd6963a29edf2ac092926201de7ca3df3c898f9f47722e6c85193"
+  },
+  {
+   "id": "adr:ADR-101",
+   "kind": "adr",
+   "title": "ADR-101: Idempotency keys on every write",
+   "path": "adrs/ADR-101-idempotency-keys.md",
+   "source": "adr/ADR-101-idempotency-keys.md",
+   "bytes": 141,
+   "sha256": "26c61b2d88cba87dc89407ff5eaff1077f79bd84044c94e9d230ae5f921b4014",
+   "scope": "own",
+   "via": [
+    "component",
+    "interface:web-app→hub-api",
+    "flow:1"
+   ]
+  },
+  {
+   "id": "runtime-view",
+   "kind": "runtime-view",
+   "title": "System Runtime View",
+   "path": "runtime-view.md",
+   "source": "handoffs/SYSTEM_RUNTIME_VIEW.md",
+   "bytes": 153,
+   "sha256": "43bb47dc5d7d24228b2e7d639d6476eeb80d8223d6e36bee6af1deac9af69531"
+  }
+ ],
+ "plan": [
+  {
+   "step": 1,
+   "id": "spec",
+   "title": "Read the Component Specification: responsibility, invariants, budgets, data ownership",
+   "parts": [
+    "spec"
+   ]
+  },
+  {
+   "step": 2,
+   "id": "security",
+   "title": "Enforce the security obligations first: who may call, how each interface authenticates, the threats to mitigate",
+   "parts": [
+    "security"
+   ]
+  },
+  {
+   "step": 3,
+   "id": "contracts",
+   "title": "Implement the API and message contracts exactly as written",
+   "parts": [
+    "asset:asyncapi.yaml",
+    "asset:openapi.yaml",
+    "dependency:hub-api/openapi.yaml"
+   ]
+  },
+  {
+   "step": 4,
+   "id": "interfaces",
+   "title": "Implement each interface: outbound calls, then inbound",
+   "parts": [
+    "interface:web-app→hub-api"
+   ]
+  },
+  {
+   "step": 5,
+   "id": "standards",
+   "title": "Apply the cross-cutting standards and the governing ADRs",
+   "parts": [
+    "cross-cutting-standards",
+    "adr:ADR-101"
+   ]
+  },
+  {
+   "step": 6,
+   "id": "flows",
+   "title": "Meet the flows the component takes part in and their latency budgets",
+   "parts": [
+    "runtime-view"
+   ]
+  },
+  {
+   "step": 7,
+   "id": "acceptance",
+   "title": "Prove the acceptance criteria of the Component Specification",
+   "parts": [
+    "spec"
+   ]
+  }
+ ],
+ "flows": [
+  {
+   "code": "1",
+   "name": "Place order",
+   "use_cases": [
+    "UC-01"
+   ],
+   "latency_target": "300 ms",
+   "governed_by": [
+    "ADR-101"
+   ],
+   "phases": [
+    {
+     "n": "1",
+     "name": "Accept order",
+     "hops": "Web App → Hub API",
+     "latency_budget": "120 ms"
+    }
+   ]
+  }
+ ],
+ "interfaces": [
+  {
+   "key": "web-app→hub-api",
+   "direction": "outbound",
+   "upstream": "web-app",
+   "downstream": "hub-api",
+   "upstream_name": "Web App",
+   "downstream_name": "Hub API",
+   "part": "interface:web-app→hub-api"
+  }
+ ],
+ "adrs": [
+  "ADR-101"
+ ],
+ "tdrs": [],
+ "open_questions": [],
+ "instructions": "BUILD.md"
+}
