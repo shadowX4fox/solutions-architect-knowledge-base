@@ -124,7 +124,15 @@ class ServerTest {
 		}
 		Map<String, Object> r = rpc("initialize", Map.of("protocolVersion", "2025-06-18", "capabilities", Map.of(),
 				"clientInfo", Map.of("name", "test-ide", "version", "1")));
-		assertThat(J.str(J.map(J.map(r, "result"), "serverInfo"), "name")).isEqualTo("Alia");
+		Map<String, Object> info = J.map(J.map(r, "result"), "serverInfo");
+		assertThat(J.str(info, "name")).isEqualTo("Alia");
+		assertThat(J.str(info, "title")).isEqualTo("Alia — the architecture MCP server");
+		// her escudo, inline: a client that shows server icons reaches nothing outside the network for it
+		Map<String, Object> icon = J.maps(info, "icons").getFirst();
+		assertThat(J.str(icon, "mimeType")).isEqualTo("image/svg+xml");
+		assertThat(new String(java.util.Base64.getDecoder().decode(J.str(icon, "src").substring("data:image/svg+xml;base64,".length()))))
+			.startsWith("<svg").contains("#2ee6e6");
+		assertThat(J.map(J.map(r, "result"), "capabilities")).containsKey("tools");
 		assertThat(J.str(J.map(r, "result"), "instructions")).startsWith("You are Alia");
 		HttpRequest n = HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/mcp"))
 			.header("Content-Type", "application/json")

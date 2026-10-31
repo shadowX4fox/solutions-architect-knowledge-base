@@ -4,6 +4,9 @@ server:
 spring:
   application:
     name: architecture-index-server
+  # the MCP server is built by AliaServer, which gives serverInfo her title and escudo
+  autoconfigure:
+    exclude: org.springframework.ai.mcp.server.common.autoconfigure.McpServerStatelessAutoConfiguration
   ai:
     model:
       chat: none
@@ -49,6 +52,8 @@ archindex:
   mcp-token: ${ARCHINDEX_MCP_TOKEN:}
   # the base the IDE reaches this server at (https://alia-mcp.internal); unset, parts list no download_url
   public-url: ${ARCHINDEX_PUBLIC_URL:}
+  # the icon MCP clients show for the server: unset, Alia's escudo; "none", no icon; else a deployment's own URL
+  icon: ${ARCHINDEX_ICON:}
   max-bundle-bytes: 268435456
   # several instances on one data directory and one Qdrant collection: one "all" (the writer), the others "reader"
   role: ${ARCHINDEX_ROLE:all}

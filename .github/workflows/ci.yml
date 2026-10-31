@@ -56,9 +56,15 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha
             type=ref,event=pr
-          labels: |
+          # the same on the image and, as annotations, on the multi-arch index, where GHCR reads the package's description
+          labels: &oci |
             org.opencontainers.image.title=Alia — the architecture MCP server
+            org.opencontainers.image.description=Your architecture, served to every developer's IDE: ask it while you work, build a component from its spec, escalate what needs an architect.
+            org.opencontainers.image.documentation=https://github.com/shadowX4fox/solutions-architect-knowledge-base#readme
             org.opencontainers.image.licenses=MIT
+          annotations: *oci
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
 
       # the image starts, takes a bundle and answers over MCP — before anything is published
       - name: Build for the smoke test
@@ -98,5 +104,6 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

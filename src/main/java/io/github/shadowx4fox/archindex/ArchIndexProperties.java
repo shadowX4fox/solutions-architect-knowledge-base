@@ -11,11 +11,12 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * Settings under {@code archindex.*}. Secrets (the tokens, the Qdrant key) come from the environment, never a file.
  * {@code publicUrl} is the base the IDE reaches the server at (https://alia-mcp.internal): unset, no part lists a
- * {@code download_url}.
+ * {@code download_url}. {@code icon} is the icon MCP clients show for the server: unset, Alia's escudo; {@code none},
+ * no icon; otherwise the URL (or data: URI) of a deployment's own.
  */
 @ConfigurationProperties("archindex")
-public record ArchIndexProperties(Path dataDir, String ingestToken, String mcpToken, String publicUrl, long maxBundleBytes,
-		Role role, Duration refreshInterval, Duration retainReplaced, Store store, Qdrant qdrant, File file,
+public record ArchIndexProperties(Path dataDir, String ingestToken, String mcpToken, String publicUrl, String icon,
+		long maxBundleBytes, Role role, Duration refreshInterval, Duration retainReplaced, Store store, Qdrant qdrant, File file,
 		Embedding embedding, Search search, Escalation escalation) {
 
 	/** Several instances share one data directory and one Qdrant collection: one writes, the others read. */

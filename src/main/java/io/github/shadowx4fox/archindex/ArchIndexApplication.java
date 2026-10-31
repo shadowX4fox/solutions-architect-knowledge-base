@@ -1,8 +1,12 @@
 package io.github.shadowx4fox.archindex;
 
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.mcp.server.common.autoconfigure.properties.McpServerProperties;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -28,12 +32,16 @@ import io.github.shadowx4fox.archindex.index.SparseEncoder;
 import io.github.shadowx4fox.archindex.index.VectorIndex;
 import io.github.shadowx4fox.archindex.ledger.DocumentService;
 import io.github.shadowx4fox.archindex.ledger.LedgerService;
+import io.github.shadowx4fox.archindex.mcp.AliaServer;
 import io.github.shadowx4fox.archindex.mcp.ArchitectureTools;
 import io.github.shadowx4fox.archindex.mcp.Bundles;
 import io.github.shadowx4fox.archindex.web.TokenFilter;
+import io.modelcontextprotocol.server.McpStatelessServerFeatures.SyncToolSpecification;
+import io.modelcontextprotocol.server.McpStatelessSyncServer;
+import io.modelcontextprotocol.spec.McpStatelessServerTransport;
 
 @SpringBootApplication
-@EnableConfigurationProperties(ArchIndexProperties.class)
+@EnableConfigurationProperties({ ArchIndexProperties.class, McpServerProperties.class })
 public class ArchIndexApplication {
 
 	private static final Logger log = LoggerFactory.getLogger(ArchIndexApplication.class);
@@ -132,6 +140,12 @@ public class ArchIndexApplication {
 	ArchitectureTools architectureTools(LedgerService ledger, SearchService search, BuildPackService packs,
 			ChangesService changes, DocumentService documents, EscalationService escalations, Tier0Service tier0) {
 		return new ArchitectureTools(ledger, search, packs, changes, documents, escalations, tier0);
+	}
+
+	@Bean
+	McpStatelessSyncServer mcpStatelessSyncServer(McpStatelessServerTransport transport, McpServerProperties mcp,
+			ArchIndexProperties p, ObjectProvider<List<SyncToolSpecification>> tools) {
+		return AliaServer.build(transport, mcp, p.icon(), tools);
 	}
 
 	@Bean
