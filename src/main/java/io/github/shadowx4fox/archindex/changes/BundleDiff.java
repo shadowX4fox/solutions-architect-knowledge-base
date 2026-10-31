@@ -274,6 +274,7 @@ public final class BundleDiff {
 		Map<String, Object> op = o.pack(slug).orElse(null);
 		Map<String, Object> np = n.pack(slug).orElse(null);
 		SetDiff contracts = null;
+		SetDiff dependencies = null;
 		SetDiff interfaces = null;
 		SetDiff adrs = null;
 		List<String> documents = new ArrayList<>();
@@ -298,6 +299,7 @@ public final class BundleDiff {
 				return same;
 			};
 			contracts = setDiff(parts(op, "asset"), parts(np, "asset"), (x) -> J.str(x, "title"), byHash);
+			dependencies = setDiff(parts(op, "dependency"), parts(np, "dependency"), (x) -> J.str(x, "id").replaceFirst("^dependency:", ""), byHash);
 			interfaces = setDiff(parts(op, "interface"), parts(np, "interface"), (x) -> J.str(x, "id").replaceFirst("^interface:", ""), byHash);
 			adrs = setDiff(parts(op, "adr"), parts(np, "adr"), (x) -> J.str(x, "id").replaceFirst("^adr:", ""), byHash);
 			for (String[] d : new String[][] { { "spec", "Component Specification" }, { "security", "Security Obligations" }, { "cross-cutting-standards", "Cross-Cutting Standards" }, { "runtime-view", "System Runtime View" }, { "instructions", "Build instructions" } }) {
@@ -317,6 +319,7 @@ public final class BundleDiff {
 			openQuestions.put("resolved", oq.stream().filter((x) -> !nk.contains(qk.apply(ov).apply(x))).toList());
 		}
 		r.put("contracts", contracts == null ? null : contracts.json());
+		r.put("dependencies", dependencies == null ? null : dependencies.json());
 		r.put("interfaces", interfaces == null ? null : interfaces.json());
 		r.put("adrs", adrs == null ? null : adrs.json());
 		r.put("documents", documents);
@@ -441,13 +444,14 @@ public final class BundleDiff {
 		r.put("pack_revised", revised);
 		boolean oqMoved = openQuestions != null && (!((List<?>) openQuestions.get("new")).isEmpty() || !((List<?>) openQuestions.get("resolved")).isEmpty());
 		boolean changed = !"present".equals(status) || !facts.isEmpty()
-				|| java.util.stream.Stream.of(contracts, interfaces, adrs, integrations, sd).anyMatch((d) -> d != null && d.any())
+				|| java.util.stream.Stream.of(contracts, dependencies, interfaces, adrs, integrations, sd).anyMatch((d) -> d != null && d.any())
 				|| !documents.isEmpty() || !flows.isEmpty() || anyDebt(technicalDebt) || "added".equals(pack) || "removed".equals(pack) || revised || oqMoved;
 		r.put("changed", changed);
 		// what the developer must act on: the code-facing parts moved. A component version alone is listed, not an action
 		boolean action = "removed".equals(status)
 				|| facts.stream().anyMatch((f) -> List.of("name", "type", "technology", "internal_name").contains(J.str(f, "field")))
-				|| (contracts != null && contracts.any()) || (interfaces != null && interfaces.any()) || integrations.any()
+				|| (contracts != null && contracts.any()) || (dependencies != null && dependencies.any())
+				|| (interfaces != null && interfaces.any()) || integrations.any()
 				|| !flows.isEmpty() || documents.contains("Component Specification") || documents.contains("Security Obligations");
 		r.put("action_required", action);
 		return r;
@@ -525,6 +529,7 @@ public final class BundleDiff {
 				l.add("- build pack replaced: revision " + J.str(rev, "from").substring(0, 12) + " → " + J.str(rev, "to").substring(0, 12));
 			}
 			list(l, "contracts", J.map(c, "contracts"));
+			list(l, "dependency contracts", J.map(c, "dependencies"));
 			list(l, "interfaces", J.map(c, "interfaces"));
 			list(l, "ADRs", J.map(c, "adrs"));
 			list(l, "integrations", J.map(c, "integrations"));

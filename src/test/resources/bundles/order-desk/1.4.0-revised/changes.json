@@ -15,6 +15,11 @@
     "removed": [],
     "changed": []
    },
+   "dependencies": {
+    "added": [],
+    "removed": [],
+    "changed": []
+   },
    "interfaces": {
     "added": [],
     "removed": [],
@@ -51,8 +56,8 @@
     "status": []
    },
    "pack_revision": {
-    "from": "6d3c34910ebcc9fbc82b989a47152d7b6041908b5dbb7441669241f1c49d30f8",
-    "to": "187ceb97b9b36698e25163d08b507ed0047247ab8209c9a396f45f1aa02e6a5c"
+    "from": "3cf645aaca169511bea15fd82a88b035f6c0c255a8103501b3431f3c2deae10f",
+    "to": "624000626d835b0741a3e57f10e02f54dff84a11502224f9c79272fd883c934c"
    },
    "pack": "present",
    "pack_revised": true,

@@ -1,8 +1,8 @@
 {
  "schema": "sa-index/1",
  "generator": "sa-delivery:architecture-index-export",
- "generator_version": "10.23.0",
- "generated_at": "2026-10-24T17:37:52.765Z",
+ "generator_version": "11.1.0",
+ "generated_at": "2026-10-31T05:39:55.141Z",
  "project": {
   "key": "order-desk",
   "name": "Order Desk"
@@ -16,9 +16,9 @@
  },
  "channel": "released",
  "git": {
-  "sha": "9ed52395c18a9c36c6edb0e26f91b764b3e5527a",
+  "sha": "d9df9b81110108753baef3973da21da40bd62071",
   "tag": "architecture-v1.3.0",
-  "tag_sha": "3c8d7dc5da04b65c80391f2a9c7589397a3d3242",
+  "tag_sha": "25ee323bb370df4edef46601118eec8c4dc64e5e",
   "at_tag": false,
   "matches_tag": true,
   "dirty": false
@@ -159,12 +159,14 @@
    "reason": "kit-version 1.2.0"
   }
  ],
- "warnings": [],
+ "warnings": [
+  "hub-api: web-app's contracts are from architecture 1.2.0 — no dependency part from it until its part of the kit is regenerated"
+ ],
  "files": [
   {
    "path": "buildpacks/hub-api/BUILD.md",
-   "bytes": 12901,
-   "sha256": "db9ec8d6a3cf08681f6e57c2c87514550112ae65537d3fe342df1c4a8bc34672"
+   "bytes": 13565,
+   "sha256": "365da3e0d464774d00524f6b8cde2ad03771a0cda131a1df58f3628355b8d99b"
   },
   {
    "path": "buildpacks/hub-api/adrs/ADR-012-service-mesh.md",
@@ -209,7 +211,7 @@
   {
    "path": "buildpacks/hub-api/pack.json",
    "bytes": 6468,
-   "sha256": "25f8fb73d0b20148129637ca2fa35bcc219a6338c19d21b1e2158e0ff835002a"
+   "sha256": "0606424c0acc02376126330a7a581cfaeb7f20992f9eb613b719bd31f17fc46c"
   },
   {
    "path": "buildpacks/hub-api/runtime-view.md",

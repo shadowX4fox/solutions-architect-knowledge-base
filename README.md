@@ -150,10 +150,10 @@ Every capability is a tool, because every IDE client supports tools, while suppo
 | `search_architecture` | vector index | reasons and explanations: dense + sparse fused by weighted RRF; each hit has file, lines, anchor, version |
 | `get_chunk` | bundle | the whole text of a hit |
 | `get_document` | bundle | a whole document (by file, ADR/TDR id or component) rebuilt from its chunks in line order |
-| `get_build_pack` | pack | the index: parts (each with its `sha256` and `download_url`; an ADR part also with `scope`, `own` or `context`, and `via`), ordered plan, interfaces both ways, flows, open questions |
+| `get_build_pack` | pack | the index: parts (each with its `sha256` and `download_url`; an ADR part also with `scope`, `own` or `context`, and `via`; a `dependency` part is the contract of the component at the other end of an interface, with its `provider`), ordered plan, interfaces both ways, flows, open questions |
 | `get_build_instructions` | pack | `BUILD.md`: the `.architecture.json` binding, the rules, the plan and the done list |
-| `get_build_part` · `get_asset` | pack | one part byte for byte (spec, `asset:openapi.yaml`, `interface:a→b`, `adr:ADR-101` …), paged over 60,000 characters |
-| `what_changed` | bundles | what changed for a component since the version and `pack_revision` it was built against, its technical debt included (the TDRs its descriptor names, never an action); a part is compared by its substance, so one that moved only its version stamp, link targets or debt table is `restamped`, never an action; `action_required` where code must move |
+| `get_build_part` · `get_asset` | pack | one part byte for byte (spec, `asset:openapi.yaml`, `dependency:ledger-store/openapi.yaml`, `interface:a→b`, `adr:ADR-101` …), paged over 60,000 characters |
+| `what_changed` | bundles | what changed for a component since the version and `pack_revision` it was built against, its providers' contracts (`dependencies`) and its technical debt included (the TDRs its descriptor names, never an action); a part is compared by its substance, so one that moved only its version stamp, link targets or debt table is `restamped`, never an action; `action_required` where code must move |
 | `preview_escalation` | release, ledger | a change that crosses a trigger, or a question only the architect can answer that blocks the build, as the issue it would open (`[ESC-?] …`), with the commands that file it; writes nothing |
 | `record_escalation` | — | the filed issue's URL, logged against its preview |
 | `preview_tier0` | release, ledger | a Tier 0 write (`tdr-workaround`, `tdr-status`, `adr-proposed`, `doc-fix`) requested, as the issue it would open (`[T0-?] …`, labels `architecture-tier0`, `tier0:<kind>`), with the commands that file it; the architecture repository writes the record. Writes nothing |
@@ -438,6 +438,7 @@ from its own test project:
 | `1.4.0-revised` | 1.4.0 with the Hub API pack regenerated: its security obligations moved |
 | `draft` | an unreleased draft |
 | `1.4.0-stamped`, `1.5.0-restamped` | a pair for `what_changed` by substance: Hub API parts that move only their version, links, line ends or debt table, and one case per JavaScript regex rule; `changes.json` and `changes.md` are the plugin's |
+| `1.6.0-deps`, `1.6.1-deps` | dependency contracts: Hub API carries Ledger Store's API and Web App's events; 1.6.1 changes the API and drops the events, whose part of the kit stays at 1.6.0; `changes.json` and `changes.md` are the plugin's |
 
 `src/test/resources/escalation/issues.json` holds the escalation issues the plugin renders for four requests, the
 awkward text included. `src/test/resources/tier0/issues.json` holds the Tier 0 issues `tier0.js` renders, one per kind

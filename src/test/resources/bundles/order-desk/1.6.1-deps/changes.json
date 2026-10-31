@@ -1,0 +1,138 @@
+{
+ "schema": "sa-index/1#changes",
+ "project": "order-desk",
+ "from": "1.6.0",
+ "to": "1.6.1",
+ "same_version": false,
+ "components": [
+  {
+   "component": "hub-api",
+   "name": "Hub API",
+   "status": "present",
+   "facts": [],
+   "contracts": {
+    "added": [],
+    "removed": [],
+    "changed": []
+   },
+   "dependencies": {
+    "added": [],
+    "removed": [
+     "web-app/asyncapi.yaml"
+    ],
+    "changed": [
+     "ledger-store/openapi.yaml"
+    ]
+   },
+   "interfaces": {
+    "added": [],
+    "removed": [],
+    "changed": []
+   },
+   "adrs": {
+    "added": [],
+    "removed": [],
+    "changed": []
+   },
+   "documents": [
+    "Build instructions"
+   ],
+   "flows": [],
+   "integrations": {
+    "added": [],
+    "removed": [],
+    "changed": [],
+    "fields": []
+   },
+   "sections": {
+    "added": [],
+    "removed": [],
+    "changed": []
+   },
+   "open_questions": {
+    "new": [],
+    "resolved": []
+   },
+   "technical_debt": {
+    "added": [],
+    "removed": [],
+    "status": []
+   },
+   "pack_revision": {
+    "from": "26c0f9698476a72e8be4d627696062900f98fe3ed55efef599d2b7c82f33cb8e",
+    "to": "2409f0342d1d1d207d977c08e2c963747ec7ba5b144833be94b0e15e148b58f6"
+   },
+   "pack": "present",
+   "pack_revised": true,
+   "restamped": [],
+   "changed": true,
+   "action_required": true
+  },
+  {
+   "component": "web-app",
+   "name": "Web App",
+   "status": "present",
+   "facts": [],
+   "contracts": {
+    "added": [],
+    "removed": [
+     "asyncapi.yaml",
+     "openapi.yaml"
+    ],
+    "changed": []
+   },
+   "dependencies": {
+    "added": [],
+    "removed": [
+     "hub-api/openapi.yaml"
+    ],
+    "changed": []
+   },
+   "interfaces": {
+    "added": [],
+    "removed": [
+     "web-app→hub-api"
+    ],
+    "changed": []
+   },
+   "adrs": {
+    "added": [],
+    "removed": [
+     "ADR-101"
+    ],
+    "changed": []
+   },
+   "documents": [],
+   "flows": [],
+   "integrations": {
+    "added": [],
+    "removed": [],
+    "changed": [],
+    "fields": []
+   },
+   "sections": {
+    "added": [],
+    "removed": [],
+    "changed": []
+   },
+   "open_questions": {
+    "new": [],
+    "resolved": []
+   },
+   "technical_debt": {
+    "added": [],
+    "removed": [],
+    "status": []
+   },
+   "pack_revision": {
+    "from": "195fbb98741d71aae1d1410f7d6391da60e9916977812651b9243c84dace70db",
+    "to": null
+   },
+   "pack": "removed",
+   "pack_revised": false,
+   "restamped": [],
+   "changed": true,
+   "action_required": true
+  }
+ ]
+}
