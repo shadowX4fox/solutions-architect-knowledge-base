@@ -1,8 +1,4 @@
-<p align="center"><img src="docs/images/brand/escudo.svg" alt="Alia's escudo" width="96"></p>
-
-<h1 align="center">Alia — the architecture MCP server</h1>
-
-**Your architecture, served to every developer's IDE: ask it while you work, build a component from its spec, escalate what needs an architect.**
+<h1 align="center"><img src="docs/images/brand/server-hero.webp" alt="Alia — the architecture MCP server: your architecture, served to every developer's IDE." width="100%"></h1>
 
 [![ci](https://github.com/shadowX4fox/solutions-architect-knowledge-base/actions/workflows/ci.yml/badge.svg)](https://github.com/shadowX4fox/solutions-architect-knowledge-base/actions/workflows/ci.yml)
 [![Image](https://img.shields.io/badge/image-ghcr.io%2Fshadowx4fox%2Falia--mcp--server-0C9DA3.svg)](https://github.com/shadowX4fox/solutions-architect-knowledge-base/pkgs/container/alia-mcp-server)
@@ -509,8 +505,8 @@ your Ollama and Qdrant.
 
 [MIT](LICENSE) © 2026 shadowx4fox.
 
-Alia's escudo (`docs/images/brand/`, `src/main/resources/alia/`) is the companion plugin's, MIT like the rest, and drawn
-as is: its rules are in the plugin's [`brand/alia/`](https://github.com/shadowX4fox/solutions-architect-skills/tree/main/brand/alia).
+Alia's banner (`docs/images/brand/server-hero.webp`) and escudo (`src/main/resources/alia/escudo.svg`) are the companion
+plugin's, MIT like the rest, and drawn as is: their rules are in the plugin's [`brand/alia/`](https://github.com/shadowX4fox/solutions-architect-skills/tree/main/brand/alia).
 It is Alia's, never an organization's: a deployment that shows its own brand sets `ARCHINDEX_ICON`.
 
 Dependencies, container images and the embedding model carry their own licenses: Spring Boot and Spring AI (Apache 2.0),
