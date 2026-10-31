@@ -1,15 +1,13 @@
-# Alia — the architecture MCP server
-
-**Your architecture, served to every developer's IDE: ask it while you work, build a component from its spec, escalate what needs an architect.**
+<h1 align="center"><img src="docs/images/brand/server-hero.webp" alt="Alia — the architecture MCP server: your architecture, served to every developer's IDE." width="100%"></h1>
 
 [![ci](https://github.com/shadowX4fox/solutions-architect-knowledge-base/actions/workflows/ci.yml/badge.svg)](https://github.com/shadowX4fox/solutions-architect-knowledge-base/actions/workflows/ci.yml)
-[![Image](https://img.shields.io/badge/image-ghcr.io%2Fshadowx4fox%2Falia--mcp--server-2496ed.svg)](https://github.com/shadowX4fox/solutions-architect-knowledge-base/pkgs/container/alia-mcp-server)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Java 21](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/projects/jdk/21/)
-[![Spring Boot 4.1](https://img.shields.io/badge/Spring%20Boot-4.1-6db33f.svg)](https://spring.io/projects/spring-boot)
-[![MCP](https://img.shields.io/badge/MCP-Streamable%20HTTP-purple.svg)](https://modelcontextprotocol.io)
-[![Companion plugin](https://img.shields.io/badge/companion-solutions--architect--skills-blue.svg)](https://github.com/shadowX4fox/solutions-architect-skills)
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
+[![Image](https://img.shields.io/badge/image-ghcr.io%2Fshadowx4fox%2Falia--mcp--server-0C9DA3.svg)](https://github.com/shadowX4fox/solutions-architect-knowledge-base/pkgs/container/alia-mcp-server)
+[![License: MIT](https://img.shields.io/badge/license-MIT-0A7177.svg)](LICENSE)
+[![Java 21](https://img.shields.io/badge/Java-21-1B1F24.svg)](https://openjdk.org/projects/jdk/21/)
+[![Spring Boot 4.1](https://img.shields.io/badge/Spring%20Boot-4.1-1B1F24.svg)](https://spring.io/projects/spring-boot)
+[![MCP](https://img.shields.io/badge/MCP-Streamable%20HTTP-1B1F24.svg)](https://modelcontextprotocol.io)
+[![Companion plugin](https://img.shields.io/badge/companion-solutions--architect--skills-0C9DA3.svg)](https://github.com/shadowX4fox/solutions-architect-skills)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-1B7148.svg)](#contributing)
 
 A developer adds one remote MCP server to VS Code, JetBrains, Claude Code or any MCP client. From then on, their coding
 agent can ask the architecture *why* a call is asynchronous, list *exactly* what talks to a service, read a whole ADR, and
@@ -40,8 +38,8 @@ flowchart LR
     server --> disk
     ide <-->|"MCP · Streamable HTTP /mcp"| server
 
-    classDef store fill:#eef6ff,stroke:#2f6fb3,color:#123
-    classDef core fill:#fff4e5,stroke:#d9822b,color:#321,stroke-width:2px
+    classDef store fill:#15222A,stroke:#0C9DA3,color:#C9D1D9
+    classDef core fill:#0D1418,stroke:#2EE6E6,color:#C9D1D9,stroke-width:2px
     class qdrant,disk store
     class server core
 ```
@@ -381,6 +379,7 @@ Linux package does not ship (checked with Ollama 0.40.4).
 | `ARCHINDEX_INGEST_TOKEN` | unset (open, warned) | bearer token for `/bundles/**` |
 | `ARCHINDEX_MCP_TOKEN` | unset (open, warned) | bearer token for `/mcp` and `/packs/**` |
 | `ARCHINDEX_PUBLIC_URL` | unset (no `download_url`) | the base the IDE reaches the server at, e.g. `https://alia-mcp.internal` |
+| `ARCHINDEX_ICON` | Alia's escudo | the icon MCP clients show for the server (`serverInfo.icons`): a deployment's own URL or `data:` URI, or `none` |
 | `ARCHINDEX_DATA_DIR` | `data` | bundles on disk; shared by every instance |
 | `ARCHINDEX_ROLE` | `all` | `all`: publishes, indexes and answers · `reader`: answers only, follows the writer; needs `qdrant` |
 | `ARCHINDEX_REFRESH_INTERVAL` | `5s` | how often a reader looks for the writer's publishes |
@@ -505,6 +504,10 @@ your Ollama and Qdrant.
 ## License
 
 [MIT](LICENSE) © 2026 shadowx4fox.
+
+Alia's banner (`docs/images/brand/server-hero.webp`) and escudo (`src/main/resources/alia/escudo.svg`) are the companion
+plugin's, MIT like the rest, and drawn as is: their rules are in the plugin's [`brand/alia/`](https://github.com/shadowX4fox/solutions-architect-skills/tree/main/brand/alia).
+It is Alia's, never an organization's: a deployment that shows its own brand sets `ARCHINDEX_ICON`.
 
 Dependencies, container images and the embedding model carry their own licenses: Spring Boot and Spring AI (Apache 2.0),
 the Qdrant client and Qdrant (Apache 2.0), Ollama (MIT), Qwen3-Embedding (Apache 2.0).
