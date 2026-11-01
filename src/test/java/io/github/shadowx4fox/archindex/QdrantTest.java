@@ -51,15 +51,17 @@ class QdrantTest {
 			BundleStore s = new BundleStore(tmp.resolve("data"), 50_000_000);
 			s.publish("order-desk", "1.4.0", "draft", new ByteArrayInputStream(Fixtures.tgz(Fixtures.bundle("draft"))));
 			reconcile(s, index);
-			assertThat(index.count("order-desk", "draft")).isEqualTo(23);
+			// the fixture's own chunk count: it moves when the fixtures are regenerated
+			long chunks = s.resolve("order-desk", "draft").orElseThrow().chunks().size();
+			assertThat(index.count("order-desk", "draft")).isEqualTo(chunks);
 			index.upsert(List.of(new VectorIndex.Point(UUID.randomUUID().toString(), Fixtures.HashingEmbeddingModel.vector("gone"),
 					new SparseEncoder().document("gone"), Map.of("project", "order-desk", "slot", "draft", "chunk_id", "gone"))));
-			assertThat(index.count("order-desk", "draft")).isEqualTo(24);
+			assertThat(index.count("order-desk", "draft")).isEqualTo(chunks + 1);
 			seen.clear();
 			index.unmarkSlot("order-desk", "draft");   // as before marks: the draft is indexed again
 			reconcile(s, index);
-			assertThat(seen).isNotEmpty().allSatisfy((n) -> assertThat(n).isGreaterThanOrEqualTo(23));
-			assertThat(index.count("order-desk", "draft")).isEqualTo(23);
+			assertThat(seen).isNotEmpty().allSatisfy((n) -> assertThat(n).isGreaterThanOrEqualTo(chunks));
+			assertThat(index.count("order-desk", "draft")).isEqualTo(chunks);
 			// the writer marked the slot with its chunk set: a restart writes nothing, a reader takes it as ready
 			String sig = s.resolve("order-desk", "draft").orElseThrow().chunkSignature();
 			assertThat(index.slotSignature("order-desk", "draft")).contains(sig);
