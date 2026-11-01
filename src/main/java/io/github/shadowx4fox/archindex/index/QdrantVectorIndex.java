@@ -35,21 +35,22 @@ import io.qdrant.client.grpc.Collections.VectorParamsMap;
 import io.qdrant.client.grpc.Collections.VectorsConfig;
 import io.qdrant.client.grpc.Common.Filter;
 import io.qdrant.client.grpc.JsonWithInt.Value;
-import io.qdrant.client.grpc.Points.Rrf;
 import io.qdrant.client.grpc.Points.PointStruct;
-import io.qdrant.client.grpc.Points.PrefetchQuery;
+import io.qdrant.client.grpc.Points.BatchResult;
+import io.qdrant.client.grpc.Points.IdfParams;
 import io.qdrant.client.grpc.Points.QueryPoints;
 import io.qdrant.client.grpc.Points.RetrievedPoint;
 import io.qdrant.client.grpc.Points.ScoredPoint;
 import io.qdrant.client.grpc.Points.ScrollPoints;
 import io.qdrant.client.grpc.Points.ScrollResponse;
+import io.qdrant.client.grpc.Points.SearchParams;
 import io.qdrant.client.grpc.Points.VectorOutput;
 
 /**
  * Qdrant over gRPC. One collection for every project: a named dense vector ({@code dense}, cosine) and a named sparse
  * vector ({@code sparse}, Qdrant's {@code idf} modifier); keyword payload indexes on the fields every query filters
- * by. A search is two prefetches under the same filter, fused by reciprocal rank — Spring AI's QdrantVectorStore is
- * dense only, so this class speaks to the client directly.
+ * by. A search returns the two candidate lists, which {@link Fusion} fuses — Spring AI's QdrantVectorStore is dense
+ * only, so this class speaks to the client directly.
  */
 public class QdrantVectorIndex implements VectorIndex, AutoCloseable {
 
@@ -250,13 +251,18 @@ public class QdrantVectorIndex implements VectorIndex, AutoCloseable {
 		return Filter.newBuilder().addMust(matchKeyword("project", project)).addMust(matchKeyword("slot", slot)).build();
 	}
 
+	/**
+	 * Both lists in one batch, under the same filter. The sparse query takes its inverse document frequency over the
+	 * scopes ({@code idf.corpus}), as the memory engine does, not over the whole collection.
+	 */
 	@Override
-	public List<Hit> search(Query q) {
+	public Candidates candidates(Query q) {
 		Filter.Builder scopes = Filter.newBuilder();
 		for (Scope s : q.scopes()) {
 			scopes.addShould(io.qdrant.client.ConditionFactory.filter(slotFilter(s.project(), s.slot())));
 		}
-		Filter.Builder f = Filter.newBuilder().addMust(io.qdrant.client.ConditionFactory.filter(scopes.build()));
+		Filter inScope = Filter.newBuilder().addMust(io.qdrant.client.ConditionFactory.filter(scopes.build())).build();
+		Filter.Builder f = inScope.toBuilder();
 		if (q.kinds() != null && !q.kinds().isEmpty()) {
 			f.addMust(matchKeywords("kind", q.kinds()));
 		}
@@ -264,32 +270,40 @@ public class QdrantVectorIndex implements VectorIndex, AutoCloseable {
 			f.addMust(matchKeyword("components", q.component()));
 		}
 		Filter filter = f.build();
-		QueryPoints.Builder req = QueryPoints.newBuilder()
+		var payload = WithPayloadSelectorFactory.include(List.of("chunk_id", "project", "slot"));
+		List<QueryPoints> batch = new ArrayList<>();
+		batch.add(QueryPoints.newBuilder()
 			.setCollectionName(collection)
-			.addPrefetch(PrefetchQuery.newBuilder()
-				.setQuery(QueryFactory.nearest(q.dense()))
-				.setUsing(DENSE)
-				.setFilter(filter)
-				.setLimit(q.candidates()));
+			.setQuery(QueryFactory.nearest(q.dense()))
+			.setUsing(DENSE)
+			.setFilter(filter)
+			.setLimit(q.candidates())
+			.setWithPayload(payload)
+			.build());
 		if (!q.sparse().isEmpty()) {
-			req.addPrefetch(PrefetchQuery.newBuilder()
+			batch.add(QueryPoints.newBuilder()
+				.setCollectionName(collection)
 				.setQuery(QueryFactory.nearest(boxed(q.sparse().values()), boxed(q.sparse().indices())))
 				.setUsing(SPARSE)
 				.setFilter(filter)
-				.setLimit(q.candidates()));
+				.setParams(SearchParams.newBuilder().setIdf(IdfParams.newBuilder().setCorpus(inScope)))
+				.setLimit(q.candidates())
+				.setWithPayload(payload)
+				.build());
 		}
-		Rrf.Builder rrf = Rrf.newBuilder().setK(60).addWeights(1f);
-		if (!q.sparse().isEmpty()) {
-			rrf.addWeights((float) q.sparseWeight());
-		}
-		req.setQuery(QueryFactory.rrf(rrf.build()))
-			.setLimit(q.limit())
-			.setWithPayload(WithPayloadSelectorFactory.include(List.of("chunk_id", "project", "slot")));
+		List<BatchResult> lists = get(client.queryBatchAsync(collection, batch));
+		return new Candidates(hits(lists.get(0), false), lists.size() > 1 ? hits(lists.get(1), true) : List.of());
+	}
+
+	/** {@code shared}: only points sharing a term with the query, as the memory engine's sparse list. */
+	private static List<Hit> hits(BatchResult r, boolean shared) {
 		List<Hit> out = new ArrayList<>();
-		for (ScoredPoint p : get(client.queryAsync(req.build()))) {
-			Map<String, Value> pl = p.getPayloadMap();
-			out.add(new Hit(pl.get("chunk_id").getStringValue(), pl.get("project").getStringValue(),
-					pl.get("slot").getStringValue(), p.getScore()));
+		for (ScoredPoint p : r.getResultList()) {
+			if (!shared || p.getScore() > 0) {
+				Map<String, Value> pl = p.getPayloadMap();
+				out.add(new Hit(pl.get("chunk_id").getStringValue(), pl.get("project").getStringValue(),
+						pl.get("slot").getStringValue(), p.getScore()));
+			}
 		}
 		return out;
 	}

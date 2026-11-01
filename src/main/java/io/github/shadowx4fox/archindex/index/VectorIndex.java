@@ -19,11 +19,16 @@ public interface VectorIndex {
 	record Scope(String project, String slot) {
 	}
 
-	record Query(float[] dense, SparseVec sparse, List<Scope> scopes, List<String> kinds, String component, int limit,
-			int candidates, double sparseWeight) {
+	/** The query's two vectors, the scopes and filters, and how many points each candidate list holds at most. */
+	record Query(float[] dense, SparseVec sparse, List<Scope> scopes, List<String> kinds, String component, int candidates) {
 	}
 
+	/** A point found: in a candidate list, the engine's score; out of {@link Fusion}, the fused one. */
 	record Hit(String chunkId, String project, String slot, double score) {
+	}
+
+	/** The two lists, each best first by the engine's own score; the order among equal scores is the engine's. */
+	record Candidates(List<Hit> dense, List<Hit> sparse) {
 	}
 
 	/** Creates the collection and its payload indexes when missing. */
@@ -49,8 +54,14 @@ public interface VectorIndex {
 
 	long count(String project, String slot);
 
-	/** Dense and sparse candidates under the scopes and filters, fused by weighted reciprocal rank (dense 1, sparse {@code sparseWeight}). */
-	List<Hit> search(Query query);
+	/**
+	 * The dense and sparse candidates under the scopes and filters: dense by cosine; sparse by the dot product weighted
+	 * by inverse document frequency, the frequencies taken over the scopes, and only points sharing a term with the
+	 * query. An engine never fuses them: {@link Fusion} does, the same for every engine, and {@code VectorIndexContract}
+	 * holds each engine to the memory engine's ranking. Where the cut at {@code candidates} splits a run of equal scores,
+	 * which of its points a list keeps is the engine's own order.
+	 */
+	Candidates candidates(Query query);
 
 	/**
 	 * Whether the points outlive the process. At start the indexer takes a released slot a persistent store already

@@ -1,11 +1,9 @@
 package io.github.shadowx4fox.archindex.index;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -16,12 +14,11 @@ import io.github.shadowx4fox.archindex.bundle.J;
 import io.github.shadowx4fox.archindex.index.SparseEncoder.SparseVec;
 
 /**
- * Brute force in process — development and tests. The same contract as Qdrant: cosine on the dense vector, a sparse
- * dot product weighted by inverse document frequency, reciprocal rank fusion of the two candidate lists.
+ * Brute force in process — development and tests. The same candidate lists as Qdrant: cosine on the dense vector, a
+ * sparse dot product weighted by inverse document frequency over the points in scope ({@code ln(1 + (n − df + 0.5) /
+ * (df + 0.5))}, Qdrant's {@code idf} modifier).
  */
 public class MemoryVectorIndex implements VectorIndex {
-
-	private static final int RRF_K = 60;
 
 	protected final Map<String, Point> points = new ConcurrentHashMap<>();
 
@@ -85,7 +82,7 @@ public class MemoryVectorIndex implements VectorIndex {
 	}
 
 	@Override
-	public List<Hit> search(Query q) {
+	public Candidates candidates(Query q) {
 		List<Point> pool = points.values().stream().filter((p) -> matches(p, q)).toList();
 		Map<Integer, Integer> df = new HashMap<>();
 		for (Point p : pool) {
@@ -94,33 +91,23 @@ public class MemoryVectorIndex implements VectorIndex {
 			}
 		}
 		int n = pool.size();
-		List<Point> byDense = pool.stream()
-			.sorted(Comparator.comparingDouble((Point p) -> -cosine(q.dense(), p.dense())))
+		// hits made from the pooled points: the indexer may remove one from the map while this search runs
+		List<Hit> dense = pool.stream()
+			.map((p) -> hit(p, cosine(q.dense(), p.dense())))
+			.sorted(Comparator.comparingDouble((Hit h) -> -h.score()))
 			.limit(q.candidates())
 			.toList();
-		List<Map.Entry<Point, Double>> sparse = new ArrayList<>();
-		for (Point p : pool) {
-			double s = sparseScore(q.sparse(), p.sparse(), df, n);
-			if (s > 0) {
-				sparse.add(Map.entry(p, s));
-			}
-		}
-		sparse.sort(Map.Entry.<Point, Double>comparingByValue().reversed());
-		// keyed by the pooled point itself: the indexer may remove it from the map while this search runs
-		Map<Point, Double> fused = new IdentityHashMap<>();
-		for (int r = 0; r < byDense.size(); r++) {
-			fused.merge(byDense.get(r), 1.0 / (RRF_K + r + 1), Double::sum);
-		}
-		for (int r = 0; r < Math.min(sparse.size(), q.candidates()); r++) {
-			fused.merge(sparse.get(r).getKey(), q.sparseWeight() / (RRF_K + r + 1), Double::sum);
-		}
-		return fused.entrySet()
-			.stream()
-			.sorted(Map.Entry.<Point, Double>comparingByValue().reversed())
-			.limit(q.limit())
-			.map((e) -> new Hit(J.str(e.getKey().payload(), "chunk_id"), J.str(e.getKey().payload(), "project"),
-					J.str(e.getKey().payload(), "slot"), e.getValue()))
+		List<Hit> sparse = pool.stream()
+			.map((p) -> hit(p, sparseScore(q.sparse(), p.sparse(), df, n)))
+			.filter((h) -> h.score() > 0)
+			.sorted(Comparator.comparingDouble((Hit h) -> -h.score()))
+			.limit(q.candidates())
 			.toList();
+		return new Candidates(dense, sparse);
+	}
+
+	private static Hit hit(Point p, double score) {
+		return new Hit(J.str(p.payload(), "chunk_id"), J.str(p.payload(), "project"), J.str(p.payload(), "slot"), score);
 	}
 
 	private static boolean matches(Point p, Query q) {

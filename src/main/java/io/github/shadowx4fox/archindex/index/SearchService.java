@@ -15,9 +15,9 @@ import io.github.shadowx4fox.archindex.mcp.ToolException;
 
 /**
  * Ranked search over the chunks: the query embedded with the model's query prompt and encoded sparse, both searched
- * under the same scope (a project's version, or the latest released version of every project), fused by reciprocal
- * rank. Each hit returns where it comes from — file, lines, anchor, version — so the agent can cite it or open the
- * whole chunk.
+ * under the same scope (a project's version, or the latest released version of every project), and the engine's two
+ * candidate lists fused here by weighted reciprocal rank ({@link Fusion}), whatever the engine. Each hit returns where
+ * it comes from — file, lines, anchor, version — so the agent can cite it or open the whole chunk.
  */
 public class SearchService {
 
@@ -91,8 +91,9 @@ public class SearchService {
 		out.put("query", query);
 		List<Map<String, Object>> hits = new ArrayList<>();
 		if (!ready.isEmpty()) {
-			List<VectorIndex.Hit> raw = index.search(new VectorIndex.Query(embedder.query(query), sparse.query(query), ready,
-					kinds, slug, k, Math.max(cfg.candidates(), k), cfg.sparseWeight()));
+			VectorIndex.Candidates found = index.candidates(new VectorIndex.Query(embedder.query(query), sparse.query(query),
+					ready, kinds, slug, Math.max(cfg.candidates(), k)));
+			List<VectorIndex.Hit> raw = Fusion.rrf(found, cfg.sparseWeight(), k);
 			for (VectorIndex.Hit h : raw) {
 				Bundle b = bundles.store().resolve(h.project(), h.slot()).orElse(null);
 				Chunk c = b == null ? null : b.chunk(h.chunkId()).orElse(null);

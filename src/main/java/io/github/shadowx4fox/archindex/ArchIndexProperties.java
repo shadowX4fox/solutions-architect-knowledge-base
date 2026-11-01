@@ -31,7 +31,7 @@ public record ArchIndexProperties(Path dataDir, String ingestToken, String mcpTo
 
 	public enum Store {
 
-		/** Qdrant over gRPC: dense + sparse named vectors, fused by RRF. */
+		/** Qdrant over gRPC: dense + sparse named vectors. */
 		QDRANT,
 		/** In process, brute force, kept in one file: a single machine without Qdrant. Re-embeds nothing at start. */
 		FILE,
