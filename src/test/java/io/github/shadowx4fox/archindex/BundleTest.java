@@ -21,6 +21,7 @@ import io.github.shadowx4fox.archindex.bundle.Semver;
 import io.github.shadowx4fox.archindex.changes.BundleDiff;
 import io.github.shadowx4fox.archindex.index.Embedder;
 import io.github.shadowx4fox.archindex.index.FileVectorIndex;
+import io.github.shadowx4fox.archindex.index.Fusion;
 import io.github.shadowx4fox.archindex.index.Indexer;
 import io.github.shadowx4fox.archindex.index.SparseEncoder;
 import io.github.shadowx4fox.archindex.index.VectorIndex;
@@ -402,8 +403,8 @@ class BundleTest {
 		assertThat(again.count("order-desk", "1.3.0")).isEqualTo(first.count("order-desk", "1.3.0"));
 		var q = new VectorIndex.Query(Fixtures.HashingEmbeddingModel.vector("ledger store"),
 				new SparseEncoder().query("ledger store"), List.of(new VectorIndex.Scope("order-desk", "1.3.0")), null,
-				null, 5, 50, 0.3);
-		assertThat(again.search(q)).isEqualTo(first.search(q));
+				null, 50);
+		assertThat(Fusion.rrf(again.candidates(q), 0.3, 5)).isEqualTo(Fusion.rrf(first.candidates(q), 0.3, 5));
 		assertThatThrownBy(() -> new FileVectorIndex(file, 768).ensure()).hasMessageContaining("1024-dimension");
 	}
 

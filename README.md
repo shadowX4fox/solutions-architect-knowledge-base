@@ -224,8 +224,11 @@ sha256sum architecture/openapi.yaml
   re-embeds only what it changed.
 - Indexing runs on one background thread. `search_architecture` reports a slot not ready yet, while the ledger and
   build-pack tools answer for it at once.
-- The fusion weighs the dense list 1 and the sparse list `ARCHINDEX_SPARSE_WEIGHT` (0.3): at equal weight the exact-term
-  list cost ordinary questions their best hit; at 0.3 identifiers still come first ([eval/README.md](eval/README.md)).
+- An engine returns two candidate lists, dense by cosine and sparse weighted by inverse document frequency over the
+  scope searched; the server fuses them, the same for every engine, by weighted reciprocal rank (k 60), equal scores
+  sharing a rank. It weighs the dense list 1 and the sparse list `ARCHINDEX_SPARSE_WEIGHT` (0.3): at equal weight the
+  exact-term list cost ordinary questions their best hit; at 0.3 identifiers still come first
+  ([eval/README.md](eval/README.md)).
 - Embedding prompts are the model's: Qwen3-Embedding takes an instruction on the query and nothing on documents.
 - The context window Ollama reads (`ARCHINDEX_EMBEDDING_CONTEXT`, 8192) is sent on every request: without it Ollama
   loads the model at 4096 and cuts a long chunk silently.
@@ -321,7 +324,9 @@ repository's `.architecture.json` (plugin v10.10.0), and its agent passes `super
 | `file` | one file, `<data-dir>/index/vectors-<dimensions>.bin` | read from the file | one machine, local runs |
 | `memory` | the process | everything re-embedded | tests and throwaway runs |
 
-`file` and `memory` search in process by brute force with the same fusion as Qdrant.
+`file` and `memory` search in process by brute force. Every engine ranks the same: each returns its two candidate lists
+and the server fuses them, and a contract suite (`VectorIndexContract`) holds each engine to the memory engine's ranking.
+A new engine is a `VectorIndex` and a subclass of that suite.
 
 ```bash
 docker compose -f deploy/compose.yaml up -d                              # Qdrant engine: server, qdrant, ollama

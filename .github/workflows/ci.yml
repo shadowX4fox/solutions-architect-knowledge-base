@@ -21,6 +21,14 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+    # the engine contract runs against Qdrant too: the version deploy/compose.yaml runs
+    services:
+      qdrant:
+        image: qdrant/qdrant:v1.19.2
+        ports: ["6334:6334"]
+    env:
+      QDRANT_TEST_HOST: localhost
+      QDRANT_TEST_PORT: "6334"
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
@@ -28,7 +36,7 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: maven
-      # every test; QdrantTest is skipped without QDRANT_TEST_HOST
+      # every test, QdrantVectorIndexTest against the service above
       - run: ./mvnw -B -ntp verify
       - if: failure()
         uses: actions/upload-artifact@v7
